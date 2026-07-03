@@ -9,6 +9,8 @@ tokio-tungstenite = "0.22"
 futures-util = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+axum = { version = "0.7", features = ["json", "http1", "tokio"] }
+hyper = { version = "1.1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter", "ansi", "local-time"] }
 tracing-appender = "0.2"
