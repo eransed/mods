@@ -1,4 +1,5 @@
 use futures_util::{SinkExt, StreamExt};
+use serde::Deserialize;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -11,7 +12,45 @@ use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tracing::{error, info};
 
-use crate::config::Message;
+use crate::message::{Message, TopicMessage};
+
+#[derive(Debug, Deserialize)]
+struct IncomingTopicMessage {
+    topic: String,
+    timestamp: u64,
+}
+
+fn parse_incoming_message(text: &str) -> Option<Message> {
+    serde_json::from_str::<IncomingTopicMessage>(text)
+        .ok()
+        .and_then(|message| match message.topic.as_str() {
+            "ping" => Some(Message::Ping {
+                sender: "ws_client",
+                timestamp: message.timestamp,
+            }),
+            "pong" => Some(Message::Pong {
+                sender: "ws_client",
+                timestamp: message.timestamp,
+            }),
+            _ => None,
+        })
+}
+
+fn encode_topic_message(message: &Message) -> Option<String> {
+    match message {
+        Message::Pong { sender, timestamp } => serde_json::to_string(&TopicMessage {
+            topic: "pong".to_string(),
+            timestamp: *timestamp,
+        })
+        .ok()
+        .map(|json| {
+            let mut value: serde_json::Value = serde_json::from_str(&json).unwrap();
+            value["sender"] = serde_json::Value::String(sender.to_string());
+            value.to_string()
+        }),
+        _ => None,
+    }
+}
 
 pub struct WsServer {
     name: &'static str,
@@ -34,13 +73,34 @@ impl WsServer {
 
         let clients = self.clients.clone();
         let mut receiver = self.sender.subscribe();
+        let broadcast_sender = self.sender.clone();
 
         tokio::spawn(async move {
-            while let Ok(Message::Broadcast { sender, body }) = receiver.recv().await {
-                let text = format!("{sender}: {body}");
-                info!(%sender, %text, "ws_server broadcasting internal message");
-                let mut clients = clients.lock().await;
-                clients.retain(|client| client.send(WsMessage::Text(text.clone())).is_ok());
+            while let Ok(message) = receiver.recv().await {
+                match message {
+                    Message::Broadcast { sender, body } => {
+                        let text = format!("{sender}: {body}");
+                        info!(%sender, %text, "ws_server broadcasting internal message");
+                        let mut clients = clients.lock().await;
+                        clients.retain(|client| client.send(WsMessage::Text(text.clone())).is_ok());
+                    }
+                    Message::Pong { sender, timestamp } => {
+                        if let Some(text) =
+                            encode_topic_message(&Message::Pong { sender, timestamp })
+                        {
+                            let mut clients = clients.lock().await;
+                            clients.retain(|client| {
+                                client.send(WsMessage::Text(text.clone())).is_ok()
+                            });
+                        }
+                    }
+                    Message::Ping { timestamp, .. } => {
+                        let _ = broadcast_sender.send(Message::Pong {
+                            sender: "ws_server",
+                            timestamp,
+                        });
+                    }
+                }
             }
         });
 
@@ -76,12 +136,17 @@ impl WsServer {
                 while let Some(message_result) = read.next().await {
                     match message_result {
                         Ok(WsMessage::Text(text)) => {
-                            let broadcast_message = Message::Broadcast {
-                                sender: name,
-                                body: text.clone(),
-                            };
-                            let _ = sender.send(broadcast_message);
-                            info!(text = %text, "ws_server received websocket text");
+                            if let Some(message) = parse_incoming_message(&text) {
+                                let _ = sender.send(message);
+                                info!(text = %text, "ws_server received websocket topic message");
+                            } else {
+                                let broadcast_message = Message::Broadcast {
+                                    sender: name,
+                                    body: text.clone(),
+                                };
+                                let _ = sender.send(broadcast_message);
+                                info!(text = %text, "ws_server received websocket text");
+                            }
                         }
                         Ok(WsMessage::Close(_)) => {
                             info!("ws_server websocket client disconnected");
@@ -109,5 +174,36 @@ impl WsServer {
 impl Drop for WsServer {
     fn drop(&mut self) {
         info!("ws_server dropping and shutting down");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{encode_topic_message, parse_incoming_message};
+    use crate::message::Message;
+
+    #[test]
+    fn parses_ping_payloads_from_json() {
+        let message = parse_incoming_message(r#"{"topic":"ping","timestamp":42}"#);
+        assert_eq!(
+            message,
+            Some(Message::Ping {
+                sender: "ws_client",
+                timestamp: 42,
+            })
+        );
+    }
+
+    #[test]
+    fn encodes_pong_payloads_for_clients() {
+        let encoded = encode_topic_message(&Message::Pong {
+            sender: "ws_server",
+            timestamp: 84,
+        });
+
+        let value: serde_json::Value = serde_json::from_str(encoded.as_deref().unwrap()).unwrap();
+        assert_eq!(value["topic"], "pong");
+        assert_eq!(value["timestamp"], 84);
+        assert_eq!(value["sender"], "ws_server");
     }
 }

@@ -1,6 +1,7 @@
 mod config;
 mod http;
 mod logging;
+mod message;
 mod ws_client;
 mod ws_server;
 

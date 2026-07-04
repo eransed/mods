@@ -5,16 +5,22 @@ use axum::{
     response::IntoResponse,
     routing::{get, post},
 };
-use std::net::SocketAddr;
+use std::{
+    collections::HashMap,
+    net::SocketAddr,
+    time::{Duration, Instant},
+};
 use tokio::net::TcpListener;
 use tokio::sync::{
     broadcast::Sender as BroadcastSender, mpsc::UnboundedSender, watch::Sender as WatchSender,
 };
 use tracing::info;
 
-use crate::config::{Config, ConfigRequest, Message};
+use crate::{
+    config::{Config, ConfigRequest},
+    message::Message,
+};
 
-#[derive(Clone)]
 pub struct HttpModule {
     name: &'static str,
     sender: BroadcastSender<Message>,
@@ -38,6 +44,24 @@ impl HttpModule {
     }
 
     pub async fn run(self, addr: SocketAddr) -> std::io::Result<()> {
+        let sender = self.sender.clone();
+        let mut receiver = sender.subscribe();
+        tokio::spawn(async move {
+            while let Ok(message) = receiver.recv().await {
+                if let Message::Ping {
+                    sender: origin,
+                    timestamp,
+                } = message
+                {
+                    let _ = sender.send(Message::Pong {
+                        sender: self.name,
+                        timestamp,
+                    });
+                    let _ = origin;
+                }
+            }
+        });
+
         let state = HttpState {
             name: self.name,
             sender: self.sender.clone(),
@@ -49,6 +73,7 @@ impl HttpModule {
             .route("/send", get(send_handler))
             .route("/shutdown", get(shutdown_handler))
             .route("/config", get(config_handler))
+            .route("/ping", get(ping_handler))
             .route("/reset_config", get(reset_config_handler))
             .route("/set_config", post(set_config_handler))
             .with_state(state);
@@ -133,6 +158,42 @@ async fn reset_config_handler(State(state): State<HttpState>) -> impl IntoRespon
         },
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config request failed").into_response(),
     }
+}
+
+async fn ping_handler(State(state): State<HttpState>) -> impl IntoResponse {
+    let started_at = Instant::now();
+    let timestamp = started_at.elapsed().as_micros() as u64;
+    let _ = state.sender.send(Message::Ping {
+        sender: state.name,
+        timestamp,
+    });
+
+    let mut latencies = HashMap::new();
+    let mut receiver = state.sender.subscribe();
+    let mut total_latency = 0u64;
+    let deadline = tokio::time::Instant::now() + Duration::from_millis(200);
+
+    while tokio::time::Instant::now() < deadline {
+        match tokio::time::timeout_at(deadline, receiver.recv()).await {
+            Ok(Ok(Message::Pong {
+                sender,
+                timestamp: pong_timestamp,
+            })) => {
+                let latency_us = started_at.elapsed().as_micros() as u64 - pong_timestamp;
+                latencies.insert(sender.to_string() + "_us", latency_us);
+                total_latency = total_latency.saturating_add(latency_us);
+            }
+            Ok(Ok(_)) => {}
+            Ok(Err(_)) | Err(_) => break,
+        }
+    }
+
+    let response = serde_json::json!({
+        "latencies": latencies,
+        "total_latency_us": total_latency,
+    });
+
+    (StatusCode::OK, Json(response)).into_response()
 }
 
 impl Drop for HttpModule {
@@ -252,6 +313,18 @@ mod tests {
         assert!(response.status().is_success());
         let config: Config = response.json().await.unwrap();
         assert_eq!(config, Config::default());
+
+        handle.abort();
+    }
+
+    #[tokio::test]
+    async fn ping_endpoint_returns_json_latency_map() {
+        let (addr, handle) = spawn_http_module().await;
+        let response = reqwest::get(format!("http://{addr}/ping")).await.unwrap();
+
+        assert!(response.status().is_success());
+        let body: serde_json::Value = response.json().await.unwrap();
+        assert!(body.is_object());
 
         handle.abort();
     }

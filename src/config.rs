@@ -1,3 +1,4 @@
+use crate::message::Message;
 use serde::{Deserialize, Serialize};
 use std::{
     env, fs,
@@ -24,11 +25,6 @@ impl Default for Config {
     }
 }
 
-#[derive(Clone)]
-pub enum Message {
-    Broadcast { sender: &'static str, body: String },
-}
-
 pub enum ConfigRequest {
     GetConfig {
         requester: &'static str,
@@ -47,6 +43,7 @@ pub enum ConfigRequest {
 
 pub struct ConfigModule {
     receiver: Receiver<Message>,
+    sender: Sender<Message>,
     request_receiver: UnboundedReceiver<ConfigRequest>,
     config: Config,
 }
@@ -107,6 +104,7 @@ impl ConfigModule {
         let config = load_config_from_path(&config_path());
         Self {
             receiver,
+            sender: sender.clone(),
             request_receiver,
             config,
         }
@@ -146,6 +144,16 @@ impl ConfigModule {
                 result = self.receiver.recv() => match result {
                     Ok(Message::Broadcast { sender, body }) => {
                         info!(sender, body, "config broadcast received");
+                    }
+                    Ok(Message::Ping { timestamp, sender }) => {
+                        info!(timestamp, "config ping received from {}", sender);
+                        let _ = self.sender.send(Message::Pong {
+                            sender: "config",
+                            timestamp,
+                        });
+                    }
+                    Ok(Message::Pong { timestamp, sender }) => {
+                        info!(timestamp, "config pong received from {}", sender);
                     }
                     Err(_) => {
                         info!("config broadcast channel closed");
