@@ -8,7 +8,7 @@ use tokio::sync::{
     broadcast::{Receiver, Sender},
     mpsc::UnboundedReceiver,
 };
-use tracing::debug;
+use tracing::{debug, error, info, warn};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Config {
@@ -118,11 +118,11 @@ impl ConfigModule {
                 maybe_request = self.request_receiver.recv() => match maybe_request {
                     Some(request) => match request {
                         ConfigRequest::GetConfig { requester, response } => {
-                            debug!(requester, "config get config request");
+                            debug!(requester, "get config");
                             let _ = response.send(self.config.clone());
                         }
                         ConfigRequest::SetConfig { requester, config, response } => {
-                            debug!(requester, "config set config request");
+                            debug!(requester, "set config");
                             self.config = config.clone();
                             set_log_level(&self.config.log_level);
                             if let Err(err) = save_config_to_path(&self.config, &config_path()) {
@@ -131,7 +131,7 @@ impl ConfigModule {
                             let _ = response.send(self.config.clone());
                         }
                         ConfigRequest::ResetConfig { requester, response } => {
-                            debug!(requester, "config reset config request");
+                            debug!(requester, "reset config");
                             self.config = Config::default();
                             set_log_level(&self.config.log_level);
                             if let Err(err) = save_config_to_path(&self.config, &config_path()) {
@@ -141,39 +141,38 @@ impl ConfigModule {
                         }
                     },
                     None => {
-                        debug!("config request channel closed");
+                        warn!("request channel closed");
                         break;
                     }
                 },
                 result = self.receiver.recv() => match result {
                     Ok(Message::Broadcast { sender, body }) => {
-                        debug!(sender, body, "config broadcast received");
+                        debug!(sender, body, "broadcast received");
                     }
-                    Ok(Message::Ping { timestamp, sender }) => {
-                        debug!(timestamp, "config ping received from {}", sender);
+                    Ok(Message::Ping { sender }) => {
+                        debug!("ping received from {}", sender);
                         let _ = self.sender.send(Message::Pong {
                             sender: "config",
-                            timestamp,
                         });
                     }
-                    Ok(Message::Pong { timestamp, sender }) => {
-                        debug!(timestamp, "config pong received from {}", sender);
+                    Ok(Message::Pong { sender }) => {
+                        debug!("pong received from {}", sender);
                     }
                     Err(_) => {
-                        debug!("config broadcast channel closed");
+                        error!("broadcast channel closed");
                         break;
                     }
                 },
             }
         }
 
-        debug!("config shutting down");
+        warn!("shutting down");
     }
 }
 
 impl Drop for ConfigModule {
     fn drop(&mut self) {
-        debug!("config dropping and shutting down");
+        info!("dropping and shutting down");
     }
 }
 

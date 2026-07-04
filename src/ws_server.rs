@@ -17,7 +17,6 @@ use crate::message::{Message, TopicMessage};
 #[derive(Debug, Deserialize)]
 struct IncomingTopicMessage {
     topic: String,
-    timestamp: u64,
 }
 
 fn parse_incoming_message(text: &str) -> Option<Message> {
@@ -26,11 +25,9 @@ fn parse_incoming_message(text: &str) -> Option<Message> {
         .and_then(|message| match message.topic.as_str() {
             "ping" => Some(Message::Ping {
                 sender: "ws_client",
-                timestamp: message.timestamp,
             }),
             "pong" => Some(Message::Pong {
                 sender: "ws_client",
-                timestamp: message.timestamp,
             }),
             _ => None,
         })
@@ -38,9 +35,8 @@ fn parse_incoming_message(text: &str) -> Option<Message> {
 
 fn encode_topic_message(message: &Message) -> Option<String> {
     match message {
-        Message::Pong { sender, timestamp } => serde_json::to_string(&TopicMessage {
+        Message::Pong { sender } => serde_json::to_string(&TopicMessage {
             topic: "pong".to_string(),
-            timestamp: *timestamp,
         })
         .ok()
         .map(|json| {
@@ -84,9 +80,9 @@ impl WsServer {
                         let mut clients = clients.lock().await;
                         clients.retain(|client| client.send(WsMessage::Text(text.clone())).is_ok());
                     }
-                    Message::Pong { sender, timestamp } => {
+                    Message::Pong { sender } => {
                         if let Some(text) =
-                            encode_topic_message(&Message::Pong { sender, timestamp })
+                            encode_topic_message(&Message::Pong { sender })
                         {
                             let mut clients = clients.lock().await;
                             clients.retain(|client| {
@@ -94,12 +90,11 @@ impl WsServer {
                             });
                         }
                     }
-                    Message::Ping { timestamp, .. } => {
+                    Message::Ping { .. } => {
                         // sleep for 450 ms:
                         // tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                         let _ = broadcast_sender.send(Message::Pong {
                             sender: "ws_server",
-                            timestamp,
                         });
                     }
                 }
@@ -196,7 +191,6 @@ mod tests {
             message,
             Some(Message::Ping {
                 sender: "ws_client",
-                timestamp: 42,
             })
         );
     }
@@ -205,7 +199,6 @@ mod tests {
     fn encodes_pong_payloads_for_clients() {
         let encoded = encode_topic_message(&Message::Pong {
             sender: "ws_server",
-            timestamp: 84,
         });
 
         let value: serde_json::Value = serde_json::from_str(encoded.as_deref().unwrap()).unwrap();

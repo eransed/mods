@@ -52,12 +52,10 @@ impl HttpModule {
             while let Ok(message) = receiver.recv().await {
                 if let Message::Ping {
                     sender: origin,
-                    timestamp,
                 } = message
                 {
                     let _ = sender.send(Message::Pong {
                         sender: self.name,
-                        timestamp,
                     });
                     let _ = origin;
                 }
@@ -201,10 +199,8 @@ async fn ping_handler(
     );
 
     let ping_sent_time = Instant::now();
-    let timestamp = ping_sent_time.elapsed().as_micros() as u64;
     let _ = state.sender.send(Message::Ping {
         sender: state.name,
-        timestamp,
     });
 
     let mut latencies = HashMap::new();
