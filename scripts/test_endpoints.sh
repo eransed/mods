@@ -37,5 +37,51 @@ printf "\n"
 curl http://127.0.0.1:8080/ping
 printf "\n"
 
-curl http://127.0.0.1:8080/shutdown
+curl http://127.0.0.1:8080/ping
 printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+curl http://127.0.0.1:8080/ping
+printf "\n"
+
+
+# curl http://127.0.0.1:8080/shutdown
+# printf "\n"

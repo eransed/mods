@@ -9,7 +9,7 @@ use crate::logging::init_tracing;
 use config::ConfigModule;
 use http::HttpModule;
 use std::time::Duration;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 use tracing_appender::non_blocking::WorkerGuard;
 use ws_client::WsClient;
 use ws_server::WsServer;
@@ -22,7 +22,7 @@ fn init_tracing_guard() -> WorkerGuard {
 async fn main() {
     let _guard = init_tracing_guard();
     debug!("starting mods...");
-    info!("starting mods...");
+    debug!("starting mods...");
     warn!("starting mods...");
     error!("starting mods...");
     let (tx, _) = tokio::sync::broadcast::channel(16);
@@ -51,14 +51,14 @@ async fn main() {
     tokio::spawn(async move {
         let ws_addr = std::net::SocketAddr::from(([127, 0, 0, 1], ws_port));
         if let Err(err) = ws_server.run(ws_addr).await {
-            tracing::error!(error = ?err, "ws_server failed to run websocket server");
+            tracing::error!(error = ?err, "failed to start websocket server");
         }
     });
 
     tokio::spawn(async move {
         let addr = std::net::SocketAddr::from(([127, 0, 0, 1], http_port));
         if let Err(err) = http_module.run(addr).await {
-            tracing::error!(error = ?err, "http failed to run server");
+            tracing::error!(error = ?err, "failed to start server");
         }
     });
 
@@ -67,18 +67,18 @@ async fn main() {
         ws_client.run().await;
     });
 
-    info!(http_port, "http server ready at");
-    info!(ws_port, "websocket server ready at");
+    debug!(http_port, "http server listening at");
+    debug!(ws_port, "websocket server listening at");
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
-            info!("received ctrl-c");
+            debug!("received ctrl-c");
         }
         _ = shutdown_rx.changed() => {
             if *shutdown_rx.borrow() {
-                info!("received shutdown request");
+                debug!("received shutdown request");
             }
         }
     }
 
-    info!("shutting down");
+    debug!("shutting down");
 }

@@ -14,7 +14,7 @@ use tokio::net::TcpListener;
 use tokio::sync::{
     broadcast::Sender as BroadcastSender, mpsc::UnboundedSender, watch::Sender as WatchSender,
 };
-use tracing::info;
+use tracing::debug;
 
 use crate::{
     config::{Config, ConfigRequest},
@@ -78,7 +78,7 @@ impl HttpModule {
             .route("/set_config", post(set_config_handler))
             .with_state(state);
 
-        info!(%addr, "http listening on");
+        debug!(%addr, "http listening on");
         let listener = TcpListener::bind(addr).await?;
         axum::serve(listener, app.into_make_service())
             .await
@@ -161,8 +161,13 @@ async fn reset_config_handler(State(state): State<HttpState>) -> impl IntoRespon
 }
 
 async fn ping_handler(State(state): State<HttpState>) -> impl IntoResponse {
-    let started_at = Instant::now();
-    let timestamp = started_at.elapsed().as_micros() as u64;
+    // parse the url query parameters to get the max_response_time_micros parameter, default to 500000 if not provided
+    let max_response_time_micros = 500000;
+
+    
+
+    let ping_sent_time = Instant::now();
+    let timestamp = ping_sent_time.elapsed().as_micros() as u64;
     let _ = state.sender.send(Message::Ping {
         sender: state.name,
         timestamp,
@@ -170,27 +175,32 @@ async fn ping_handler(State(state): State<HttpState>) -> impl IntoResponse {
 
     let mut latencies = HashMap::new();
     let mut receiver = state.sender.subscribe();
-    let mut total_latency = 0u64;
-    let deadline = tokio::time::Instant::now() + Duration::from_millis(200);
+    let deadline = tokio::time::Instant::now() + Duration::from_micros(max_response_time_micros);
+    let mut modules_responses = 0;
+    let number_of_modules = 3;
 
     while tokio::time::Instant::now() < deadline {
         match tokio::time::timeout_at(deadline, receiver.recv()).await {
-            Ok(Ok(Message::Pong {
-                sender,
-                timestamp: pong_timestamp,
-            })) => {
-                let latency_us = started_at.elapsed().as_micros() as u64 - pong_timestamp;
+            Ok(Ok(Message::Pong { sender, .. })) => {
+                let latency_us = ping_sent_time.elapsed().as_micros() as u64;
                 latencies.insert(sender.to_string() + "_us", latency_us);
-                total_latency = total_latency.saturating_add(latency_us);
             }
             Ok(Ok(_)) => {}
             Ok(Err(_)) | Err(_) => break,
+        }
+        modules_responses += 1;
+        if modules_responses >= number_of_modules {
+            debug!(
+                "All {} modules have responded to the ping",
+                number_of_modules
+            );
+            break;
         }
     }
 
     let response = serde_json::json!({
         "latencies": latencies,
-        "total_latency_us": total_latency,
+        "total_latency_us": ping_sent_time.elapsed().as_micros() as u64,
     });
 
     (StatusCode::OK, Json(response)).into_response()
@@ -198,7 +208,7 @@ async fn ping_handler(State(state): State<HttpState>) -> impl IntoResponse {
 
 impl Drop for HttpModule {
     fn drop(&mut self) {
-        info!("http dropping and shutting down");
+        debug!("http dropping and shutting down");
     }
 }
 

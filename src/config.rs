@@ -8,7 +8,7 @@ use tokio::sync::{
     broadcast::{Receiver, Sender},
     mpsc::UnboundedReceiver,
 };
-use tracing::info;
+use tracing::debug;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Config {
@@ -59,10 +59,10 @@ fn load_config_from_path(path: &Path) -> Config {
         Ok(contents) => match serde_json::from_str::<Config>(&contents) {
             Ok(config) => config,
             Err(err) => {
-                info!(error = ?err, path = ?path, "failed to parse config.json, using default config");
+                debug!(error = ?err, path = ?path, "failed to parse config.json, using default config");
                 let default = Config::default();
                 if let Err(write_err) = save_config_to_path(&default, path) {
-                    info!(error = ?write_err, path = ?path, "failed to write default config");
+                    debug!(error = ?write_err, path = ?path, "failed to write default config");
                 }
                 default
             }
@@ -70,12 +70,12 @@ fn load_config_from_path(path: &Path) -> Config {
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
             let default = Config::default();
             if let Err(write_err) = save_config_to_path(&default, path) {
-                info!(error = ?write_err, path = ?path, "failed to create default config file");
+                debug!(error = ?write_err, path = ?path, "failed to create default config file");
             }
             default
         }
         Err(err) => {
-            info!(error = ?err, path = ?path, "failed to read config.json, using default config");
+            debug!(error = ?err, path = ?path, "failed to read config.json, using default config");
             Config::default()
         }
     }
@@ -116,60 +116,60 @@ impl ConfigModule {
                 maybe_request = self.request_receiver.recv() => match maybe_request {
                     Some(request) => match request {
                         ConfigRequest::GetConfig { requester, response } => {
-                            info!(requester, "config get config request");
+                            debug!(requester, "config get config request");
                             let _ = response.send(self.config.clone());
                         }
                         ConfigRequest::SetConfig { requester, config, response } => {
-                            info!(requester, "config set config request");
+                            debug!(requester, "config set config request");
                             self.config = config.clone();
                             if let Err(err) = save_config_to_path(&self.config, &config_path()) {
-                                info!(error = ?err, "failed to persist config to config.json");
+                                debug!(error = ?err, "failed to persist config to config.json");
                             }
                             let _ = response.send(self.config.clone());
                         }
                         ConfigRequest::ResetConfig { requester, response } => {
-                            info!(requester, "config reset config request");
+                            debug!(requester, "config reset config request");
                             self.config = Config::default();
                             if let Err(err) = save_config_to_path(&self.config, &config_path()) {
-                                info!(error = ?err, "failed to persist default config to config.json");
+                                debug!(error = ?err, "failed to persist default config to config.json");
                             }
                             let _ = response.send(self.config.clone());
                         }
                     },
                     None => {
-                        info!("config request channel closed");
+                        debug!("config request channel closed");
                         break;
                     }
                 },
                 result = self.receiver.recv() => match result {
                     Ok(Message::Broadcast { sender, body }) => {
-                        info!(sender, body, "config broadcast received");
+                        debug!(sender, body, "config broadcast received");
                     }
                     Ok(Message::Ping { timestamp, sender }) => {
-                        info!(timestamp, "config ping received from {}", sender);
+                        debug!(timestamp, "config ping received from {}", sender);
                         let _ = self.sender.send(Message::Pong {
                             sender: "config",
                             timestamp,
                         });
                     }
                     Ok(Message::Pong { timestamp, sender }) => {
-                        info!(timestamp, "config pong received from {}", sender);
+                        debug!(timestamp, "config pong received from {}", sender);
                     }
                     Err(_) => {
-                        info!("config broadcast channel closed");
+                        debug!("config broadcast channel closed");
                         break;
                     }
                 },
             }
         }
 
-        info!("config shutting down");
+        debug!("config shutting down");
     }
 }
 
 impl Drop for ConfigModule {
     fn drop(&mut self) {
-        info!("config dropping and shutting down");
+        debug!("config dropping and shutting down");
     }
 }
 

@@ -1,7 +1,7 @@
 use futures_util::StreamExt;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
-use tracing::{error, info};
+use tracing::{error, debug};
 
 pub struct WsClient {
     url: String,
@@ -13,7 +13,7 @@ impl WsClient {
     }
 
     pub async fn run(self) {
-        info!(url = %self.url, "ws_client connecting");
+        debug!(url = %self.url, "ws_client connecting");
 
         let (mut socket, _response) = match connect_async(&self.url).await {
             Ok(pair) => pair,
@@ -23,24 +23,24 @@ impl WsClient {
             }
         };
 
-        info!("ws_client connected to websocket server");
+        debug!("ws_client connected to websocket server");
 
         while let Some(message_result) = socket.next().await {
             match message_result {
                 Ok(WsMessage::Text(text)) => {
-                    info!(text = %text, "ws_client received text");
+                    debug!(text = %text, "ws_client received text");
                 }
                 Ok(WsMessage::Binary(data)) => {
-                    info!(bytes = ?data, "ws_client received binary");
+                    debug!(bytes = ?data, "ws_client received binary");
                 }
                 Ok(WsMessage::Ping(payload)) => {
-                    info!(payload = ?payload, "ws_client received ping");
+                    debug!(payload = ?payload, "ws_client received ping");
                 }
                 Ok(WsMessage::Pong(payload)) => {
-                    info!(payload = ?payload, "ws_client received pong");
+                    debug!(payload = ?payload, "ws_client received pong");
                 }
                 Ok(WsMessage::Close(frame)) => {
-                    info!(frame = ?frame, "ws_client websocket closed");
+                    debug!(frame = ?frame, "ws_client websocket closed");
                     break;
                 }
                 Err(err) => {
@@ -51,12 +51,12 @@ impl WsClient {
             }
         }
 
-        info!("ws_client shutting down");
+        debug!("ws_client shutting down");
     }
 }
 
 impl Drop for WsClient {
     fn drop(&mut self) {
-        info!("ws_client dropping and shutting down");
+        debug!("ws_client dropping and shutting down");
     }
 }
