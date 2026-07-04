@@ -1,8 +1,13 @@
+use crate::config::Config;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use tracing_appender::{non_blocking, non_blocking::WorkerGuard};
-use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*, reload};
+
+static FILTER_HANDLE: OnceLock<reload::Handle<EnvFilter, tracing_subscriber::Registry>> =
+    OnceLock::new();
 
 pub struct LineRotatingFile {
     base_path: PathBuf,
@@ -98,8 +103,13 @@ impl Write for LineRotatingFile {
     }
 }
 
-pub fn init_tracing() -> WorkerGuard {
+fn build_filter(log_level: &str) -> EnvFilter {
+    EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level))
+}
+
+pub fn init_tracing(config: &Config) -> WorkerGuard {
     let time_fmt = String::from("%Y-%m-%d %H:%M:%S%.6f");
+    let (filter_layer, reload_handle) = reload::Layer::new(build_filter(&config.log_level));
     let stdout_layer = fmt::layer()
         .with_writer(std::io::stdout)
         .with_timer(fmt::time::ChronoLocal::new(time_fmt.clone()))
@@ -107,8 +117,7 @@ pub fn init_tracing() -> WorkerGuard {
         .with_thread_names(true)
         .with_file(true)
         .with_line_number(true)
-        .with_ansi(true)
-        .with_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")));
+        .with_ansi(true);
 
     let file_appender = LineRotatingFile::new(PathBuf::from("logs/mods.log"), 20_000, 50)
         .expect("failed to initialize rotating log file");
@@ -119,13 +128,31 @@ pub fn init_tracing() -> WorkerGuard {
         .with_thread_ids(true)
         .with_file(true)
         .with_line_number(true)
-        .with_ansi(false)
-        .with_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")));
+        .with_ansi(false);
 
     tracing_subscriber::registry()
+        .with(filter_layer)
         .with(stdout_layer)
         .with(file_layer)
         .init();
 
+    let _ = FILTER_HANDLE.set(reload_handle);
     guard
+}
+
+pub fn set_log_level(log_level: &str) {
+    if let Some(handle) = FILTER_HANDLE.get() {
+        let _ = handle.reload(build_filter(log_level));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_filter;
+
+    #[test]
+    fn build_filter_uses_requested_level() {
+        let filter = build_filter("debug");
+        assert!(filter.to_string().contains("debug"));
+    }
 }

@@ -1,7 +1,9 @@
-use axum::http::StatusCode;
 use axum::{
     Json, Router,
-    extract::State,
+    body::Body,
+    extract::{ConnectInfo, Query, State},
+    http::{Request, StatusCode},
+    middleware::{self, Next},
     response::IntoResponse,
     routing::{get, post},
 };
@@ -14,7 +16,7 @@ use tokio::net::TcpListener;
 use tokio::sync::{
     broadcast::Sender as BroadcastSender, mpsc::UnboundedSender, watch::Sender as WatchSender,
 };
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::{
     config::{Config, ConfigRequest},
@@ -76,13 +78,17 @@ impl HttpModule {
             .route("/ping", get(ping_handler))
             .route("/reset_config", get(reset_config_handler))
             .route("/set_config", post(set_config_handler))
+            .layer(middleware::from_fn(log_request))
             .with_state(state);
 
-        debug!(%addr, "http listening on");
+        info!(%addr, "http listening on");
         let listener = TcpListener::bind(addr).await?;
-        axum::serve(listener, app.into_make_service())
-            .await
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await
+        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))
     }
 }
 
@@ -92,6 +98,28 @@ struct HttpState {
     sender: BroadcastSender<Message>,
     shutdown: WatchSender<bool>,
     config_request: UnboundedSender<ConfigRequest>,
+}
+
+async fn log_request(
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
+    request: Request<Body>,
+    next: Next,
+) -> impl IntoResponse {
+    let query = request.uri().query().unwrap_or_default().to_string();
+    info!(
+        peer_addr = %peer_addr,
+        path = %request.uri().path(),
+        query = %query,
+        "req"
+    );
+    next.run(request).await
+}
+
+fn parse_max_response_time_micros(query_params: &HashMap<String, String>) -> u64 {
+    query_params
+        .get("max_response_time_micros")
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(500_000)
 }
 
 async fn send_handler(State(state): State<HttpState>) -> impl IntoResponse {
@@ -160,11 +188,17 @@ async fn reset_config_handler(State(state): State<HttpState>) -> impl IntoRespon
     }
 }
 
-async fn ping_handler(State(state): State<HttpState>) -> impl IntoResponse {
-    // parse the url query parameters to get the max_response_time_micros parameter, default to 500000 if not provided
-    let max_response_time_micros = 500000;
-
-    
+async fn ping_handler(
+    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
+    Query(query_params): Query<HashMap<String, String>>,
+    State(state): State<HttpState>,
+) -> impl IntoResponse {
+    let max_response_time_micros = parse_max_response_time_micros(&query_params);
+    debug!(
+        peer_addr = %peer_addr,
+        query_params = ?query_params,
+        "handling ping request"
+    );
 
     let ping_sent_time = Instant::now();
     let timestamp = ping_sent_time.elapsed().as_micros() as u64;
@@ -208,7 +242,7 @@ async fn ping_handler(State(state): State<HttpState>) -> impl IntoResponse {
 
 impl Drop for HttpModule {
     fn drop(&mut self) {
-        debug!("http dropping and shutting down");
+        info!("http dropping and shutting down");
     }
 }
 
@@ -218,6 +252,15 @@ mod tests {
     use crate::config::Config;
     use std::{net::SocketAddr, sync::Arc, time::Duration};
     use tokio::{net::TcpListener, sync::Mutex};
+
+    #[test]
+    fn parse_max_response_time_micros_uses_query_value_or_default() {
+        let mut query_params = HashMap::new();
+        assert_eq!(parse_max_response_time_micros(&query_params), 500_000);
+
+        query_params.insert("max_response_time_micros".to_string(), "1234".to_string());
+        assert_eq!(parse_max_response_time_micros(&query_params), 1234);
+    }
 
     async fn spawn_http_module() -> (SocketAddr, tokio::task::JoinHandle<std::io::Result<()>>) {
         let (sender, _) = tokio::sync::broadcast::channel(16);
@@ -295,6 +338,7 @@ mod tests {
             .json(&Config {
                 http_port: 8080,
                 ws_port: 8085,
+                log_level: "debug".to_string(),
             })
             .send()
             .await
@@ -306,7 +350,8 @@ mod tests {
             config,
             Config {
                 http_port: 8080,
-                ws_port: 8085
+                ws_port: 8085,
+                log_level: "debug".to_string(),
             }
         );
 

@@ -10,7 +10,7 @@ use tokio::sync::{
 };
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
-use tracing::{error, debug};
+use tracing::{debug, error, info, warn};
 
 use crate::message::{Message, TopicMessage};
 
@@ -69,7 +69,7 @@ impl WsServer {
 
     pub async fn run(self, addr: SocketAddr) -> std::io::Result<()> {
         let listener = TcpListener::bind(addr).await?;
-        debug!(%addr, "ws_server websocket server listening on");
+        info!(%addr, "ws_server websocket server listening on");
 
         let clients = self.clients.clone();
         let mut receiver = self.sender.subscribe();
@@ -96,7 +96,7 @@ impl WsServer {
                     }
                     Message::Ping { timestamp, .. } => {
                         // sleep for 450 ms:
-                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                        // tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                         let _ = broadcast_sender.send(Message::Pong {
                             sender: "ws_server",
                             timestamp,
@@ -120,6 +120,8 @@ impl WsServer {
                     }
                 };
 
+                let client_addr = websocket.get_ref().peer_addr().unwrap();
+                let local_addr = websocket.get_ref().local_addr().unwrap();
                 let (mut write, mut read) = websocket.split();
                 let (tx, mut rx): (UnboundedSender<WsMessage>, UnboundedReceiver<WsMessage>) =
                     unbounded_channel();
@@ -133,30 +135,33 @@ impl WsServer {
                     }
                 });
 
-                debug!("ws_server websocket client connected");
+                info!(
+                    "ws_server websocket client connected: {}, local: {}",
+                    client_addr, local_addr
+                );
 
                 while let Some(message_result) = read.next().await {
                     match message_result {
                         Ok(WsMessage::Text(text)) => {
                             if let Some(message) = parse_incoming_message(&text) {
                                 let _ = sender.send(message);
-                                debug!(text = %text, "ws_server received websocket topic message");
+                                debug!(text = %text, "ws_server received websocket topic message: {}", client_addr);
                             } else {
                                 let broadcast_message = Message::Broadcast {
                                     sender: name,
                                     body: text.clone(),
                                 };
                                 let _ = sender.send(broadcast_message);
-                                debug!(text = %text, "ws_server received websocket text");
+                                debug!(text = %text, "ws_server received websocket text: {}", client_addr);
                             }
                         }
                         Ok(WsMessage::Close(_)) => {
-                            debug!("ws_server websocket client disconnected");
+                            warn!("ws_server websocket client disconnected {}", client_addr);
                             break;
                         }
                         Ok(_) => {}
                         Err(err) => {
-                            error!(error = ?err, "ws_server websocket error");
+                            error!(error = ?err, "ws_server websocket error {}", client_addr);
                             break;
                         }
                     }
@@ -168,7 +173,7 @@ impl WsServer {
             });
         }
 
-        debug!("ws_server shutting down");
+        info!("ws_server shutting down");
         Ok(())
     }
 }

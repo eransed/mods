@@ -1,4 +1,4 @@
-use crate::message::Message;
+use crate::{logging::set_log_level, message::Message};
 use serde::{Deserialize, Serialize};
 use std::{
     env, fs,
@@ -14,6 +14,7 @@ use tracing::debug;
 pub struct Config {
     pub http_port: u16,
     pub ws_port: u16,
+    pub log_level: String,
 }
 
 impl Default for Config {
@@ -21,6 +22,7 @@ impl Default for Config {
         Self {
             http_port: 8080,
             ws_port: 8081,
+            log_level: "info".to_string(),
         }
     }
 }
@@ -122,6 +124,7 @@ impl ConfigModule {
                         ConfigRequest::SetConfig { requester, config, response } => {
                             debug!(requester, "config set config request");
                             self.config = config.clone();
+                            set_log_level(&self.config.log_level);
                             if let Err(err) = save_config_to_path(&self.config, &config_path()) {
                                 debug!(error = ?err, "failed to persist config to config.json");
                             }
@@ -130,6 +133,7 @@ impl ConfigModule {
                         ConfigRequest::ResetConfig { requester, response } => {
                             debug!(requester, "config reset config request");
                             self.config = Config::default();
+                            set_log_level(&self.config.log_level);
                             if let Err(err) = save_config_to_path(&self.config, &config_path()) {
                                 debug!(error = ?err, "failed to persist default config to config.json");
                             }
@@ -204,11 +208,18 @@ mod tests {
     }
 
     #[test]
+    fn defaults_to_info_log_level() {
+        let config = Config::default();
+        assert_eq!(config.log_level, "info");
+    }
+
+    #[test]
     fn saves_and_loads_config_from_disk() {
         let path = temp_config_path();
         let config = Config {
             http_port: 9000,
             ws_port: 9001,
+            log_level: "debug".to_string(),
         };
 
         save_config_to_path(&config, &path).unwrap();
