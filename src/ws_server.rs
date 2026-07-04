@@ -2,7 +2,11 @@ use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use tokio::sync::{broadcast::Sender, mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender}, Mutex};
+use tokio::sync::{
+    Mutex,
+    broadcast::Sender,
+    mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
+};
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tracing::{error, info};
@@ -55,7 +59,8 @@ impl WsServer {
                 };
 
                 let (mut write, mut read) = websocket.split();
-                let (tx, mut rx): (UnboundedSender<WsMessage>, UnboundedReceiver<WsMessage>) = unbounded_channel();
+                let (tx, mut rx): (UnboundedSender<WsMessage>, UnboundedReceiver<WsMessage>) =
+                    unbounded_channel();
                 clients.lock().await.push(tx);
 
                 let write_task = tokio::spawn(async move {

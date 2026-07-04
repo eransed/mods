@@ -1,9 +1,10 @@
 mod config;
 mod http;
 mod logging;
-mod ws_server;
 mod ws_client;
+mod ws_server;
 
+use crate::logging::init_tracing;
 use config::ConfigModule;
 use http::HttpModule;
 use std::time::Duration;
@@ -11,12 +12,10 @@ use tracing::info;
 use tracing_appender::non_blocking::WorkerGuard;
 use ws_client::WsClient;
 use ws_server::WsServer;
-use crate::logging::init_tracing;
 
 fn init_tracing_guard() -> WorkerGuard {
     init_tracing()
 }
-
 
 #[tokio::main]
 async fn main() {

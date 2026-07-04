@@ -2,7 +2,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::PathBuf;
 use tracing_appender::{non_blocking, non_blocking::WorkerGuard};
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 pub struct LineRotatingFile {
     base_path: PathBuf,
@@ -25,7 +25,10 @@ impl LineRotatingFile {
             0
         };
 
-        let file = OpenOptions::new().create(true).append(true).open(&base_path)?;
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&base_path)?;
         Ok(Self {
             base_path,
             max_lines,
@@ -41,7 +44,8 @@ impl LineRotatingFile {
             .file_name()
             .expect("log file name missing")
             .to_string_lossy();
-        self.base_path.with_file_name(format!("{file_name}.{index}"))
+        self.base_path
+            .with_file_name(format!("{file_name}.{index}"))
     }
 
     fn rotate_if_needed(&mut self, additional_lines: usize) -> io::Result<()> {
@@ -71,7 +75,10 @@ impl LineRotatingFile {
             fs::rename(&self.base_path, rotated)?;
         }
 
-        self.file = OpenOptions::new().create(true).append(true).open(&self.base_path)?;
+        self.file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.base_path)?;
         self.line_count = 0;
         Ok(())
     }
@@ -94,7 +101,7 @@ impl Write for LineRotatingFile {
 pub fn init_tracing() -> WorkerGuard {
     let stdout_layer = fmt::layer()
         .with_writer(std::io::stdout)
-        .with_timer(fmt::time::LocalTime::rfc_3339())
+        .with_timer(fmt::time::ChronoLocal::new("%Y-%m-%dT%H:%M:%S%.6f".to_string()))
         .with_thread_ids(true)
         .with_thread_names(true)
         .with_file(true)
@@ -107,7 +114,7 @@ pub fn init_tracing() -> WorkerGuard {
     let (non_blocking, guard) = non_blocking(file_appender);
     let file_layer = fmt::layer()
         .with_writer(non_blocking)
-        .with_timer(fmt::time::LocalTime::rfc_3339())
+        .with_timer(fmt::time::ChronoLocal::new("%Y-%m-%dT%H:%M:%S%.6f".to_string()))
         .with_thread_ids(true)
         .with_file(true)
         .with_line_number(true)

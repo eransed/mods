@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
-use tokio::sync::{broadcast::{Receiver, Sender}, mpsc::UnboundedReceiver};
+use tokio::sync::{
+    broadcast::{Receiver, Sender},
+    mpsc::UnboundedReceiver,
+};
 use tracing::info;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

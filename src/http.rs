@@ -1,9 +1,16 @@
+use axum::http::StatusCode;
+use axum::{
+    Json, Router,
+    extract::State,
+    response::IntoResponse,
+    routing::{get, post},
+};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
-use tokio::sync::{broadcast::Sender as BroadcastSender, mpsc::UnboundedSender, watch::Sender as WatchSender};
+use tokio::sync::{
+    broadcast::Sender as BroadcastSender, mpsc::UnboundedSender, watch::Sender as WatchSender,
+};
 use tracing::info;
-use axum::{extract::State, response::IntoResponse, routing::{get, post}, Json, Router};
-use axum::http::StatusCode;
 
 use crate::config::{Config, ConfigRequest, Message};
 
