@@ -99,9 +99,10 @@ impl Write for LineRotatingFile {
 }
 
 pub fn init_tracing() -> WorkerGuard {
+    let time_fmt = String::from("%Y-%m-%d %H:%M:%S%.6f");
     let stdout_layer = fmt::layer()
         .with_writer(std::io::stdout)
-        .with_timer(fmt::time::ChronoLocal::new("%Y-%m-%dT%H:%M:%S%.6f".to_string()))
+        .with_timer(fmt::time::ChronoLocal::new(time_fmt.clone()))
         .with_thread_ids(true)
         .with_thread_names(true)
         .with_file(true)
@@ -114,7 +115,7 @@ pub fn init_tracing() -> WorkerGuard {
     let (non_blocking, guard) = non_blocking(file_appender);
     let file_layer = fmt::layer()
         .with_writer(non_blocking)
-        .with_timer(fmt::time::ChronoLocal::new("%Y-%m-%dT%H:%M:%S%.6f".to_string()))
+        .with_timer(fmt::time::ChronoLocal::new(time_fmt))
         .with_thread_ids(true)
         .with_file(true)
         .with_line_number(true)
