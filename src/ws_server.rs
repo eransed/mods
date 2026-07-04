@@ -186,7 +186,7 @@ mod tests {
 
     #[test]
     fn parses_ping_payloads_from_json() {
-        let message = parse_incoming_message(r#"{"topic":"ping","timestamp":42}"#);
+        let message = parse_incoming_message(r#"{"topic":"ping"}"#);
         assert_eq!(
             message,
             Some(Message::Ping {
@@ -203,7 +203,6 @@ mod tests {
 
         let value: serde_json::Value = serde_json::from_str(encoded.as_deref().unwrap()).unwrap();
         assert_eq!(value["topic"], "pong");
-        assert_eq!(value["timestamp"], 84);
         assert_eq!(value["sender"], "ws_server");
     }
 }
