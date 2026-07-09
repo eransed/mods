@@ -2,11 +2,18 @@ use axum::{
     Json, Router,
     body::Body,
     extract::{ConnectInfo, Query, State},
-    http::{Request, StatusCode},
+    http::{
+        Method, Request, StatusCode,
+        header::{
+            ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
+            ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_REQUEST_METHOD, HeaderValue,
+        },
+    },
     middleware::{self, Next},
     response::IntoResponse,
     routing::{get, post},
 };
+
 use std::{
     collections::HashMap,
     net::SocketAddr,
@@ -50,13 +57,8 @@ impl HttpModule {
         let mut receiver = sender.subscribe();
         tokio::spawn(async move {
             while let Ok(message) = receiver.recv().await {
-                if let Message::Ping {
-                    sender: origin,
-                } = message
-                {
-                    let _ = sender.send(Message::Pong {
-                        sender: self.name,
-                    });
+                if let Message::Ping { sender: origin } = message {
+                    let _ = sender.send(Message::Pong { sender: self.name });
                     let _ = origin;
                 }
             }
@@ -103,6 +105,10 @@ async fn log_request(
     request: Request<Body>,
     next: Next,
 ) -> impl IntoResponse {
+    let is_preflight = request
+        .headers()
+        .contains_key(ACCESS_CONTROL_REQUEST_METHOD)
+        && request.method() == Method::OPTIONS;
     let query = request.uri().query().unwrap_or_default().to_string();
     info!(
         peer_addr = %peer_addr,
@@ -110,7 +116,25 @@ async fn log_request(
         query = %query,
         "req"
     );
-    next.run(request).await
+
+    let mut response = if is_preflight {
+        StatusCode::NO_CONTENT.into_response()
+    } else {
+        next.run(request).await
+    };
+
+    let headers = response.headers_mut();
+    headers.insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+    headers.insert(
+        ACCESS_CONTROL_ALLOW_METHODS,
+        HeaderValue::from_static("GET, POST, OPTIONS"),
+    );
+    headers.insert(
+        ACCESS_CONTROL_ALLOW_HEADERS,
+        HeaderValue::from_static("Content-Type, Authorization"),
+    );
+
+    response
 }
 
 fn parse_max_response_time_micros(query_params: &HashMap<String, String>) -> u64 {
@@ -199,9 +223,7 @@ async fn ping_handler(
     );
 
     let ping_sent_time = Instant::now();
-    let _ = state.sender.send(Message::Ping {
-        sender: state.name,
-    });
+    let _ = state.sender.send(Message::Ping { sender: state.name });
 
     let mut latencies = HashMap::new();
     let mut receiver = state.sender.subscribe();

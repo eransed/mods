@@ -81,9 +81,7 @@ impl WsServer {
                         clients.retain(|client| client.send(WsMessage::Text(text.clone())).is_ok());
                     }
                     Message::Pong { sender } => {
-                        if let Some(text) =
-                            encode_topic_message(&Message::Pong { sender })
-                        {
+                        if let Some(text) = encode_topic_message(&Message::Pong { sender }) {
                             let mut clients = clients.lock().await;
                             clients.retain(|client| {
                                 client.send(WsMessage::Text(text.clone())).is_ok()
