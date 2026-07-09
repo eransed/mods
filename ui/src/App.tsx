@@ -145,7 +145,7 @@ function App() {
 
         <section className="page-body">
           <Routes>
-            <Route path="/" element={<Navigate to="/volumes" replace />} />
+            <Route path="/" element={<Navigate to="/overview" replace />} />
             {pages.map((page) => (
               <Route
                 key={page.path}

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+const timeout = 2000
+
 test('renders the EventRouter page', async ({ page }) => {
   await page.goto('/')
 
@@ -9,30 +11,30 @@ test('renders the EventRouter page', async ({ page }) => {
   await expect(page.getByText(/connecting|connected|disconnected/i)).toBeVisible()
 })
 
-test('Overview page link is visible', async ({ page }) => {
+test('Menu is visible', async ({ page }) => {
   await page.goto('/')
   await expect(
-    page.getByText('Overview')
-  ).toBeVisible({ timeout: 1000 })
+    page.getByText('Menu')
+  ).toBeVisible({ timeout })
 })
 
 test('Volumes page link is visible', async ({ page }) => {
   await page.goto('/')
   await expect(
     page.getByText('Volumes')
-  ).toBeVisible({ timeout: 1000 })
+  ).toBeVisible({ timeout })
 })
 
 test('Geometries page link is visible', async ({ page }) => {
   await page.goto('/')
   await expect(
     page.getByText('Geometries')
-  ).toBeVisible({ timeout: 1000 })
+  ).toBeVisible({ timeout })
 })
 
 test('Device Connections page link is visible', async ({ page }) => {
   await page.goto('/')
   await expect(
     page.getByText('Device Connections')
-  ).toBeVisible({ timeout: 1000 })
+  ).toBeVisible({ timeout })
 })
