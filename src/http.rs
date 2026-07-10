@@ -88,7 +88,7 @@ impl HttpModule {
             app.into_make_service_with_connect_info::<SocketAddr>(),
         )
         .await
-        .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))
+        .map_err(std::io::Error::other)
     }
 }
 
@@ -160,7 +160,7 @@ async fn shutdown_handler(State(state): State<HttpState>) -> impl IntoResponse {
 
 async fn config_handler(State(state): State<HttpState>) -> impl IntoResponse {
     let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-    let request = ConfigRequest::GetConfig {
+    let request = ConfigRequest::Get {
         requester: state.name,
         response: response_tx,
     };
@@ -179,7 +179,7 @@ async fn set_config_handler(
     Json(new_config): Json<Config>,
 ) -> impl IntoResponse {
     let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-    let request = ConfigRequest::SetConfig {
+    let request = ConfigRequest::Set {
         requester: state.name,
         config: new_config,
         response: response_tx,
@@ -196,7 +196,7 @@ async fn set_config_handler(
 
 async fn reset_config_handler(State(state): State<HttpState>) -> impl IntoResponse {
     let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-    let request = ConfigRequest::ResetConfig {
+    let request = ConfigRequest::Reset {
         requester: state.name,
         response: response_tx,
     };
@@ -291,17 +291,17 @@ mod tests {
             async move {
                 while let Some(request) = config_request_rx.recv().await {
                     match request {
-                        ConfigRequest::GetConfig { response, .. } => {
+                        ConfigRequest::Get { response, .. } => {
                             let _ = response.send(current_config.lock().await.clone());
                         }
-                        ConfigRequest::SetConfig {
+                        ConfigRequest::Set {
                             config, response, ..
                         } => {
                             let response_config = config.clone();
                             *current_config.lock().await = config;
                             let _ = response.send(response_config);
                         }
-                        ConfigRequest::ResetConfig { response, .. } => {
+                        ConfigRequest::Reset { response, .. } => {
                             let default = Config::default();
                             *current_config.lock().await = default.clone();
                             let _ = response.send(default);

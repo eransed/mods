@@ -28,16 +28,16 @@ impl Default for Config {
 }
 
 pub enum ConfigRequest {
-    GetConfig {
+    Get {
         requester: &'static str,
         response: tokio::sync::oneshot::Sender<Config>,
     },
-    SetConfig {
+    Set {
         requester: &'static str,
         config: Config,
         response: tokio::sync::oneshot::Sender<Config>,
     },
-    ResetConfig {
+    Reset {
         requester: &'static str,
         response: tokio::sync::oneshot::Sender<Config>,
     },
@@ -85,11 +85,10 @@ fn load_config_from_path(path: &Path) -> Config {
 
 fn save_config_to_path(config: &Config, path: &Path) -> std::io::Result<()> {
     let contents = serde_json::to_string_pretty(config).expect("config should serialize");
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty() {
             fs::create_dir_all(parent)?;
         }
-    }
     fs::write(path, contents)
 }
 
@@ -117,11 +116,11 @@ impl ConfigModule {
             tokio::select! {
                 maybe_request = self.request_receiver.recv() => match maybe_request {
                     Some(request) => match request {
-                        ConfigRequest::GetConfig { requester, response } => {
+                        ConfigRequest::Get { requester, response } => {
                             debug!(requester, "get config");
                             let _ = response.send(self.config.clone());
                         }
-                        ConfigRequest::SetConfig { requester, config, response } => {
+                        ConfigRequest::Set { requester, config, response } => {
                             debug!(requester, "set config");
                             self.config = config.clone();
                             set_log_level(&self.config.log_level);
@@ -130,7 +129,7 @@ impl ConfigModule {
                             }
                             let _ = response.send(self.config.clone());
                         }
-                        ConfigRequest::ResetConfig { requester, response } => {
+                        ConfigRequest::Reset { requester, response } => {
                             debug!(requester, "reset config");
                             self.config = Config::default();
                             set_log_level(&self.config.log_level);
