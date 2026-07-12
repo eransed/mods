@@ -8,6 +8,7 @@ mod ws_server;
 use crate::logging::init_tracing;
 use config::ConfigModule;
 use http::HttpModule;
+use types::BuildInfo;
 use std::time::Duration;
 use tracing::{debug, info};
 use tracing_appender::non_blocking::WorkerGuard;
@@ -16,6 +17,10 @@ use ws_server::WsServer;
 
 fn init_tracing_guard(config: &config::Config) -> WorkerGuard {
     init_tracing(config)
+}
+
+pub fn build_info() -> BuildInfo {
+    serde_json::from_str(include_str!("../build_info.json")).unwrap_or_default()
 }
 
 #[tokio::main]
@@ -28,7 +33,10 @@ async fn main() {
     let config_module = ConfigModule::new(tx.clone(), config_request_rx);
     let initial_config = config_module.config().clone();
     let _guard = init_tracing_guard(&initial_config);
+
     info!("starting mods...");
+
+
     let ws_server = WsServer::new("ws_server", tx.clone());
     let http_module = HttpModule::new(
         "http",
