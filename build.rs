@@ -11,7 +11,11 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=build_info.json");
 
-    let build_type = if cfg!(debug_assertions) { "deb" } else { "rel" };
+    let build_type = if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "release"
+    };
 
     let mut target_arch;
     let mut target_avx2 = false;
@@ -107,6 +111,11 @@ fn main() {
         .output()
         .expect("Failed to read npm version");
 
+    let quicktype_version_cmd = Command::new("quicktype")
+        .arg("--version")
+        .output()
+        .expect("Failed to read quicktype version");
+
     let docker_version = match docker_version_cmd {
         Ok(v) => String::from_utf8(v.stdout)
             .expect("Failed to convert bytes to string")
@@ -115,7 +124,33 @@ fn main() {
         Err(_) => String::from("-"),
     };
 
+    let du_release_mods_size_kb_cmd = Command::new("du")
+        .arg("-k")
+        .arg("target/release/mods")
+        .output()
+        .expect("Failed to read quicktype version");
+
+    let du_debug_mods_size_kb_cmd = Command::new("du")
+        .arg("-k")
+        .arg("target/debug/mods")
+        .output()
+        .expect("Failed to read quicktype version");
+
     let bi = BuildInfo {
+        binary_release_size_kb: du_release_mods_size_kb_cmd
+            .stdout
+            .split(|&b| b == b'\t')
+            .next()
+            .map(|s| String::from_utf8(s.to_vec()).unwrap_or_default())
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or_default(),
+        binary_debug_size_kb: du_debug_mods_size_kb_cmd
+            .stdout
+            .split(|&b| b == b'\t')
+            .next()
+            .map(|s| String::from_utf8(s.to_vec()).unwrap_or_default())
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or_default(),
         git_hash: String::from_utf8(git_commit_cmd.stdout)
             .expect("Failed to convert bytes to string")
             .trim()
@@ -145,6 +180,10 @@ fn main() {
             .expect("Failed to convert bytes to string")
             .trim()
             .to_string(),
+        quicktype_version: String::from_utf8(quicktype_version_cmd.stdout)
+            .expect("Failed to convert bytes to string")
+            .trim()
+            .to_string(),
         cargo_pkg_name: env!("CARGO_PKG_NAME").to_string(),
         cargo_pkg_version: env!("CARGO_PKG_VERSION").to_string(),
         build_time_utc: btu,
@@ -167,6 +206,21 @@ fn main() {
     let mut file = File::create("build_info.json").expect("Failed to create file");
     file.write_all(&bi_json.into_bytes())
         .expect("Failed to write file");
+
+    // quicktype --lang ts --just-types build_info.json --out ui/src/types/BuildInfo.ts
+    let quicktype_build_info_cmd = Command::new("quicktype")
+        .arg("--lang")
+        .arg("ts")
+        .arg("--just-types")
+        .arg("build_info.json")
+        .arg("--out")
+        .arg("ui/src/types/BuildInfo.ts")
+        .output()
+        .expect("Failed convert build_info.json to BuildInfo.ts");
+
+    if !quicktype_build_info_cmd.status.success() {
+        panic!("Failed to convert build_info.json to BuildInfo.ts");
+    }
 
     let build_ui = true;
 

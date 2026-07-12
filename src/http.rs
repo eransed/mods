@@ -75,15 +75,22 @@ impl HttpModule {
 
         let app = Router::new()
             .fallback(get(index_handler))
+
+            // static files
             .route("/", get(index_handler))
             .route("/main.js", get(main_js_handler))
             .route("/main.css", get(main_css_handler))
+            .route("/build_info.json", get(build_info_json_handler))
+
+            // api
             .route("/send", get(send_handler))
             .route("/shutdown", get(shutdown_handler))
             .route("/config", get(config_handler))
             .route("/ping", get(ping_handler))
             .route("/reset_config", get(reset_config_handler))
             .route("/set_config", post(set_config_handler))
+
+            // middleware
             .layer(middleware::from_fn(log_request))
             .with_state(state);
 
@@ -178,6 +185,13 @@ async fn main_css_handler(State(_state): State<HttpState>) -> impl IntoResponse 
     let maincss = include_str!("../ui/dist/main.css");
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "text/css".parse().expect("Failed to parse Content-Type header"));
+    (headers, maincss.to_string())
+}
+
+async fn build_info_json_handler(State(_state): State<HttpState>) -> impl IntoResponse {
+    let maincss = include_str!("../build_info.json");
+    let mut headers = HeaderMap::new();
+    headers.insert("Content-Type", "application/json".parse().expect("Failed to parse Content-Type header"));
     (headers, maincss.to_string())
 }
 

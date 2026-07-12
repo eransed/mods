@@ -26,10 +26,17 @@ tower = { version = "0.4" }
 tower-http = { version = "0.3", features = ["cors"] }
 chrono = "0.4.41"
 
+[profile.release]
+strip = true  # Automatically strip symbols from the binary.
+opt-level = "z"  # Optimize for size.
+# opt-level = "s"  # Smaller in some cases...
+lto = true
+codegen-units = 1
+panic = "abort"
+
 [lints.clippy]
 unwrap_used = "deny"
 # restriction = { level = "warn", allow = ["clone_on_copy", "module_inception", "needless_borrow"] }
 # correctness = { level = "warn", allow = ["unnecessary_unwrap"] }
 # enum_glob_use = "deny"
 # expect_used = "deny"
-

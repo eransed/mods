@@ -34,8 +34,9 @@ async fn main() {
     let initial_config = config_module.config().clone();
     let _guard = init_tracing_guard(&initial_config);
 
-    info!("starting mods...");
+    let bi = build_info();
 
+    info!("Starting mods:\n{:#?}", bi);
 
     let ws_server = WsServer::new("ws_server", tx.clone());
     let http_module = HttpModule::new(

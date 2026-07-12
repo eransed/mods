@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import Overview from './Overview'
+import { About } from './About'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
 
@@ -48,6 +49,11 @@ const pages = [
     path: '/settings',
     label: 'Settings',
     description: 'Manage runtime behavior and preferences.',
+  },
+  {
+    path: '/about',
+    label: 'About',
+    description: 'Application information.',
   },
 ]
 
@@ -180,10 +186,10 @@ function App() {
 
       <main className="content">
         <header className="header">
-          <h1>EventRouter</h1>
+          <h1>Oak - Event Router</h1>
           <p className="status" aria-live="polite">
             <span className={`dot dot-${status}`} aria-hidden="true" />
-            {status}{reconnectAttempts > 0 ? `[${reconnectAttempts}]`: null} - {wsPort}
+            {status}{reconnectAttempts > 0 ? `[${reconnectAttempts}]` : null} - {wsPort}
           </p>
         </header>
 
@@ -191,6 +197,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<Overview />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/about" element={<About />} />
             {pages.map((page) => (
               <Route
                 key={page.path}

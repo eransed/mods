@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct BuildInfo {
+    pub binary_release_size_kb: u64,
+    pub binary_debug_size_kb: u64,
     pub cargo_pkg_name: String,
     pub cargo_pkg_version: String,
     pub git_branch: String,
@@ -15,6 +17,7 @@ pub struct BuildInfo {
     pub docker_version: String,
     pub node_version: String,
     pub npm_version: String,
+    pub quicktype_version: String,
     pub target_arch: String,
     pub target_avx2: bool,
     pub target_neon: bool,
