@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 pub struct BuildInfo {
     pub binary_release_size_kb: u64,
     pub binary_debug_size_kb: u64,
+    pub index_html_size_kb: u64,
+    pub main_js_size_kb: u64,
+    pub main_css_size_kb: u64,
     pub cargo_pkg_name: String,
     pub cargo_pkg_version: String,
     pub git_branch: String,

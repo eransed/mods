@@ -128,13 +128,31 @@ fn main() {
         .arg("-k")
         .arg("target/release/mods")
         .output()
-        .expect("Failed to read quicktype version");
+        .expect("Failed to read release mods size");
 
     let du_debug_mods_size_kb_cmd = Command::new("du")
         .arg("-k")
         .arg("target/debug/mods")
         .output()
-        .expect("Failed to read quicktype version");
+        .expect("Failed to read debug mods size");
+
+    let du_html_kb_cmd = Command::new("du")
+        .arg("-k")
+        .arg("ui/dist/index.html")
+        .output()
+        .expect("Failed to read ui/dist/index.html size");
+
+    let du_js_kb_cmd = Command::new("du")
+        .arg("-k")
+        .arg("ui/dist/main.js")
+        .output()
+        .expect("Failed to read ui/dist/main.js size");
+
+    let du_css_kb_cmd = Command::new("du")
+        .arg("-k")
+        .arg("ui/dist/main.css")
+        .output()
+        .expect("Failed to read ui/dist/main.css size");
 
     let bi = BuildInfo {
         binary_release_size_kb: du_release_mods_size_kb_cmd
@@ -145,6 +163,27 @@ fn main() {
             .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or_default(),
         binary_debug_size_kb: du_debug_mods_size_kb_cmd
+            .stdout
+            .split(|&b| b == b'\t')
+            .next()
+            .map(|s| String::from_utf8(s.to_vec()).unwrap_or_default())
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or_default(),
+        index_html_size_kb: du_html_kb_cmd
+            .stdout
+            .split(|&b| b == b'\t')
+            .next()
+            .map(|s| String::from_utf8(s.to_vec()).unwrap_or_default())
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or_default(),
+        main_js_size_kb: du_js_kb_cmd
+            .stdout
+            .split(|&b| b == b'\t')
+            .next()
+            .map(|s| String::from_utf8(s.to_vec()).unwrap_or_default())
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or_default(),
+        main_css_size_kb: du_css_kb_cmd
             .stdout
             .split(|&b| b == b'\t')
             .next()

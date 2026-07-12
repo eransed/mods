@@ -189,10 +189,10 @@ async fn main_css_handler(State(_state): State<HttpState>) -> impl IntoResponse 
 }
 
 async fn build_info_json_handler(State(_state): State<HttpState>) -> impl IntoResponse {
-    let maincss = include_str!("../build_info.json");
+    let buildinfojson = include_str!("../build_info.json");
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "application/json".parse().expect("Failed to parse Content-Type header"));
-    (headers, maincss.to_string())
+    (headers, buildinfojson.to_string())
 }
 
 async fn shutdown_handler(State(state): State<HttpState>) -> impl IntoResponse {

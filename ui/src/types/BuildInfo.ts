@@ -1,6 +1,9 @@
 export interface BuildInfo {
     binary_release_size_kb: number;
     binary_debug_size_kb:   number;
+    index_html_size_kb:     number;
+    main_js_size_kb:        number;
+    main_css_size_kb:       number;
     cargo_pkg_name:         string;
     cargo_pkg_version:      string;
     git_branch:             string;
