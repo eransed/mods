@@ -1,0 +1,13 @@
+
+canvas {
+  /* background-color: #fcfcfc; */
+  width: 100%;
+  /* height: 300px; */
+  border-radius: 8px;
+}
+
+.canvas_error {
+  color: red;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: bold;
+}

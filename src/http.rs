@@ -14,6 +14,8 @@ use axum::{
     routing::{get, post},
 };
 
+use axum::http::HeaderMap;
+
 use std::{
     collections::HashMap,
     net::SocketAddr,
@@ -72,6 +74,9 @@ impl HttpModule {
         };
 
         let app = Router::new()
+            .route("/", get(index_handler))
+            .route("/main.js", get(main_js_handler))
+            .route("/main.css", get(main_css_handler))
             .route("/send", get(send_handler))
             .route("/shutdown", get(shutdown_handler))
             .route("/config", get(config_handler))
@@ -151,6 +156,28 @@ async fn send_handler(State(state): State<HttpState>) -> impl IntoResponse {
     };
     let _ = state.sender.send(message);
     (StatusCode::OK, "message sent\n")
+}
+
+// make sure to set the correct mime types for the static files:
+async fn index_handler(State(_state): State<HttpState>) -> impl IntoResponse {
+    let indexhtml = include_str!("../ui/dist/index.html");
+    let mut headers = HeaderMap::new();
+    headers.insert("Content-Type", "text/html".parse().unwrap());
+    (headers, indexhtml.to_string())
+}
+
+async fn main_js_handler(State(_state): State<HttpState>) -> impl IntoResponse {
+    let mainjs = include_str!("../ui/dist/main.js");
+    let mut headers = HeaderMap::new();
+    headers.insert("Content-Type", "text/javascript".parse().unwrap());
+    (headers, mainjs.to_string())
+}
+
+async fn main_css_handler(State(_state): State<HttpState>) -> impl IntoResponse {
+    let maincss = include_str!("../ui/dist/main.css");
+    let mut headers = HeaderMap::new();
+    headers.insert("Content-Type", "text/css".parse().unwrap());
+    (headers, maincss.to_string())
 }
 
 async fn shutdown_handler(State(state): State<HttpState>) -> impl IntoResponse {

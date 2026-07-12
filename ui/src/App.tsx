@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
+import Overview from './Overview'
 
-type ConnectionState = 'connecting' | 'connected' | 'disconnected'
+type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
 
 type ConfigResponse = {
   ws_port?: number
@@ -67,13 +68,18 @@ function App() {
 
     const connect = async () => {
       let resolvedWsPort = defaultWsPort
-
+      let gotConfig = false
       try {
+        console.log('Fetching config...')
         const response = await fetch(`${host}/config`)
         if (response.ok) {
           const config = (await response.json()) as ConfigResponse
           if (typeof config.ws_port === 'number') {
+
+            console.log('Config received:', config)
+
             resolvedWsPort = config.ws_port
+            gotConfig = true
           } else {
             console.warn('ws_port is not a number in config response')
           }
@@ -90,21 +96,54 @@ function App() {
         return
       }
 
-      setWsPort(resolvedWsPort)
+      let reconnectTimeout: any = null
 
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-      const hostname = window.location.hostname || '127.0.0.1'
-      const wsUrl =
-        import.meta.env.VITE_WS_URL ?? `${protocol}://${hostname}:${resolvedWsPort}`
+      function handleReconnect() {
+        if (reconnectTimeout) {
+          console.log('Clearing existing reconnect timeout')
+          clearTimeout(reconnectTimeout)
+        }
 
-      socket = new WebSocket(wsUrl)
+        if (status === 'connected') {
+          console.log('Already connected, no need to reconnect.')
+          return
+        }
 
-      socket.onopen = () => setStatus('connected')
-      socket.onclose = () => setStatus('disconnected')
-      socket.onerror = () => setStatus('disconnected')
+        console.log('Scheduling reconnect in 2 seconds...')
+        reconnectTimeout = setTimeout(() => {
+          connect()
+        }, 3000)
+      }
+
+      if (gotConfig) {
+        console.log('Connecting to WebSocket on port', resolvedWsPort)
+        setWsPort(resolvedWsPort)
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+        const hostname = window.location.hostname || '127.0.0.1'
+        const wsUrl =
+          import.meta.env.VITE_WS_URL ?? `${protocol}://${hostname}:${resolvedWsPort}`
+
+        socket = new WebSocket(wsUrl)
+
+        socket.onopen = () => {
+          setStatus('connected')
+        }
+
+        socket.onclose = () => {
+          setStatus('disconnected')
+          handleReconnect()
+        }
+
+        socket.onerror = () => {
+          setStatus('error')
+          handleReconnect()
+        }
+      } else {
+        handleReconnect()
+      }
+
     }
-
-    void connect()
+    connect()
 
     return () => {
       isCancelled = true
@@ -146,6 +185,7 @@ function App() {
         <section className="page-body">
           <Routes>
             <Route path="/" element={<Navigate to="/overview" replace />} />
+            <Route path="/overview" element={<Overview />} />
             {pages.map((page) => (
               <Route
                 key={page.path}

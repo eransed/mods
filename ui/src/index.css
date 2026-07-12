@@ -135,13 +135,18 @@ h1 {
   background: var(--accent);
 }
 
-.dot-disconnected {
-  opacity: 0.45;
+.dot-error {
+  opacity: 0.8;
   background: #ff0000;
 }
 
+.dot-disconnected {
+  opacity: 0.8;
+  background: #ff7300;
+}
+
 .dot-connecting {
-  opacity: 0.7;
+  opacity: 0.8;
   background: #ffff00;
 }
 

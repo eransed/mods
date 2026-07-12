@@ -23,6 +23,9 @@ fi
 
 cd ui
 
+# npx playwright test --headed
+# npx playwright test --ui
+
 if npx playwright test; then
   echo "Playwright tests passed."
 else
