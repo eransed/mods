@@ -74,6 +74,7 @@ impl HttpModule {
         };
 
         let app = Router::new()
+            .fallback(get(index_handler))
             .route("/", get(index_handler))
             .route("/main.js", get(main_js_handler))
             .route("/main.css", get(main_css_handler))
