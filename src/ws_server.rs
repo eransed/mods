@@ -40,7 +40,7 @@ fn encode_topic_message(message: &Message) -> Option<String> {
         })
         .ok()
         .map(|json| {
-            let mut value: serde_json::Value = serde_json::from_str(&json).unwrap();
+            let mut value: serde_json::Value = serde_json::from_str(&json).expect("Failed to parse JSON");
             value["sender"] = serde_json::Value::String(sender.to_string());
             value.to_string()
         }),
@@ -113,8 +113,8 @@ impl WsServer {
                     }
                 };
 
-                let client_addr = websocket.get_ref().peer_addr().unwrap();
-                let local_addr = websocket.get_ref().local_addr().unwrap();
+                let client_addr = websocket.get_ref().peer_addr().expect("Failed to get client address");
+                let local_addr = websocket.get_ref().local_addr().expect("Failed to get local address");
                 let (mut write, mut read) = websocket.split();
                 let (tx, mut rx): (UnboundedSender<WsMessage>, UnboundedReceiver<WsMessage>) =
                     unbounded_channel();

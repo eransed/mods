@@ -163,21 +163,21 @@ async fn send_handler(State(state): State<HttpState>) -> impl IntoResponse {
 async fn index_handler(State(_state): State<HttpState>) -> impl IntoResponse {
     let indexhtml = include_str!("../ui/dist/index.html");
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/html".parse().unwrap());
+    headers.insert("Content-Type", "text/html".parse().expect("Failed to parse Content-Type header"));
     (headers, indexhtml.to_string())
 }
 
 async fn main_js_handler(State(_state): State<HttpState>) -> impl IntoResponse {
     let mainjs = include_str!("../ui/dist/main.js");
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/javascript".parse().unwrap());
+    headers.insert("Content-Type", "text/javascript".parse().expect("Failed to parse Content-Type header"));
     (headers, mainjs.to_string())
 }
 
 async fn main_css_handler(State(_state): State<HttpState>) -> impl IntoResponse {
     let maincss = include_str!("../ui/dist/main.css");
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/css".parse().unwrap());
+    headers.insert("Content-Type", "text/css".parse().expect("Failed to parse Content-Type header"));
     (headers, maincss.to_string())
 }
 

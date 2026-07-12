@@ -146,8 +146,9 @@ h1 {
 }
 
 .dot-connecting {
-  opacity: 0.8;
-  background: #ffff00;
+  opacity: 1;
+  background: #ffe600;
+  transition: background 0.5s ease-in-out;
 }
 
 @media (max-width: 800px) {

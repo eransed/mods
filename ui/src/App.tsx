@@ -53,6 +53,7 @@ const pages = [
 
 function App() {
   const [status, setStatus] = useState<ConnectionState>('connecting')
+  const [reconnectAttempts, setReconnectAttempts] = useState(0)
   const [wsPort, setWsPort] = useState(8085)
 
   const protocol = 'http'
@@ -75,20 +76,20 @@ function App() {
         if (response.ok) {
           const config = (await response.json()) as ConfigResponse
           if (typeof config.ws_port === 'number') {
-
             console.log('Config received:', config)
 
             resolvedWsPort = config.ws_port
             gotConfig = true
+            setReconnectAttempts(0)
           } else {
-            console.warn('ws_port is not a number in config response')
+            console.error('ws_port is not a number in config response')
           }
         } else {
-          console.error('Failed to fetch config:', response.statusText)
+          console.error('Failed to fetch config (non ok response):', response.statusText)
         }
       } catch (e) {
         // Keep the default port when /config is unavailable.
-        console.error('Failed to fetch config:', e)
+        console.error('Failed to fetch config (exception):', e)
       }
 
       if (isCancelled) {
@@ -109,10 +110,13 @@ function App() {
           return
         }
 
-        console.log('Scheduling reconnect in 2 seconds...')
+        const reconnectDelayMs = 3000
+
+        console.log(`Scheduling reconnect in ${reconnectDelayMs} seconds`)
         reconnectTimeout = setTimeout(() => {
+          setReconnectAttempts((prev) => prev + 1)
           connect()
-        }, 3000)
+        }, reconnectDelayMs)
       }
 
       if (gotConfig) {
@@ -143,6 +147,7 @@ function App() {
       }
 
     }
+
     connect()
 
     return () => {
@@ -178,7 +183,7 @@ function App() {
           <h1>EventRouter</h1>
           <p className="status" aria-live="polite">
             <span className={`dot dot-${status}`} aria-hidden="true" />
-            {status} - {wsPort}
+            {status}{reconnectAttempts > 0 ? `[${reconnectAttempts}]`: null} - {wsPort}
           </p>
         </header>
 
