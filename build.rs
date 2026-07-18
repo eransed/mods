@@ -1,11 +1,23 @@
 #![allow(unused_mut)]
 
-use types::BuildInfo;
-
+use chrono::{DateTime, Local};
 use std::env;
 use std::process::Command;
+use types::BuildInfo;
 
-fn cross_command(cmd: &str) -> Command {
+macro_rules! p {
+    ($($tokens: tt)*) => {
+        println!("cargo:warning={}", format!($($tokens)*))
+    }
+}
+
+fn ts() -> String {
+    let local: DateTime<Local> = Local::now();
+    format!("{}", local.format("%Y-%m-%d %H:%M:%S%.3f"))
+}
+
+fn _cross_command(cmd: &str) -> Command {
+    p!("{} cross_command: {}", ts(), cmd);
     if cfg!(windows) {
         let shell = env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string());
         let mut command = Command::new(shell);
@@ -14,6 +26,41 @@ fn cross_command(cmd: &str) -> Command {
     } else {
         Command::new(cmd)
     }
+}
+
+#[macro_export]
+macro_rules! cross_command {
+    ($cmd:expr $(, $arg:expr )* $(,)?) => {{
+
+        let ts = ts();
+        use std::time::Instant;
+        let now = Instant::now();
+
+        let mut args = Vec::<String>::new();
+        $(
+            args.push($arg.to_string());
+        )*
+
+        #[cfg(windows)]
+        {
+            let mut cmd = Command::new("cmd");
+            cmd.arg("/C").arg($cmd);
+            cmd.args(&args);
+            let out = cmd.output();
+            println!("cargo:warning={}", format!("{} > cmd /C {} {} [{:.1?}]", ts, $cmd, args.join(" "), now.elapsed()));
+            out
+        }
+
+        #[cfg(not(windows))]
+        {
+            let mut cmd = Command::new($cmd);
+            let mut cmd = Command::new($cmd);
+            cmd.args(&args);
+            let out = cmd.output();
+            println!("cargo:warning={}", format!("{} > {} {} [{:.1?}]", ts, $cmd, args.join(" "now.elapsed()), ));
+            out
+        }
+    }};
 }
 
 fn main() {
@@ -67,66 +114,67 @@ fn main() {
     }
 
     // export git_hash=$(git rev-parse --short HEAD)
-    let git_commit_cmd = cross_command("git")
-        .arg("rev-parse")
-        .arg("--short")
-        .arg("HEAD")
-        .output()
+    let git_commit_cmd = cross_command!("git", "rev-parse", "--short", "HEAD")
+        // .arg("rev-parse")
+        // .arg("--short")
+        // .arg("HEAD")
+        // .output()
         .expect("failed to execute process");
 
     // export git_branch=$(git rev-parse --abbrev-ref HEAD)
-    let git_branch_cmd = cross_command("git")
-        .arg("rev-parse")
-        .arg("--abbrev-ref")
-        .arg("HEAD")
-        .output()
+    let git_branch_cmd = cross_command!("git", "rev-parse", "--abbrev-ref", "HEAD")
+        // .arg("rev-parse")
+        // .arg("--abbrev-ref")
+        // .arg("HEAD")
+        // .output()
         .expect("failed to execute process");
 
     // export git_date=$(git show -s --format=%cd --date=short HEAD)
-    let git_date_cmd = cross_command("git")
-        .arg("show")
-        .arg("-s")
-        .arg("--format=%cd")
-        .arg("--date=short")
-        .arg("HEAD")
-        .output()
+    let git_date_cmd = cross_command!("git", "show", "-s", "--format=%cd", "--date=short", "HEAD")
+        // .arg("show")
+        // .arg("-s")
+        // .arg("--format=%cd")
+        // .arg("--date=short")
+        // .arg("HEAD")
+        // .output()
         .expect("failed to execute process");
 
     // export build_uname=$(uname)
-    let build_uname_cmd = cross_command("uname")
-        .output()
+    let build_uname_cmd = cross_command!("uname")
+        // .output()
         .expect("failed to execute process");
 
     // export git_version=$(git --version)
-    let git_version_cmd = cross_command("git")
-        .arg("--version")
-        .output()
+    let git_version_cmd = cross_command!("git", "--version")
+        // .arg("--version")
+        // .output()
         .expect("failed to execute process");
 
     // export rustc_version=$(rustc --version)
-    let rustc_version_cmd = cross_command("rustc")
-        .arg("--version")
-        .output()
+    let rustc_version_cmd = cross_command!("rustc", "--version")
+        // .arg("--version")
+        // .output()
         .expect("failed to execute process");
 
     // export rustc_version=$(docker --version)
-    let docker_version_cmd = cross_command("docker").arg("--version").output();
+    let docker_version_cmd = cross_command!("docker", "--version");
+    // .arg("--version").output();
 
     // export node_version=$(node --version)
-    let node_version_cmd = cross_command("node")
-        .arg("--version")
-        .output()
+    let node_version_cmd = cross_command!("node", "--version")
+        // .arg("--version")
+        // .output()
         .expect("Failed to read node version");
 
     // export npm_version=$(npm --version)
-    let npm_version_cmd = cross_command("npm")
-        .arg("--version")
-        .output()
+    let npm_version_cmd = cross_command!("npm", "--version")
+        // .arg("--version")
+        // .output()
         .expect("Failed to read npm version");
 
-    let quicktype_version_cmd = cross_command("quicktype")
-        .arg("--version")
-        .output()
+    let quicktype_version_cmd = cross_command!("quicktype", "--version")
+        // .arg("--version")
+        // .output()
         .expect("Failed to read quicktype version");
 
     let docker_version = match docker_version_cmd {
@@ -137,34 +185,34 @@ fn main() {
         Err(_) => String::from("-"),
     };
 
-    let du_release_mods_size_kb_cmd = cross_command("du")
-        .arg("-k")
-        .arg("target/release/mods")
-        .output()
+    let du_release_mods_size_kb_cmd = cross_command!("du", "-k", "target/release/mods")
+        // .arg("-k")
+        // .arg("target/release/mods")
+        // .output()
         .expect("Failed to read release mods size");
 
-    let du_debug_mods_size_kb_cmd = cross_command("du")
-        .arg("-k")
-        .arg("target/debug/mods")
-        .output()
+    let du_debug_mods_size_kb_cmd = cross_command!("du", "-k", "target/debug/mods")
+        // .arg("-k")
+        // .arg("target/debug/mods")
+        // .output()
         .expect("Failed to read debug mods size");
 
-    let du_html_kb_cmd = cross_command("du")
-        .arg("-k")
-        .arg("ui/dist/index.html")
-        .output()
+    let du_html_kb_cmd = cross_command!("du", "-k", "ui/dist/index.html")
+        // .arg("-k")
+        // .arg("ui/dist/index.html")
+        // .output()
         .expect("Failed to read ui/dist/index.html size");
 
-    let du_js_kb_cmd = cross_command("du")
-        .arg("-k")
-        .arg("ui/dist/main.js")
-        .output()
+    let du_js_kb_cmd = cross_command!("du", "-k", "ui/dist/main.js")
+        // .arg("-k")
+        // .arg("ui/dist/main.js")
+        // .output()
         .expect("Failed to read ui/dist/main.js size");
 
-    let du_css_kb_cmd = cross_command("du")
-        .arg("-k")
-        .arg("ui/dist/main.css")
-        .output()
+    let du_css_kb_cmd = cross_command!("du", "-k", "ui/dist/main.css")
+        // .arg("-k")
+        // .arg("ui/dist/main.css")
+        // .output()
         .expect("Failed to read ui/dist/main.css size");
 
     let bi = BuildInfo {
@@ -260,15 +308,23 @@ fn main() {
         .expect("Failed to write file");
 
     // quicktype --lang ts --just-types build_info.json --out ui/src/types/BuildInfo.ts
-    let quicktype_build_info_cmd = cross_command("quicktype")
-        .arg("--lang")
-        .arg("ts")
-        .arg("--just-types")
-        .arg("build_info.json")
-        .arg("--out")
-        .arg("ui/src/types/BuildInfo.ts")
-        .output()
-        .expect("Failed convert build_info.json to BuildInfo.ts");
+    let quicktype_build_info_cmd = cross_command!(
+        "quicktype",
+        "--lang",
+        "ts",
+        "--just-types",
+        "build_info.json",
+        "--out",
+        "ui/src/types/BuildInfo.ts"
+    )
+    // .arg("--lang")
+    // .arg("ts")
+    // .arg("--just-types")
+    // .arg("build_info.json")
+    // .arg("--out")
+    // .arg("ui/src/types/BuildInfo.ts")
+    // .output()
+    .expect("Failed convert build_info.json to BuildInfo.ts");
 
     if !quicktype_build_info_cmd.status.success() {
         panic!("Failed to convert build_info.json to BuildInfo.ts");
@@ -288,9 +344,9 @@ fn main() {
         );
 
         // npm i
-        let npmi = cross_command("npm")
-            .arg("i")
-            .output()
+        let npmi = cross_command!("npm", "i")
+            // .arg("i")
+            // .output()
             .expect("failed to execute npm i");
 
         if !npmi.status.success() {
@@ -298,10 +354,10 @@ fn main() {
         }
 
         // npm run build
-        let npmbuild = cross_command("npm")
-            .arg("run")
-            .arg("build")
-            .output()
+        let npmbuild = cross_command!("npm", "run", "build")
+            // .arg("run")
+            // .arg("build")
+            // .output()
             .expect("failed to execute npm run build");
 
         if !npmbuild.status.success() {
@@ -309,5 +365,6 @@ fn main() {
         }
     }
 
+    let _ = cross_command!("echo", "Done");
     // panic!();
 }
