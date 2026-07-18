@@ -57,7 +57,7 @@ macro_rules! cross_command {
             let mut cmd = Command::new($cmd);
             cmd.args(&args);
             let out = cmd.output();
-            println!("cargo:warning={}", format!("{} > {} {} [{:.1?}]", ts, $cmd, args.join(" "now.elapsed()), ));
+            println!("cargo:warning={}", format!("{} > {} {} [{:.1?}]", ts, $cmd, args.join(" "), now.elapsed()));
             out
         }
     }};
