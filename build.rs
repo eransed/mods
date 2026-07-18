@@ -67,6 +67,8 @@ fn main() {
         .format("%Y-%m-%d %H:%M:%S%.3f %z")
         .to_string();
 
+    let _ = cross_command!("echo Start");
+
     // Tell Cargo that if the given file changes, to rerun this build script.
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=build_info.json");

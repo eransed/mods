@@ -41,9 +41,19 @@ export function About() {
     return <p>Error</p>;
   }
 
+  function version() {
+    return buildInfo ? `${buildInfo.cargo_pkg_version}-${buildInfo.git_hash}` : ''
+  }
+
+  function verSpan() {
+    return (<span style={{color: '#999'}}>
+      {version()}
+    </span>)
+  }
+
   return (
     <div>
-      <h1>About</h1>
+      <h1>About {verSpan()}</h1>
       {buildInfo ? Object.entries(buildInfo).map((info, index) => {
         return <div key={index}>
           <strong>{info[0]}:</strong> {(info[1] as any).toString()}
