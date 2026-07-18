@@ -54,7 +54,6 @@ macro_rules! cross_command {
         #[cfg(not(windows))]
         {
             let mut cmd = Command::new($cmd);
-            let mut cmd = Command::new($cmd);
             cmd.args(&args);
             let out = cmd.output();
             println!("cargo:warning={}", format!("{} > {} {} [{:.1?}]", ts, $cmd, args.join(" "), now.elapsed()));
