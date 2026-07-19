@@ -13,10 +13,11 @@ use std::time::Duration;
 use tracing::{debug, info};
 use tracing_appender::non_blocking::WorkerGuard;
 use types::BuildInfo;
+use types::Config;
 use ws_client::WsClient;
 use ws_server::WsServer;
 
-fn init_tracing_guard(config: &config::Config) -> WorkerGuard {
+fn init_tracing_guard(config: &Config) -> WorkerGuard {
     init_tracing(config)
 }
 

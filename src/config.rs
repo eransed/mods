@@ -1,5 +1,4 @@
 use crate::{logging::set_log_level, message::Message};
-use serde::{Deserialize, Serialize};
 use std::{
     env, fs,
     path::{Path, PathBuf},
@@ -9,25 +8,8 @@ use tokio::sync::{
     mpsc::UnboundedReceiver,
 };
 use tracing::{debug, error, info, warn};
+use types::Config;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Config {
-    pub http_port: u16,
-    pub ws_port: u16,
-    pub log_level: String,
-    pub allow_remote_connections: bool,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            http_port: 8080,
-            ws_port: 8081,
-            log_level: "info".to_string(),
-            allow_remote_connections: false
-        }
-    }
-}
 
 pub enum ConfigRequest {
     Get {

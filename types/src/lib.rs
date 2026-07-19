@@ -26,3 +26,22 @@ pub struct BuildInfo {
     pub target_neon: bool,
     pub windows: bool,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Config {
+    pub http_port: u16,
+    pub ws_port: u16,
+    pub log_level: String,
+    pub allow_remote_connections: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            http_port: 8080,
+            ws_port: 8081,
+            log_level: "info".to_string(),
+            allow_remote_connections: false
+        }
+    }
+}

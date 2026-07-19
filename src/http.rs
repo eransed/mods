@@ -15,6 +15,7 @@ use axum::{
 };
 
 use axum::http::HeaderMap;
+use types::Config;
 
 use std::{
     collections::HashMap,
@@ -27,10 +28,7 @@ use tokio::sync::{
 };
 use tracing::{debug, info};
 
-use crate::{
-    config::{Config, ConfigRequest},
-    message::Message,
-};
+use crate::{config::ConfigRequest, message::Message};
 
 pub struct HttpModule {
     name: &'static str,
@@ -75,13 +73,11 @@ impl HttpModule {
 
         let app = Router::new()
             .fallback(get(index_handler))
-
             // static files
             .route("/", get(index_handler))
             .route("/main.js", get(main_js_handler))
             .route("/main.css", get(main_css_handler))
             .route("/build_info.json", get(build_info_json_handler))
-
             // api
             .route("/send", get(send_handler))
             .route("/shutdown", get(shutdown_handler))
@@ -89,7 +85,6 @@ impl HttpModule {
             .route("/ping", get(ping_handler))
             .route("/reset_config", get(reset_config_handler))
             .route("/set_config", post(set_config_handler))
-
             // middleware
             .layer(middleware::from_fn(log_request))
             .with_state(state);
@@ -170,28 +165,48 @@ async fn send_handler(State(state): State<HttpState>) -> impl IntoResponse {
 async fn index_handler(State(_state): State<HttpState>) -> impl IntoResponse {
     let indexhtml = include_str!("../ui/dist/index.html");
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/html".parse().expect("Failed to parse Content-Type header"));
+    headers.insert(
+        "Content-Type",
+        "text/html"
+            .parse()
+            .expect("Failed to parse Content-Type header"),
+    );
     (headers, indexhtml.to_string())
 }
 
 async fn main_js_handler(State(_state): State<HttpState>) -> impl IntoResponse {
     let mainjs = include_str!("../ui/dist/main.js");
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/javascript".parse().expect("Failed to parse Content-Type header"));
+    headers.insert(
+        "Content-Type",
+        "text/javascript"
+            .parse()
+            .expect("Failed to parse Content-Type header"),
+    );
     (headers, mainjs.to_string())
 }
 
 async fn main_css_handler(State(_state): State<HttpState>) -> impl IntoResponse {
     let maincss = include_str!("../ui/dist/main.css");
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "text/css".parse().expect("Failed to parse Content-Type header"));
+    headers.insert(
+        "Content-Type",
+        "text/css"
+            .parse()
+            .expect("Failed to parse Content-Type header"),
+    );
     (headers, maincss.to_string())
 }
 
 async fn build_info_json_handler(State(_state): State<HttpState>) -> impl IntoResponse {
     let buildinfojson = include_str!("../build_info.json");
     let mut headers = HeaderMap::new();
-    headers.insert("Content-Type", "application/json".parse().expect("Failed to parse Content-Type header"));
+    headers.insert(
+        "Content-Type",
+        "application/json"
+            .parse()
+            .expect("Failed to parse Content-Type header"),
+    );
     (headers, buildinfojson.to_string())
 }
 
@@ -309,9 +324,9 @@ impl Drop for HttpModule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::Config;
     use std::{net::SocketAddr, sync::Arc, time::Duration};
     use tokio::{net::TcpListener, sync::Mutex};
+    use types::Config;
 
     #[test]
     fn parse_max_response_time_micros_uses_query_value_or_default() {
@@ -399,7 +414,7 @@ mod tests {
                 http_port: 8080,
                 ws_port: 8085,
                 log_level: "debug".to_string(),
-                allow_remote_connections: false
+                allow_remote_connections: false,
             })
             .send()
             .await
