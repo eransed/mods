@@ -60,14 +60,14 @@ const pages = [
 function App() {
   const [status, setStatus] = useState<ConnectionState>('connecting')
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
-  const [wsPort, setWsPort] = useState(8085)
+  const [wsPort, setWsPort] = useState(8081)
 
   const protocol = 'http'
-  const rootUrl = 'localhost'
+  const rootUrl = window.location.hostname
   const rootPort = 8080
   const host = `${protocol}://${rootUrl}:${rootPort}`
 
-  const defaultWsPort = 8085
+  const defaultWsPort = 8081
 
   useEffect(() => {
     let socket: WebSocket | null = null
@@ -197,8 +197,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<Overview />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/about" element={<About />} />
+            <Route path="/about" element={<About port={rootPort} />} />
             {pages.map((page) => (
               <Route
                 key={page.path}

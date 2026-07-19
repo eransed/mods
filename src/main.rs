@@ -8,10 +8,10 @@ mod ws_server;
 use crate::logging::init_tracing;
 use config::ConfigModule;
 use http::HttpModule;
-use types::BuildInfo;
 use std::time::Duration;
 use tracing::{debug, info};
 use tracing_appender::non_blocking::WorkerGuard;
+use types::BuildInfo;
 use ws_client::WsClient;
 use ws_server::WsServer;
 
@@ -53,16 +53,21 @@ async fn main() {
 
     let ws_port = initial_config.ws_port;
     let http_port = initial_config.http_port;
+    let host = if initial_config.allow_remote_connections {
+        [0, 0, 0, 0]
+    } else {
+        [127, 0, 0, 1]
+    };
 
     tokio::spawn(async move {
-        let ws_addr = std::net::SocketAddr::from(([127, 0, 0, 1], ws_port));
+        let ws_addr = std::net::SocketAddr::from((host, ws_port));
         if let Err(err) = ws_server.run(ws_addr).await {
             tracing::error!(error = ?err, "failed to start websocket server");
         }
     });
 
     tokio::spawn(async move {
-        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], http_port));
+        let addr = std::net::SocketAddr::from((host, http_port));
         if let Err(err) = http_module.run(addr).await {
             tracing::error!(error = ?err, "failed to start http server");
         }

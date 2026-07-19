@@ -399,6 +399,7 @@ mod tests {
                 http_port: 8080,
                 ws_port: 8085,
                 log_level: "debug".to_string(),
+                allow_remote_connections: false
             })
             .send()
             .await
@@ -412,6 +413,7 @@ mod tests {
                 http_port: 8080,
                 ws_port: 8085,
                 log_level: "debug".to_string(),
+                allow_remote_connections: false
             }
         );
 

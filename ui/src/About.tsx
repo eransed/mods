@@ -2,11 +2,15 @@
 import { useEffect, useState } from "react";
 import type { BuildInfo } from "./types/BuildInfo"
 
-export function About() {
+export interface AboutProps {
+  port: number
+}
+
+export function About({ port }: AboutProps) {
 
   const protocol = 'http'
-  const rootUrl = 'localhost'
-  const rootPort = 8080
+  const rootUrl = window.location.hostname
+  const rootPort = port
   const host = `${protocol}://${rootUrl}:${rootPort}`
   const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
   const [loading, setLoading] = useState(true);
