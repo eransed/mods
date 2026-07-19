@@ -47,7 +47,7 @@ macro_rules! cross_command {
             cmd.arg("/C").arg($cmd);
             cmd.args(&args);
             let out = cmd.output();
-            println!("cargo:warning={}", format!("{} > cmd /C {} {} [{:.1?}]", ts, $cmd, args.join(" "), now.elapsed()));
+            println!("cargo::warning={}", format!("{} cmd /C {} {} [{:.1?}]", ts, $cmd, args.join(" "), now.elapsed()));
             out
         }
 
@@ -56,7 +56,7 @@ macro_rules! cross_command {
             let mut cmd = Command::new($cmd);
             cmd.args(&args);
             let out = cmd.output();
-            println!("cargo:warning={}", format!("{} > {} {} [{:.1?}]", ts, $cmd, args.join(" "), now.elapsed()));
+            println!("cargo::warning={}", format!("{} {} {} [{:.1?}]", ts, $cmd, args.join(" "), now.elapsed()));
             out
         }
     }};
@@ -70,8 +70,8 @@ fn main() {
     let _ = cross_command!("echo Start");
 
     // Tell Cargo that if the given file changes, to rerun this build script.
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=build_info.json");
+    println!("cargo::rerun-if-changed=build.rs");
+    println!("cargo::rerun-if-changed=build_info.json");
 
     let build_type = if cfg!(debug_assertions) {
         "debug"
