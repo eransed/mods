@@ -24,4 +24,5 @@ pub struct BuildInfo {
     pub target_arch: String,
     pub target_avx2: bool,
     pub target_neon: bool,
+    pub windows: bool,
 }

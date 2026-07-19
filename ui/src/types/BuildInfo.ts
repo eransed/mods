@@ -21,4 +21,5 @@ export interface BuildInfo {
     target_arch:            string;
     target_avx2:            boolean;
     target_neon:            boolean;
+    windows:                boolean;
 }

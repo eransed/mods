@@ -243,6 +243,7 @@ fn main() {
             .expect("Failed to convert bytes to string")
             .trim()
             .to_string(),
+        windows: cfg!(windows)
     };
 
     let bi_json = serde_json::to_string_pretty(&bi).expect("Failed to parse json");
