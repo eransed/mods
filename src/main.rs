@@ -4,6 +4,7 @@ mod logging;
 mod message;
 mod ws_client;
 mod ws_server;
+mod camera;
 
 use crate::logging::init_tracing;
 use config::ConfigModule;
@@ -25,6 +26,9 @@ pub fn build_info() -> BuildInfo {
 
 #[tokio::main]
 async fn main() {
+
+    let res = camera::camera_start();
+
     let (tx, _) = tokio::sync::broadcast::channel(16);
 
     let (shutdown_tx, mut shutdown_rx) = tokio::sync::watch::channel(false);

@@ -25,6 +25,7 @@ reqwest = { version = "0.12", features = ["json"] }
 tower = { version = "0.4" }
 tower-http = { version = "0.3", features = ["cors"] }
 chrono = "0.4.41"
+opencv = "0.99.0"
 
 [profile.release]
 strip = true  # Automatically strip symbols from the binary.
@@ -40,3 +41,7 @@ unwrap_used = "deny"
 # correctness = { level = "warn", allow = ["unnecessary_unwrap"] }
 # enum_glob_use = "deny"
 # expect_used = "deny"
+
+# [env]
+# OPENCV_LINK_LIBS = "opencv_calib3d,opencv_core,opencv_dnn,opencv_features2d,opencv_flann,opencv_gapi,opencv_highgui,opencv_imgcodecs,opencv_imgproc,opencv_ml,opencv_objdetect,opencv_photo,opencv_stitching,opencv_video,opencv_videoio"
+# OPENCV_LINK_LIBS = "opencv_calib3d4150,opencv_core4150,opencv_dnn4150,opencv_features2d4150,opencv_flann4150,opencv_gapi4150,opencv_highgui4150,opencv_imgcodecs4150,opencv_imgproc4150,opencv_ml4150,opencv_objdetect4150,opencv_photo4150,opencv_stitching4150,opencv_video4150,opencv_videoio4150"
