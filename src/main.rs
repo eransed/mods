@@ -27,7 +27,7 @@ pub fn build_info() -> BuildInfo {
 #[tokio::main]
 async fn main() {
 
-    let res = camera::camera_start();
+    let _ = camera::camera_start();
 
     let (tx, _) = tokio::sync::broadcast::channel(16);
 

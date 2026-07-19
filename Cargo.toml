@@ -26,6 +26,7 @@ tower = { version = "0.4" }
 tower-http = { version = "0.3", features = ["cors"] }
 chrono = "0.4.41"
 opencv = "0.99.0"
+apriltag = "0.4.0"
 
 [profile.release]
 strip = true  # Automatically strip symbols from the binary.

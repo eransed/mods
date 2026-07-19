@@ -9,6 +9,7 @@
 - quicktype
 - opencv
 - llvm
+- vcpkg?
 - cmake?
 
 ```
@@ -42,3 +43,11 @@ Or
 export OPENCV_LINK_LIBS="opencv_calib3d,opencv_core,opencv_dnn,opencv_features2d,opencv_flann,opencv_gapi,opencv_highgui,opencv_imgcodecs,opencv_imgproc,opencv_ml,opencv_objdetect,opencv_photo,opencv_stitching,opencv_video,opencv_videoio"
 ```
 
+```
+vcpkg install pthread:x64-windows-static
+```
+
+```
+export APRILTAG_SYS_WINDOWS_PTHREAD_INCLUDE_DIR="$VCPKG_ROOT/installed/x64-windows-static/include"
+export APRILTAG_SYS_WINDOWS_PTHREAD_STATIC_LIB="$VCPKG_ROOT/installed/x64-windows-static/lib/pthreadVC3.lib"
+```
