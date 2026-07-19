@@ -1,10 +1,10 @@
+mod camera;
 mod config;
 mod http;
 mod logging;
 mod message;
 mod ws_client;
 mod ws_server;
-mod camera;
 
 use crate::logging::init_tracing;
 use config::ConfigModule;
@@ -28,20 +28,22 @@ pub fn build_info() -> BuildInfo {
 #[tokio::main]
 async fn main() {
 
-    let _ = camera::camera_start();
-
     let (tx, _) = tokio::sync::broadcast::channel(16);
-
     let (shutdown_tx, mut shutdown_rx) = tokio::sync::watch::channel(false);
     let (config_request_tx, config_request_rx) = tokio::sync::mpsc::unbounded_channel();
-
     let config_module = ConfigModule::new(tx.clone(), config_request_rx);
     let initial_config = config_module.config().clone();
+
     let _guard = init_tracing_guard(&initial_config);
-
     let bi = build_info();
-
     info!("Starting mods:\n{:#?}", bi);
+
+    if camera::camera_start() {
+        info!("Quits");
+        return;
+    } else {
+        info!("Continues...")
+    }
 
     let ws_server = WsServer::new("ws_server", tx.clone());
     let http_module = HttpModule::new(

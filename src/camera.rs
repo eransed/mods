@@ -1,19 +1,18 @@
 use apriltag::{Detector, Family, image_buf::DEFAULT_ALIGNMENT_U8};
 use opencv::{
-    core::{self, Point, Scalar},
-    highgui, imgproc,
-    prelude::*,
-    videoio,
+    core::{self, Point, Scalar, Size}, highgui, imgproc, prelude::*, videoio,
 };
 
-pub fn camera_start() -> opencv::Result<()> {
-    let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY)?;
+pub fn camera_start() -> bool {
+    let mut res = false;
+    let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
+    camera.set(videoio::CAP_PROP_FRAME_WIDTH, 1920 as f64).unwrap();
 
-    if !camera.is_opened()? {
+    if !camera.is_opened().unwrap() {
         panic!("Failed to open camera");
     }
 
-    highgui::named_window("Camera", highgui::WINDOW_AUTOSIZE)?;
+    highgui::named_window("Camera", highgui::WINDOW_AUTOSIZE).unwrap();
 
     // Create detector
     let builder = Detector::builder();
@@ -26,11 +25,20 @@ pub fn camera_start() -> opencv::Result<()> {
     let mut frame = Mat::default();
     let mut gray = Mat::default();
 
+    let mut first_frame = false;
+
     loop {
-        camera.read(&mut frame)?;
+        camera.read(&mut frame).unwrap();
 
         if frame.empty() {
+            println!("Empty frame!");
             continue;
+        }
+
+        if !first_frame {
+            first_frame = true;
+            let size = frame.size().unwrap();
+            println!("Frame size: {:?}", size);
         }
 
         // Convert to grayscale
@@ -40,19 +48,21 @@ pub fn camera_start() -> opencv::Result<()> {
             imgproc::COLOR_BGR2GRAY,
             0,
             core::AlgorithmHint::ALGO_HINT_DEFAULT,
-        )?;
+        )
+        .unwrap();
 
         let mut image = apriltag::Image::zeros_with_alignment(
             gray.cols() as usize,
             gray.rows() as usize,
-            DEFAULT_ALIGNMENT_U8
-        ).expect("Failed to convert image");
+            DEFAULT_ALIGNMENT_U8,
+        )
+        .expect("Failed to convert image");
 
-        let src = gray.data_bytes()?;
+        let src = gray.data_bytes().unwrap();
 
         let width = gray.cols() as usize;
         let height = gray.rows() as usize;
-        let src_stride = gray.step1(0)?; // bytes per row in the OpenCV image
+        let src_stride = gray.step1(0).unwrap(); // bytes per row in the OpenCV image
         let dst_stride = image.stride();
 
         let dst = image.as_slice_mut();
@@ -87,7 +97,8 @@ pub fn camera_start() -> opencv::Result<()> {
                     2,
                     imgproc::LINE_AA,
                     0,
-                )?;
+                )
+                .unwrap();
             }
 
             let center = det.center();
@@ -102,17 +113,28 @@ pub fn camera_start() -> opencv::Result<()> {
                 2,
                 imgproc::LINE_AA,
                 false,
-            )?;
+            )
+            .unwrap();
         }
 
-        highgui::imshow("Camera", &frame)?;
+        let mut small_frame = Mat::default();
+        imgproc::resize(&frame, &mut small_frame, Size::default(), 0.5, 0.5, imgproc::INTER_AREA).unwrap();
 
-        if highgui::wait_key(1)? >= 0 {
+        highgui::imshow("mods", &small_frame).unwrap();
+
+        let key = highgui::wait_key(1).unwrap();
+
+        if key >= 0 {
+            let c = char::from_u32(key.try_into().unwrap());
+            println!("key={} ({:?})", key, c);
+            if key == ('q' as i32) {
+                res = true;
+            }
             break;
         }
     }
 
     let _ = highgui::destroy_all_windows();
 
-    Ok(())
+    return res;
 }
