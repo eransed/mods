@@ -51,3 +51,9 @@ vcpkg install pthread:x64-windows-static
 export APRILTAG_SYS_WINDOWS_PTHREAD_INCLUDE_DIR="$VCPKG_ROOT/installed/x64-windows-static/include"
 export APRILTAG_SYS_WINDOWS_PTHREAD_STATIC_LIB="$VCPKG_ROOT/installed/x64-windows-static/lib/pthreadVC3.lib"
 ```
+
+```
+$env:APRILTAG_SYS_WINDOWS_PTHREAD_INCLUDE_DIR = "$env:VCPKG_ROOT\installed\x64-windows-static\include"
+$env:APRILTAG_SYS_WINDOWS_PTHREAD_STATIC_LIB = "$env:VCPKG_ROOT\installed\x64-windows-static\lib\pthreadVC3.lib"
+```
+
