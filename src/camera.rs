@@ -1,18 +1,26 @@
 use apriltag::{Detector, Family, image_buf::DEFAULT_ALIGNMENT_U8};
 use opencv::{
-    core::{self, Point, Scalar, Size}, highgui, imgproc, prelude::*, videoio,
+    core::{self, Point, Scalar, Size},
+    highgui, imgproc,
+    prelude::*,
+    videoio,
 };
+use tracing::{info, warn};
 
 pub fn camera_start() -> bool {
+    let window_tile = "mods";
+
     let mut res = false;
     let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
-    camera.set(videoio::CAP_PROP_FRAME_WIDTH, 1920 as f64).unwrap();
+    camera
+        .set(videoio::CAP_PROP_FRAME_WIDTH, 1920 as f64)
+        .unwrap();
 
     if !camera.is_opened().unwrap() {
         panic!("Failed to open camera");
     }
 
-    highgui::named_window("Camera", highgui::WINDOW_AUTOSIZE).unwrap();
+    highgui::named_window(window_tile, highgui::WINDOW_AUTOSIZE).unwrap();
 
     // Create detector
     let builder = Detector::builder();
@@ -31,14 +39,14 @@ pub fn camera_start() -> bool {
         camera.read(&mut frame).unwrap();
 
         if frame.empty() {
-            println!("Empty frame!");
+            warn!("Empty frame!");
             continue;
         }
 
         if !first_frame {
             first_frame = true;
             let size = frame.size().unwrap();
-            println!("Frame size: {:?}", size);
+            info!("Frame size: {:?}", size);
         }
 
         // Convert to grayscale
@@ -76,8 +84,19 @@ pub fn camera_start() -> bool {
         // let detections = detector.detect(&image)?;
         let detections = detector.detect(&image);
 
+        let params = apriltag::TagParams {
+            tagsize: 0.0225,
+            fx: 200 as f64,
+            fy: 200 as f64,
+            cx: 780 as f64,
+            cy: 438 as f64,
+        };
+
         for det in detections {
             // println!("Tag ID: {}", det.id());
+            if det.id() != 21 {
+                continue;
+            }
 
             let corners = det.corners();
 
@@ -108,25 +127,57 @@ pub fn camera_start() -> bool {
                 &format!("{}", det.id()),
                 Point::new(center[0] as i32, center[1] as i32),
                 imgproc::FONT_HERSHEY_SIMPLEX,
-                0.6,
+                0.9,
                 Scalar::new(0.0, 0.0, 255.0, 0.0),
                 2,
                 imgproc::LINE_AA,
                 false,
             )
             .unwrap();
+
+            let pe = apriltag::Detection::estimate_tag_pose(&det, &params).unwrap();
+            let rot = pe.rotation().data();
+            let mut index = 0;
+
+            for r in 0..pe.rotation().nrows() {
+                for c in 0..pe.rotation().ncols() {
+                    let ri32: i32 = r.try_into().unwrap();
+                    let ci32: i32 = c.try_into().unwrap();
+                    imgproc::put_text(
+                        &mut frame,
+                        &format!("{:.2}", rot[index]),
+                        Point::new(30 + 200*ri32, 50 + 50*ci32),
+                        imgproc::FONT_HERSHEY_SIMPLEX,
+                        0.9,
+                        Scalar::new(255.0, 255.0, 255.0, 0.0),
+                        2,
+                        imgproc::LINE_AA,
+                        false,
+                    )
+                    .unwrap();
+                    index = index + 1;
+                }
+            }
         }
 
         let mut small_frame = Mat::default();
-        imgproc::resize(&frame, &mut small_frame, Size::default(), 0.5, 0.5, imgproc::INTER_AREA).unwrap();
+        imgproc::resize(
+            &frame,
+            &mut small_frame,
+            Size::default(),
+            0.5,
+            0.5,
+            imgproc::INTER_AREA,
+        )
+        .unwrap();
 
-        highgui::imshow("mods", &small_frame).unwrap();
+        highgui::imshow(window_tile, &small_frame).unwrap();
 
         let key = highgui::wait_key(1).unwrap();
 
         if key >= 0 {
             let c = char::from_u32(key.try_into().unwrap());
-            println!("key={} ({:?})", key, c);
+            info!("key={} ({:?})", key, c);
             if key == ('q' as i32) {
                 res = true;
             }
