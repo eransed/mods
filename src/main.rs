@@ -9,8 +9,8 @@ mod ws_server;
 use crate::logging::init_tracing;
 use config::ConfigModule;
 use http::HttpModule;
-use tracing::debug;
 use std::time::Duration;
+use tracing::debug;
 use tracing::info;
 use tracing_appender::non_blocking::WorkerGuard;
 use types::BuildInfo;
@@ -28,7 +28,10 @@ pub fn build_info() -> BuildInfo {
 
 pub fn version() -> String {
     let bi = build_info();
-    format!("{}-{}-{}-{}", bi.cargo_pkg_version, bi.git_hash, bi.build_type, bi.target_arch)
+    format!(
+        "{}-{}-{}-{}",
+        bi.cargo_pkg_version, bi.git_hash, bi.build_type, bi.target_arch
+    )
 }
 
 #[tokio::main]
@@ -43,10 +46,24 @@ async fn main() {
     let _guard = init_tracing_guard(&initial_config);
     let bi = build_info();
     debug!("Starting mods:\n{:#?}", bi);
-    info!("Version     : {}", version());
-    info!("Rust version: {}", bi.rustc_version);
-    info!("Release size: {} kb", bi.binary_release_size_kb);
-    info!("js size     : {} kb", bi.main_js_size_kb);
+    info!("Version      : {}", version());
+    info!("Rust version : {}", bi.rustc_version);
+    info!("Node version : {}", bi.node_version);
+    info!(
+        "Debug size   : {} KB ({:.1} MB)",
+        bi.binary_debug_size_kb,
+        bi.binary_debug_size_kb as f32 / 1000 as f32
+    );
+    info!(
+        "Release size : {} KB ({:.1} MB)",
+        bi.binary_release_size_kb,
+        bi.binary_release_size_kb as f32 / 1000 as f32
+    );
+    info!(
+        "js size      : {} KB ({:.1} MB)",
+        bi.main_js_size_kb,
+        bi.main_js_size_kb as f32 / 1000 as f32
+    );
 
     if camera::camera_start() {
         info!("Quits");
