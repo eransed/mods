@@ -8,6 +8,7 @@ use opencv::{
 use tracing::{info, warn};
 
 pub fn camera_start() -> bool {
+    let start = std::time::Instant::now();
     let window_title = "mods";
 
     let mut res = false;
@@ -46,6 +47,7 @@ pub fn camera_start() -> bool {
             first_frame = true;
             let size = frame.size().unwrap();
             info!("Frame size: {:?}", size);
+            info!("Camera startup time: {:.1?}", start.elapsed());
         }
 
         // Convert to grayscale
@@ -189,6 +191,6 @@ pub fn camera_start() -> bool {
     let _ = highgui::destroy_window(window_title).expect("Failed to destroy window");
     let _ = highgui::destroy_all_windows().expect("Failed to destroy all windows");
     highgui::wait_key(1).unwrap();
-
+    info!("Total runtime: {:.1?}", start.elapsed());
     return res;
 }

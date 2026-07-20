@@ -10,6 +10,7 @@ use crate::logging::init_tracing;
 use config::ConfigModule;
 use http::HttpModule;
 use std::time::Duration;
+use std::time::Instant;
 use tracing::debug;
 use tracing::info;
 use tracing_appender::non_blocking::WorkerGuard;
@@ -36,6 +37,7 @@ pub fn version() -> String {
 
 #[tokio::main]
 async fn main() {
+    let start = Instant::now();
     let (broadcast_sender, _) = tokio::sync::broadcast::channel(16);
     let (shutdown_tx, mut shutdown_rx) = tokio::sync::watch::channel(false);
     let (config_request_tx, config_request_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -46,7 +48,7 @@ async fn main() {
     let _guard = init_tracing_guard(&initial_config);
     let bi = build_info();
     debug!("Starting mods:\n{:#?}", bi);
-    info!("Version      : {}", version());
+    info!("Version      : {} ({:.1?})", version(), start.elapsed());
     info!("Rust version : {}", bi.rustc_version);
     info!("Node version : {}", bi.node_version);
     info!(
@@ -66,10 +68,10 @@ async fn main() {
     );
 
     if camera::camera_start() {
-        info!("Quits");
+        info!("Quits after {:.1?}", start.elapsed());
         return;
     } else {
-        info!("Continues...")
+        info!("Continues after {:.1?}", start.elapsed());
     }
 
     let ws_server = WsServer::new("ws_server", broadcast_sender.clone());
@@ -127,5 +129,5 @@ async fn main() {
         }
     }
 
-    info!("shutting down");
+    info!("shutting down after {:.1?}", start.elapsed());
 }
