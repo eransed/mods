@@ -57,3 +57,15 @@ $env:APRILTAG_SYS_WINDOWS_PTHREAD_INCLUDE_DIR = "$env:VCPKG_ROOT\installed\x64-w
 $env:APRILTAG_SYS_WINDOWS_PTHREAD_STATIC_LIB = "$env:VCPKG_ROOT\installed\x64-windows-static\lib\pthreadVC3.lib"
 ```
 
+## mac
+
+```
+brew install opencv llvm
+```
+### env
+
+```
+export DYLD_FALLBACK_LIBRARY_PATH="$(xcode-select --print-path)/Toolchains/XcodeDefault.xctoolchain/usr/lib/"
+export LDFLAGS=-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/lib  
+```

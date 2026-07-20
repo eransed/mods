@@ -72,6 +72,7 @@ fn main() {
 
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed=build_info.json");
+    println!("cargo::rustc-link-arg=-Wl,-rpath,/usr/local/lib");
 
     let build_type = if cfg!(debug_assertions) {
         "debug"
