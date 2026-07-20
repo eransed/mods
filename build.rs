@@ -42,13 +42,17 @@ macro_rules! cross_command {
             args.push($arg.to_string());
         )*
 
+        let quiet = true;
+
         #[cfg(windows)]
         {
             let mut cmd = Command::new("cmd");
             cmd.arg("/C").arg($cmd);
             cmd.args(&args);
             let out = cmd.output();
-            println!("cargo::warning={}", format!("{} cmd /C {} {} [{:.1?}]", ts, $cmd, args.join(" "), now.elapsed()));
+            if !quiet {
+                println!("cargo::warning={}", format!("{} cmd /C {} {} [{:.1?}]", ts, $cmd, args.join(" "), now.elapsed()));
+            }
             out
         }
 
@@ -57,7 +61,9 @@ macro_rules! cross_command {
             let mut cmd = Command::new($cmd);
             cmd.args(&args);
             let out = cmd.output();
-            println!("cargo::warning={}", format!("{} {} {} [{:.1?}]", ts, $cmd, args.join(" "), now.elapsed()));
+            if !quiet {
+                println!("cargo::warning={}", format!("{} {} {} [{:.1?}]", ts, $cmd, args.join(" "), now.elapsed()));
+            }
             out
         }
     }};

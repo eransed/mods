@@ -8,7 +8,7 @@ use opencv::{
 use tracing::{info, warn};
 
 pub fn camera_start() -> bool {
-    let window_tile = "mods";
+    let window_title = "mods";
 
     let mut res = false;
     let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
@@ -20,7 +20,7 @@ pub fn camera_start() -> bool {
         panic!("Failed to open camera");
     }
 
-    highgui::named_window(window_tile, highgui::WINDOW_AUTOSIZE).unwrap();
+    highgui::named_window(window_title, highgui::WINDOW_AUTOSIZE).unwrap();
 
     let builder = Detector::builder();
     let mut detector = builder
@@ -170,7 +170,7 @@ pub fn camera_start() -> bool {
         )
         .unwrap();
 
-        highgui::imshow(window_tile, &small_frame).unwrap();
+        highgui::imshow(window_title, &small_frame).unwrap();
 
         let key = highgui::wait_key(1).unwrap();
 
@@ -184,7 +184,11 @@ pub fn camera_start() -> bool {
         }
     }
 
-    let _ = highgui::destroy_all_windows();
+    info!("Shutting down...");
+    let _ = camera.release().expect("Failed to release camera");
+    let _ = highgui::destroy_window(window_title).expect("Failed to destroy window");
+    let _ = highgui::destroy_all_windows().expect("Failed to destroy all windows");
+    highgui::wait_key(1).unwrap();
 
     return res;
 }

@@ -173,7 +173,7 @@ impl WsServer {
 
 impl Drop for WsServer {
     fn drop(&mut self) {
-        debug!("ws_server dropping and shutting down");
+        info!("ws_server dropping and shutting down");
     }
 }
 
