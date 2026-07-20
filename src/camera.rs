@@ -22,7 +22,6 @@ pub fn camera_start() -> bool {
 
     highgui::named_window(window_tile, highgui::WINDOW_AUTOSIZE).unwrap();
 
-    // Create detector
     let builder = Detector::builder();
     let mut detector = builder
         .add_family_bits(Family::tag_16h5(), 1)
@@ -70,7 +69,9 @@ pub fn camera_start() -> bool {
 
         let width = gray.cols() as usize;
         let height = gray.rows() as usize;
-        let src_stride = gray.step1(0).unwrap(); // bytes per row in the OpenCV image
+
+        // bytes per row in the OpenCV image
+        let src_stride = gray.step1(0).unwrap();
         let dst_stride = image.stride();
 
         let dst = image.as_slice_mut();
@@ -81,7 +82,6 @@ pub fn camera_start() -> bool {
             dst_row.copy_from_slice(src_row);
         }
 
-        // let detections = detector.detect(&image)?;
         let detections = detector.detect(&image);
 
         let params = apriltag::TagParams {
@@ -93,7 +93,6 @@ pub fn camera_start() -> bool {
         };
 
         for det in detections {
-            // println!("Tag ID: {}", det.id());
             if det.id() != 21 {
                 continue;
             }
@@ -124,10 +123,10 @@ pub fn camera_start() -> bool {
 
             imgproc::put_text(
                 &mut frame,
-                &format!("{}", det.id()),
+                &format!("T{} ({:.1})", det.id(), det.decision_margin()),
                 Point::new(center[0] as i32, center[1] as i32),
                 imgproc::FONT_HERSHEY_SIMPLEX,
-                0.9,
+                1.0,
                 Scalar::new(0.0, 0.0, 255.0, 0.0),
                 2,
                 imgproc::LINE_AA,
@@ -136,9 +135,9 @@ pub fn camera_start() -> bool {
             .unwrap();
 
             let pe = apriltag::Detection::estimate_tag_pose(&det, &params).unwrap();
+
             let rot = pe.rotation().data();
             let mut index = 0;
-
             for r in 0..pe.rotation().nrows() {
                 for c in 0..pe.rotation().ncols() {
                     let ri32: i32 = r.try_into().unwrap();
@@ -146,10 +145,10 @@ pub fn camera_start() -> bool {
                     imgproc::put_text(
                         &mut frame,
                         &format!("{:.2}", rot[index]),
-                        Point::new(30 + 200*ri32, 50 + 50*ci32),
+                        Point::new(30 + 200 * ri32, 50 + 50 * ci32),
                         imgproc::FONT_HERSHEY_SIMPLEX,
-                        0.9,
-                        Scalar::new(255.0, 255.0, 255.0, 0.0),
+                        1.0,
+                        Scalar::new(10.0, 255.0, 10.0, 0.0),
                         2,
                         imgproc::LINE_AA,
                         false,
