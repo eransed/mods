@@ -94,8 +94,9 @@ pub fn camera_start() -> bool {
             cy: 438 as f64,
         };
 
-        for det in detections {
-            if det.id() != 21 {
+        for (di, det) in detections.iter().enumerate() {
+            let id = det.id();
+            if id < 21 || id > 23 {
                 continue;
             }
 
@@ -125,7 +126,7 @@ pub fn camera_start() -> bool {
 
             imgproc::put_text(
                 &mut frame,
-                &format!("T{} ({:.1})", det.id(), det.decision_margin()),
+                &format!("{}. T{} ({:.1})", di, det.id(), det.decision_margin()),
                 Point::new(center[0] as i32, center[1] as i32),
                 imgproc::FONT_HERSHEY_SIMPLEX,
                 1.0,
@@ -136,7 +137,33 @@ pub fn camera_start() -> bool {
             )
             .unwrap();
 
+            // only show info about the first detection
+            if di > 0 {
+                continue;
+            }
+
             let pe = apriltag::Detection::estimate_tag_pose(&det, &params).unwrap();
+            let tra = pe.translation().data();
+            let mut index = 0;
+            for r in 0..pe.translation().nrows() {
+                for c in 0..pe.translation().ncols() {
+                    let ri32: i32 = r.try_into().unwrap();
+                    let ci32: i32 = c.try_into().unwrap();
+                    imgproc::put_text(
+                        &mut frame,
+                        &format!("{:.3}", tra[index] * 10 as f64),
+                        Point::new(30 + 200 * ri32, 50 + 50 * ci32),
+                        imgproc::FONT_HERSHEY_SIMPLEX,
+                        1.0,
+                        Scalar::new(10.0, 10.0, 255.0, 0.0),
+                        2,
+                        imgproc::LINE_AA,
+                        false,
+                    )
+                    .unwrap();
+                    index = index + 1;
+                }
+            }
 
             let rot = pe.rotation().data();
             let mut index = 0;
@@ -147,7 +174,7 @@ pub fn camera_start() -> bool {
                     imgproc::put_text(
                         &mut frame,
                         &format!("{:.2}", rot[index]),
-                        Point::new(30 + 200 * ri32, 50 + 50 * ci32),
+                        Point::new(30 + 200 * ri32, 100 + 50 * ci32),
                         imgproc::FONT_HERSHEY_SIMPLEX,
                         1.0,
                         Scalar::new(10.0, 255.0, 10.0, 0.0),
@@ -162,12 +189,13 @@ pub fn camera_start() -> bool {
         }
 
         let mut small_frame = Mat::default();
+        let resize_factor = 0.4;
         imgproc::resize(
             &frame,
             &mut small_frame,
             Size::default(),
-            0.5,
-            0.5,
+            resize_factor,
+            resize_factor,
             imgproc::INTER_AREA,
         )
         .unwrap();
