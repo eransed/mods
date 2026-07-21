@@ -40,6 +40,7 @@ async fn main() {
     let start = Instant::now();
     let (broadcast_sender, _) = tokio::sync::broadcast::channel(16);
     let (shutdown_tx, mut shutdown_rx) = tokio::sync::watch::channel(false);
+    let (shutdown_cam_tx, shutdown_cam_rx) = tokio::sync::watch::channel(false);
     let (config_request_tx, config_request_rx) = tokio::sync::mpsc::unbounded_channel();
 
     let config_module = ConfigModule::new(broadcast_sender.clone(), config_request_rx);
@@ -67,12 +68,17 @@ async fn main() {
         bi.main_js_size_kb as f32 / 1000 as f32
     );
 
-    if camera::camera_start() {
-        info!("Quits after {:.1?}", start.elapsed());
-        return;
-    } else {
-        info!("Continues after {:.1?}", start.elapsed());
-    }
+    info!("Starting camera thread");
+    let cam_thread_handle = std::thread::spawn(|| {
+        camera::camera_start(shutdown_cam_rx);
+    });
+
+    // if camera::camera_start() {
+    //     info!("Quits after {:.1?}", start.elapsed());
+    //     return;
+    // } else {
+    //     info!("Continues after {:.1?}", start.elapsed());
+    // }
 
     let ws_server = WsServer::new("ws_server", broadcast_sender.clone());
 
@@ -128,6 +134,11 @@ async fn main() {
             }
         }
     }
+
+    info!("Sending shutdown to camera");
+    let _ = shutdown_cam_tx.send(true);
+    info!("Waiting for camera thread to stop...");
+    cam_thread_handle.join().expect("Failed to join camera thread");
 
     info!("shutting down after {:.1?}", start.elapsed());
 }

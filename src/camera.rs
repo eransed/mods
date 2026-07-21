@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::{time::{Duration, Instant}};
 
 use apriltag::{Detector, Family, image_buf::DEFAULT_ALIGNMENT_U8};
 use opencv::{
@@ -11,9 +11,10 @@ use opencv::{
     prelude::*,
     videoio,
 };
+use tokio::sync::watch::Receiver;
 use tracing::{info, warn};
 
-pub fn camera_start() -> bool {
+pub fn camera_start(shutdown_rx: Receiver<bool>) -> bool {
     let start = std::time::Instant::now();
     let window_title = "mods";
 
@@ -43,6 +44,12 @@ pub fn camera_start() -> bool {
 
     loop {
         let cread_start = Instant::now();
+
+        if *shutdown_rx.borrow() {
+            info!("shutdown requested");
+            break;
+        }
+
         camera.read(&mut frame).unwrap();
 
         if frame.empty() {
@@ -247,8 +254,8 @@ pub fn camera_start() -> bool {
             info!("key={} ({:?})", key, c);
             if key == ('q' as i32) {
                 res = true;
+                break;
             }
-            break;
         }
     }
 
