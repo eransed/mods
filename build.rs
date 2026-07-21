@@ -76,9 +76,12 @@ fn main() {
 
     let _ = cross_command!("echo Start");
 
-    println!("cargo::rerun-if-changed=build.rs");
-    println!("cargo::rerun-if-changed=build_info.json");
     println!("cargo::rustc-link-arg=-Wl,-rpath,/usr/local/lib");
+    
+    // will cause recompilation every time as build.rs modifies them:
+    println!("cargo::rerun-if-changed=build.rs");
+    println!("cargo::rerun-if-changed=ui");
+    println!("cargo::rerun-if-changed=build_info.json");
 
     let build_type = if cfg!(debug_assertions) {
         "debug"

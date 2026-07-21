@@ -1,7 +1,7 @@
 :root {
-  --bg: #f4f6f8;
-  --fg: #1f2933;
-  --accent: #0ea5a4;
+  --fg: #f4f6f8;
+  --bg: #1f2933;
+  --accent: #d4b60d;
 
   color: var(--fg);
   background: var(--bg);
@@ -59,7 +59,8 @@ ul {
 .sidebar {
   padding: 1rem;
   border-right: 1px solid var(--accent);
-  background: #e9eef2;
+  background: var(--bg);
+  color: var(--fg);
 }
 
 .sidebar h2 {
@@ -83,12 +84,12 @@ ul {
 }
 
 .nav-link:hover {
-  background: #d9e6ee;
+  background: #096a35;
 }
 
 .nav-link-active {
-  background: #0ea5a418;
-  border-color: #0ea5a45a;
+  background: #a5750e18;
+  border-color: #a5730e5a;
   font-weight: 600;
 }
 
@@ -132,7 +133,7 @@ h1 {
   width: 0.625rem;
   height: 0.625rem;
   border-radius: 50%;
-  background: var(--accent);
+  background: #007f00
 }
 
 .dot-error {

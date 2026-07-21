@@ -9,6 +9,7 @@ mod ws_server;
 use crate::logging::init_tracing;
 use config::ConfigModule;
 use http::HttpModule;
+use tracing::warn;
 use std::time::Duration;
 use std::time::Instant;
 use tracing::debug;
@@ -68,17 +69,16 @@ async fn main() {
         bi.main_js_size_kb as f32 / 1000 as f32
     );
 
-    info!("Starting camera thread");
-    let cam_thread_handle = std::thread::spawn(|| {
-        camera::camera_start(shutdown_cam_rx);
-    });
+    let start_camera = false;
 
-    // if camera::camera_start() {
-    //     info!("Quits after {:.1?}", start.elapsed());
-    //     return;
-    // } else {
-    //     info!("Continues after {:.1?}", start.elapsed());
-    // }
+    let cam_thread_handle = std::thread::spawn(move || {
+        if start_camera {
+            info!("Starting camera thread");
+            camera::camera_start(shutdown_cam_rx);
+        } else {
+            warn!("Camera skipped");
+        }
+    });
 
     let ws_server = WsServer::new("ws_server", broadcast_sender.clone());
 
