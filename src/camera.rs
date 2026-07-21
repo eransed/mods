@@ -1,7 +1,13 @@
+use std::time::{Duration, Instant};
+
 use apriltag::{Detector, Family, image_buf::DEFAULT_ALIGNMENT_U8};
 use opencv::{
     core::{self, Point, Scalar, Size},
-    highgui, imgproc,
+    highgui,
+    imgproc::{
+        self,
+        LineTypes::{FILLED, LINE_AA},
+    },
     prelude::*,
     videoio,
 };
@@ -26,7 +32,7 @@ pub fn camera_start() -> bool {
     let builder = Detector::builder();
     let mut detector = builder
         .add_family_bits(Family::tag_16h5(), 1)
-        .add_family_bits(Family::tag_36h11(), 1)
+        // .add_family_bits(Family::tag_36h11(), 1)
         .build()
         .expect("Failed to build a detector");
 
@@ -36,6 +42,7 @@ pub fn camera_start() -> bool {
     let mut first_frame = false;
 
     loop {
+        let cread_start = Instant::now();
         camera.read(&mut frame).unwrap();
 
         if frame.empty() {
@@ -86,17 +93,24 @@ pub fn camera_start() -> bool {
 
         let detections = detector.detect(&image);
 
+        if detections.len() < 1 {
+            std::thread::sleep(Duration::from_millis(1000));
+            continue;
+        }
+
         let params = apriltag::TagParams {
             tagsize: 0.0225,
-            fx: 200 as f64,
-            fy: 200 as f64,
-            cx: 780 as f64,
-            cy: 438 as f64,
+            fx: 2000 as f64,
+            fy: 2000 as f64,
+            cx: 960 as f64,
+            cy: 540 as f64,
         };
+
+        let detection_time = cread_start.elapsed();
 
         for (di, det) in detections.iter().enumerate() {
             let id = det.id();
-            if id < 21 || id > 23 {
+            if id < 21 || id > 21 {
                 continue;
             }
 
@@ -142,6 +156,30 @@ pub fn camera_start() -> bool {
                 continue;
             }
 
+            let rect = core::Rect {
+                x: 10,
+                y: 10,
+                width: 600,
+                height: 320,
+            };
+
+            let c = core::Scalar::new(0.0, 0.0, 0.0, 50.0);
+
+            imgproc::rectangle(&mut frame, rect, c, FILLED.into(), LINE_AA.into(), 0).unwrap();
+
+            imgproc::put_text(
+                &mut frame,
+                &format!("Detection time: {:.2?}", detection_time),
+                Point::new(30, 50),
+                imgproc::FONT_HERSHEY_SIMPLEX,
+                1.0,
+                Scalar::new(255.0, 255.0, 255.0, 0.0),
+                2,
+                imgproc::LINE_AA,
+                false,
+            )
+            .unwrap();
+
             let pe = apriltag::Detection::estimate_tag_pose(&det, &params).unwrap();
             let tra = pe.translation().data();
             let mut index = 0;
@@ -152,10 +190,10 @@ pub fn camera_start() -> bool {
                     imgproc::put_text(
                         &mut frame,
                         &format!("{:.3}", tra[index] * 10 as f64),
-                        Point::new(30 + 200 * ri32, 50 + 50 * ci32),
+                        Point::new(30 + 200 * ri32, 100 + 50 * ci32),
                         imgproc::FONT_HERSHEY_SIMPLEX,
                         1.0,
-                        Scalar::new(10.0, 10.0, 255.0, 0.0),
+                        Scalar::new(255.0, 255.0, 255.0, 0.0),
                         2,
                         imgproc::LINE_AA,
                         false,
@@ -174,7 +212,7 @@ pub fn camera_start() -> bool {
                     imgproc::put_text(
                         &mut frame,
                         &format!("{:.2}", rot[index]),
-                        Point::new(30 + 200 * ri32, 100 + 50 * ci32),
+                        Point::new(30 + 200 * ri32, 150 + 50 * ci32),
                         imgproc::FONT_HERSHEY_SIMPLEX,
                         1.0,
                         Scalar::new(10.0, 255.0, 10.0, 0.0),
