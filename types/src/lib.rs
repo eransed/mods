@@ -33,6 +33,7 @@ pub struct Config {
     pub ws_port: u16,
     pub log_level: String,
     pub allow_remote_connections: bool,
+    pub enable_camera: bool
 }
 
 impl Default for Config {
@@ -41,7 +42,8 @@ impl Default for Config {
             http_port: 8080,
             ws_port: 8081,
             log_level: "info".to_string(),
-            allow_remote_connections: false
+            allow_remote_connections: false,
+            enable_camera: true
         }
     }
 }

@@ -415,6 +415,7 @@ mod tests {
                 ws_port: 8085,
                 log_level: "debug".to_string(),
                 allow_remote_connections: false,
+                enable_camera: true,
             })
             .send()
             .await
@@ -428,7 +429,8 @@ mod tests {
                 http_port: 8080,
                 ws_port: 8085,
                 log_level: "debug".to_string(),
-                allow_remote_connections: false
+                allow_remote_connections: false,
+                enable_camera: true,
             }
         );
 

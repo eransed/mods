@@ -69,10 +69,9 @@ async fn main() {
         bi.main_js_size_kb as f32 / 1000 as f32
     );
 
-    let start_camera = false;
 
     let cam_thread_handle = std::thread::spawn(move || {
-        if start_camera {
+        if initial_config.enable_camera {
             info!("Starting camera thread");
             camera::camera_start(shutdown_cam_rx);
         } else {

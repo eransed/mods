@@ -52,6 +52,7 @@ pub fn camera_start(shutdown_rx: Receiver<bool>) -> bool {
 
         camera.read(&mut frame).unwrap();
 
+        let processing_start = Instant::now();
         if frame.empty() {
             warn!("Empty frame!");
             continue;
@@ -100,10 +101,10 @@ pub fn camera_start(shutdown_rx: Receiver<bool>) -> bool {
 
         let detections = detector.detect(&image);
 
-        if detections.len() < 1 {
-            std::thread::sleep(Duration::from_millis(1000));
-            continue;
-        }
+        // if detections.len() < 1 {
+        //     std::thread::sleep(Duration::from_millis(1000));
+        //     continue;
+        // }
 
         let params = apriltag::TagParams {
             tagsize: 0.0225,
@@ -120,6 +121,11 @@ pub fn camera_start(shutdown_rx: Receiver<bool>) -> bool {
             if id < 21 || id > 21 {
                 continue;
             }
+
+            // only show info about the first detection
+            // if di > 0 {
+            //     continue;
+            // }
 
             let corners = det.corners();
 
@@ -158,16 +164,12 @@ pub fn camera_start(shutdown_rx: Receiver<bool>) -> bool {
             )
             .unwrap();
 
-            // only show info about the first detection
-            if di > 0 {
-                continue;
-            }
 
             let rect = core::Rect {
                 x: 10,
                 y: 10,
-                width: 600,
-                height: 320,
+                width: 700,
+                height: 400,
             };
 
             let c = core::Scalar::new(0.0, 0.0, 0.0, 50.0);
@@ -176,7 +178,7 @@ pub fn camera_start(shutdown_rx: Receiver<bool>) -> bool {
 
             imgproc::put_text(
                 &mut frame,
-                &format!("Detection time: {:.2?}", detection_time),
+                &format!("Detection time: {:.1?} - PT: {:.1?}", detection_time, processing_start.elapsed()),
                 Point::new(30, 50),
                 imgproc::FONT_HERSHEY_SIMPLEX,
                 1.0,

@@ -202,7 +202,8 @@ mod tests {
             http_port: 9000,
             ws_port: 9001,
             log_level: "debug".to_string(),
-            allow_remote_connections: false
+            allow_remote_connections: false,
+            enable_camera: true,
         };
 
         save_config_to_path(&config, &path).unwrap();
