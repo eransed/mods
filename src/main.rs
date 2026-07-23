@@ -69,11 +69,12 @@ async fn main() {
         bi.main_js_size_kb as f32 / 1000 as f32
     );
 
+    let cam_brdcast = broadcast_sender.clone();
 
     let cam_thread_handle = std::thread::spawn(move || {
         if initial_config.enable_camera {
             info!("Starting camera thread");
-            camera::camera_start(shutdown_cam_rx);
+            camera::camera_start(cam_brdcast, shutdown_cam_rx);
         } else {
             warn!("Camera skipped");
         }

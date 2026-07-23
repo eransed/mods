@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import Overview from './Overview'
 import { About } from './About'
+import { msPretty } from './lib/utils'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
 
@@ -58,8 +59,11 @@ const pages = [
 ]
 
 function App() {
+  console.log('App')
   const [status, setStatus] = useState<ConnectionState>('connecting')
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  const disconnectStart = useRef<number | null>(null)
+  const [disconnectedSince, setDisconnectedSince] = useState(0)
   const [wsPort, setWsPort] = useState(8081)
 
   const protocol = 'http'
@@ -70,10 +74,12 @@ function App() {
   const defaultWsPort = 8081
 
   useEffect(() => {
-    let socket: WebSocket | null = null
+    console.log('useEffect')
+    let websocket: WebSocket | null = null
     let isCancelled = false
 
     const connect = async () => {
+      console.log('Connecting...')
       let resolvedWsPort = defaultWsPort
       let gotConfig = false
       try {
@@ -83,10 +89,10 @@ function App() {
           const config = (await response.json()) as ConfigResponse
           if (typeof config.ws_port === 'number') {
             console.log('Config received:', config)
-
             resolvedWsPort = config.ws_port
             gotConfig = true
             setReconnectAttempts(0)
+            disconnectStart.current = null
           } else {
             console.error('ws_port is not a number in config response')
           }
@@ -106,6 +112,7 @@ function App() {
       let reconnectTimeout: any = null
 
       function handleReconnect() {
+
         if (reconnectTimeout) {
           console.log('Clearing existing reconnect timeout')
           clearTimeout(reconnectTimeout)
@@ -115,6 +122,15 @@ function App() {
           console.log('Already connected, no need to reconnect.')
           return
         }
+
+        if (disconnectStart.current === null) {
+          disconnectStart.current = performance.now()
+          console.log("Setting the disconnected time:", disconnectStart)
+        }
+
+        setDisconnectedSince(
+          performance.now() - disconnectStart.current
+        )
 
         const reconnectDelayMs = 3000
 
@@ -133,35 +149,44 @@ function App() {
         const wsUrl =
           import.meta.env.VITE_WS_URL ?? `${protocol}://${hostname}:${resolvedWsPort}`
 
-        socket = new WebSocket(wsUrl)
+        websocket = new WebSocket(wsUrl)
 
-        socket.onopen = () => {
+        websocket.onopen = () => {
+          console.log('websocket open')
           setStatus('connected')
+          disconnectStart.current = null
+          setReconnectAttempts(0)
         }
 
-        socket.onclose = () => {
+        websocket.onclose = () => {
+          console.warn('websocket closed')
           setStatus('disconnected')
           handleReconnect()
         }
 
-        socket.onerror = () => {
+        websocket.onerror = () => {
+          console.error('websocket error')
           setStatus('error')
           handleReconnect()
         }
       } else {
+        console.warn("Could not fetch the config, will not connect to websocket")
         handleReconnect()
       }
 
     }
 
+    console.log('Prime connect')
     connect()
 
     return () => {
+      console.log('Cancelled')
       isCancelled = true
-      socket?.close()
+      websocket?.close()
     }
   }, [defaultWsPort, host])
 
+  console.log('Render')
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -189,7 +214,7 @@ function App() {
           <h1>Oak - Event Router</h1>
           <p className="status" aria-live="polite">
             <span className={`dot dot-${status}`} aria-hidden="true" />
-            {status}{reconnectAttempts > 0 ? `[${reconnectAttempts}]` : null} - {wsPort}
+            {status}{reconnectAttempts > 0 ? `[${msPretty(disconnectedSince)}]` : null} - {wsPort}
           </p>
         </header>
 

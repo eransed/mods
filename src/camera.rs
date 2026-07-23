@@ -1,4 +1,4 @@
-use std::{time::{Duration, Instant}};
+use std::time::Instant;
 
 use apriltag::{Detector, Family, image_buf::DEFAULT_ALIGNMENT_U8};
 use opencv::{
@@ -11,10 +11,12 @@ use opencv::{
     prelude::*,
     videoio,
 };
-use tokio::sync::watch::Receiver;
+use tokio::sync::{broadcast::Sender, watch::Receiver};
 use tracing::{info, warn};
 
-pub fn camera_start(shutdown_rx: Receiver<bool>) -> bool {
+use crate::message::Message;
+
+pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> bool {
     let start = std::time::Instant::now();
     let window_title = "mods";
 
@@ -75,6 +77,8 @@ pub fn camera_start(shutdown_rx: Receiver<bool>) -> bool {
         )
         .unwrap();
 
+        // convert to image that the apriltag lib understands
+        // todo: optimize
         let mut image = apriltag::Image::zeros_with_alignment(
             gray.cols() as usize,
             gray.rows() as usize,
@@ -164,7 +168,6 @@ pub fn camera_start(shutdown_rx: Receiver<bool>) -> bool {
             )
             .unwrap();
 
-
             let rect = core::Rect {
                 x: 10,
                 y: 10,
@@ -178,7 +181,11 @@ pub fn camera_start(shutdown_rx: Receiver<bool>) -> bool {
 
             imgproc::put_text(
                 &mut frame,
-                &format!("Detection time: {:.1?} - PT: {:.1?}", detection_time, processing_start.elapsed()),
+                &format!(
+                    "Detection time: {:.1?} - PT: {:.1?}",
+                    detection_time,
+                    processing_start.elapsed()
+                ),
                 Point::new(30, 50),
                 imgproc::FONT_HERSHEY_SIMPLEX,
                 1.0,
@@ -233,6 +240,10 @@ pub fn camera_start(shutdown_rx: Receiver<bool>) -> bool {
                     index = index + 1;
                 }
             }
+            // publish
+
+            let m = Message::Broadcast { sender: "cam", body: format!("id {} x: {:.3}, y: {:.3}, z: {:.3}", id, tra[0], tra[1], tra[2]) };
+            sender.send(m).unwrap();
         }
 
         let mut small_frame = Mat::default();
