@@ -16,7 +16,7 @@ use tracing::{info, warn};
 
 use crate::message::Message;
 
-pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> bool {
+pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>, display: bool) -> bool {
     let start = std::time::Instant::now();
     let window_title = "mods";
 
@@ -30,7 +30,9 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> boo
         panic!("Failed to open camera");
     }
 
-    highgui::named_window(window_title, highgui::WINDOW_AUTOSIZE).unwrap();
+    if display {
+        highgui::named_window(window_title, highgui::WINDOW_AUTOSIZE).unwrap();
+    }
 
     let builder = Detector::builder();
     let mut detector = builder
@@ -112,8 +114,8 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> boo
 
         let params = apriltag::TagParams {
             tagsize: 0.0225,
-            fx: 2000 as f64,
-            fy: 2000 as f64,
+            fx: 200000 as f64,
+            fy: 200000 as f64,
             cx: 960 as f64,
             cy: 540 as f64,
         };
@@ -122,7 +124,11 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> boo
 
         for (di, det) in detections.iter().enumerate() {
             let id = det.id();
-            if id < 21 || id > 21 {
+            // if id < 21 || id > 21 {
+            //     continue;
+            // }
+
+            if det.decision_margin() < 40.0 {
                 continue;
             }
 
@@ -196,6 +202,7 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> boo
             )
             .unwrap();
 
+            // can segfault on apple silicon...
             let pe = apriltag::Detection::estimate_tag_pose(&det, &params).unwrap();
             let tra = pe.translation().data();
             let mut index = 0;
@@ -205,7 +212,7 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> boo
                     let ci32: i32 = c.try_into().unwrap();
                     imgproc::put_text(
                         &mut frame,
-                        &format!("{:.3}", tra[index] * 10 as f64),
+                        &format!("{:.3}", tra[index] * 10000 as f64),
                         Point::new(30 + 200 * ri32, 100 + 50 * ci32),
                         imgproc::FONT_HERSHEY_SIMPLEX,
                         1.0,
@@ -258,7 +265,9 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> boo
         )
         .unwrap();
 
-        highgui::imshow(window_title, &small_frame).unwrap();
+        if display {
+            highgui::imshow(window_title, &small_frame).unwrap();
+        }
 
         let key = highgui::wait_key(1).unwrap();
 
