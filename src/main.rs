@@ -75,7 +75,7 @@ async fn main() {
     let cam_thread_handle = std::thread::spawn(move || {
         if initial_config.enable_camera {
             info!("Starting camera thread");
-            camera::camera_start(cam_brdcast, shutdown_cam_rx, false);
+            camera::camera_start(cam_brdcast, shutdown_cam_rx, initial_config.opencv_display, initial_config.opencv_display);
         } else {
             warn!("Camera skipped");
         }

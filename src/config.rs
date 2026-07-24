@@ -204,6 +204,8 @@ mod tests {
             log_level: "debug".to_string(),
             allow_remote_connections: false,
             enable_camera: true,
+            opencv_display: true,
+            skip_april_pose_estimation: false,
         };
 
         save_config_to_path(&config, &path).unwrap();

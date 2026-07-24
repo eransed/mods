@@ -3,7 +3,6 @@ use std::time::Instant;
 use apriltag::{Detector, Family, image_buf::DEFAULT_ALIGNMENT_U8};
 use opencv::{
     core::{self, Point, Scalar, Size},
-    geometry::solve_pnp,
     highgui,
     imgproc::{
         self,
@@ -14,22 +13,24 @@ use opencv::{
 };
 
 // opencv 5
-use opencv::geometry::SOLVEPNP_IPPE_SQUARE;
-use opencv::geometry::rodrigues;
+// use opencv::geometry::SOLVEPNP_IPPE_SQUARE;
+// use opencv::geometry::rodrigues;
+// use opencv::geometry::solve_pnp;
 
 // opencv 4
-// use opencv::calib3d::SOLVEPNP_IPPE_SQUARE;
-// use opencv::calib3d::rodrigues;
+use opencv::calib3d::SOLVEPNP_IPPE_SQUARE;
+use opencv::calib3d::rodrigues;
+use opencv::calib3d::solve_pnp;
+
 use opencv::core::{Point2f, Point3f, Vector};
 use tokio::sync::{broadcast::Sender, watch::Receiver};
 use tracing::{info, warn};
 
 use crate::message::Message;
 
-pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>, display: bool) -> bool {
+pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>, display: bool, skip_april_pose_estimation: bool) -> bool {
     let start = std::time::Instant::now();
     let window_title = "mods";
-    let skip_april_pose_estimation = false;
     let mut res = false;
     let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
     camera
@@ -389,9 +390,11 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>, displa
 
     info!("Shutting down...");
     let _ = camera.release().expect("Failed to release camera");
-    let _ = highgui::destroy_window(window_title).expect("Failed to destroy window");
-    let _ = highgui::destroy_all_windows().expect("Failed to destroy all windows");
-    highgui::wait_key(1).unwrap();
+    if display {
+        let _ = highgui::destroy_window(window_title).expect("Failed to destroy window");
+        let _ = highgui::destroy_all_windows().expect("Failed to destroy all windows");
+        highgui::wait_key(1).unwrap();
+    }
     info!("Total runtime: {:.1?}", start.elapsed());
     return res;
 }

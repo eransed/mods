@@ -34,7 +34,9 @@ pub struct Config {
     pub ws_port: u16,
     pub log_level: String,
     pub allow_remote_connections: bool,
-    pub enable_camera: bool
+    pub enable_camera: bool,
+    pub opencv_display: bool,
+    pub skip_april_pose_estimation: bool,
 }
 
 impl Default for Config {
@@ -44,7 +46,9 @@ impl Default for Config {
             ws_port: 8081,
             log_level: "info".to_string(),
             allow_remote_connections: false,
-            enable_camera: true
+            enable_camera: true,
+            opencv_display: true,
+            skip_april_pose_estimation: false,
         }
     }
 }

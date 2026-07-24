@@ -416,6 +416,8 @@ mod tests {
                 log_level: "debug".to_string(),
                 allow_remote_connections: false,
                 enable_camera: true,
+                opencv_display: true,
+                skip_april_pose_estimation: false,
             })
             .send()
             .await
@@ -431,6 +433,8 @@ mod tests {
                 log_level: "debug".to_string(),
                 allow_remote_connections: false,
                 enable_camera: true,
+                opencv_display: true,
+                skip_april_pose_estimation: false,
             }
         );
 
