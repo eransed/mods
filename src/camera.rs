@@ -11,6 +11,9 @@ use opencv::{
     prelude::*,
     videoio,
 };
+
+use opencv::calib3d;
+use opencv::core::{Point2f, Point3f, Vector};
 use tokio::sync::{broadcast::Sender, watch::Receiver};
 use tracing::{info, warn};
 
@@ -105,11 +108,6 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> boo
 
         let detections = detector.detect(&image);
 
-        // if detections.len() < 1 {
-        //     std::thread::sleep(Duration::from_millis(1000));
-        //     continue;
-        // }
-
         let params = apriltag::TagParams {
             tagsize: 0.0225,
             fx: 2000 as f64,
@@ -121,15 +119,11 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> boo
         let detection_time = cread_start.elapsed();
 
         for (di, det) in detections.iter().enumerate() {
+            let pose_esti_start = Instant::now();
             let id = det.id();
             if id < 21 || id > 21 {
                 continue;
             }
-
-            // only show info about the first detection
-            // if di > 0 {
-            //     continue;
-            // }
 
             let corners = det.corners();
 
@@ -145,7 +139,7 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> boo
                     &mut frame,
                     p0,
                     p1,
-                    Scalar::new(0.0, 255.0, 0.0, 0.0),
+                    Scalar::new(70.0, 255.0, 70.0, 0.0),
                     2,
                     imgproc::LINE_AA,
                     0,
@@ -161,7 +155,7 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> boo
                 Point::new(center[0] as i32, center[1] as i32),
                 imgproc::FONT_HERSHEY_SIMPLEX,
                 1.0,
-                Scalar::new(0.0, 0.0, 255.0, 0.0),
+                Scalar::new(80.0, 80.0, 255.0, 0.0),
                 2,
                 imgproc::LINE_AA,
                 false,
@@ -169,13 +163,13 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> boo
             .unwrap();
 
             let rect = core::Rect {
-                x: 10,
-                y: 10,
+                x: 1,
+                y: 1,
                 width: 700,
-                height: 400,
+                height: 700,
             };
 
-            let c = core::Scalar::new(0.0, 0.0, 0.0, 50.0);
+            let c = core::Scalar::new(0.0, 0.0, 0.0, 0.0);
 
             imgproc::rectangle(&mut frame, rect, c, FILLED.into(), LINE_AA.into(), 0).unwrap();
 
@@ -189,12 +183,14 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> boo
                 Point::new(30, 50),
                 imgproc::FONT_HERSHEY_SIMPLEX,
                 1.0,
-                Scalar::new(255.0, 255.0, 255.0, 0.0),
+                Scalar::new(255.0, 0.0, 255.0, 0.0),
                 2,
                 imgproc::LINE_AA,
                 false,
             )
             .unwrap();
+
+            // april start
 
             let pe = apriltag::Detection::estimate_tag_pose(&det, &params).unwrap();
             let tra = pe.translation().data();
@@ -240,9 +236,99 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>) -> boo
                     index = index + 1;
                 }
             }
-            // publish
+            // april stop
 
-            let m = Message::Broadcast { sender: "cam", body: format!("id {} x: {:.3}, y: {:.3}, z: {:.3}", id, tra[0], tra[1], tra[2]) };
+            // Build 3D object points for the tag corners (tag frame, Z=0 plane).
+            // Order must match det.corners() order.
+            let half_size = (params.tagsize / 2.0) as f32;
+            let object_points = Vector::<Point3f>::from_slice(&[
+                Point3f::new(-half_size, half_size, 0.0),
+                Point3f::new(half_size, half_size, 0.0),
+                Point3f::new(half_size, -half_size, 0.0),
+                Point3f::new(-half_size, -half_size, 0.0),
+            ]);
+
+            let image_points = Vector::<Point2f>::from_slice(&[
+                Point2f::new(corners[0][0] as f32, corners[0][1] as f32),
+                Point2f::new(corners[1][0] as f32, corners[1][1] as f32),
+                Point2f::new(corners[2][0] as f32, corners[2][1] as f32),
+                Point2f::new(corners[3][0] as f32, corners[3][1] as f32),
+            ]);
+
+            let camera_matrix = Mat::from_slice_2d(&[
+                &[params.fx, 0.0, params.cx],
+                &[0.0, params.fy, params.cy],
+                &[0.0, 0.0, 1.0],
+            ])
+            .unwrap();
+
+            let dist_coeffs = Mat::default(); // assume no lens distortion
+
+            let mut rvec = Mat::default();
+            let mut tvec = Mat::default();
+
+            calib3d::solve_pnp(
+                &object_points,
+                &image_points,
+                &camera_matrix,
+                &dist_coeffs,
+                &mut rvec,
+                &mut tvec,
+                false,
+                calib3d::SOLVEPNP_IPPE_SQUARE,
+            )
+            .unwrap();
+
+            let mut rotation_matrix = Mat::default();
+            calib3d::rodrigues(&rvec, &mut rotation_matrix, &mut core::no_array()).unwrap();
+
+            // Print translation (tvec is 3x1)
+            for r in 0..3 {
+                let ri32: i32 = r;
+                let t = *tvec.at::<f64>(r).unwrap();
+                imgproc::put_text(
+                    &mut frame,
+                    &format!("{:.3}", t * 10.0),
+                    Point::new(30 + 200 * ri32, 400),
+                    imgproc::FONT_HERSHEY_SIMPLEX,
+                    1.0,
+                    Scalar::new(0.0, 255.0, 255.0, 0.0),
+                    2,
+                    imgproc::LINE_AA,
+                    false,
+                )
+                .unwrap();
+            }
+
+            // Print rotation matrix (3x3)
+            for r in 0..3 {
+                for c in 0..3 {
+                    let ri32: i32 = r;
+                    let ci32: i32 = c;
+                    let v = *rotation_matrix.at_2d::<f64>(r, c).unwrap();
+                    imgproc::put_text(
+                        &mut frame,
+                        &format!("{:.2}", v),
+                        Point::new(30 + 200 * ri32, 450 + 50 * ci32),
+                        imgproc::FONT_HERSHEY_SIMPLEX,
+                        1.0,
+                        Scalar::new(255.0, 255.0, 0.0, 0.0),
+                        2,
+                        imgproc::LINE_AA,
+                        false,
+                    )
+                    .unwrap();
+                }
+            }
+
+            // publish
+            let tx = *tvec.at::<f64>(0).unwrap() * 10.0;
+            let ty = *tvec.at::<f64>(1).unwrap() * 10.0;
+            let tz = *tvec.at::<f64>(2).unwrap() * 10.0;
+            let m = Message::Broadcast {
+                sender: "cam",
+                body: format!("id {} x: {:.3}, y: {:.3}, z: {:.3}, time: {:.1?}", id, tx, ty, tz, pose_esti_start.elapsed()),
+            };
             sender.send(m).unwrap();
         }
 
