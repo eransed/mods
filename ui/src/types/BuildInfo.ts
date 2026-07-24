@@ -18,6 +18,7 @@ export interface BuildInfo {
     node_version:           string;
     npm_version:            string;
     quicktype_version:      string;
+    opencv_version:         string;
     target_arch:            string;
     target_avx2:            boolean;
     target_neon:            boolean;

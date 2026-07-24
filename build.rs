@@ -77,7 +77,7 @@ fn main() {
     let _ = cross_command!("echo Start");
 
     println!("cargo::rustc-link-arg=-Wl,-rpath,/usr/local/lib");
-    
+
     // will cause recompilation every time as build.rs modifies them:
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed=ui");
@@ -157,6 +157,8 @@ fn main() {
             .to_string(),
         Err(_) => String::from("-"),
     };
+
+    let opencv_version = cross_command!("opencv_version").expect("Failed to read opencv_version");
 
     let du_release_mods_size_kb_cmd = cross_command!("du", "-k", "target/release/mods")
         .expect("Failed to read release mods size");
@@ -242,6 +244,10 @@ fn main() {
             .expect("Failed to convert bytes to string")
             .trim()
             .to_string(),
+        opencv_version: String::from_utf8(opencv_version.stdout)
+            .expect("Failed to convert bytes to string")
+            .trim()
+            .to_string(),
         cargo_pkg_name: env!("CARGO_PKG_NAME").to_string(),
         cargo_pkg_version: env!("CARGO_PKG_VERSION").to_string(),
         build_time_utc: btu,
@@ -253,7 +259,7 @@ fn main() {
             .expect("Failed to convert bytes to string")
             .trim()
             .to_string(),
-        windows: cfg!(windows)
+        windows: cfg!(windows),
     };
 
     let bi_json = serde_json::to_string_pretty(&bi).expect("Failed to parse json");

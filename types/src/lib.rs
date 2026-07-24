@@ -21,6 +21,7 @@ pub struct BuildInfo {
     pub node_version: String,
     pub npm_version: String,
     pub quicktype_version: String,
+    pub opencv_version: String,
     pub target_arch: String,
     pub target_avx2: bool,
     pub target_neon: bool,

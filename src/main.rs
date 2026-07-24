@@ -9,11 +9,11 @@ mod ws_server;
 use crate::logging::init_tracing;
 use config::ConfigModule;
 use http::HttpModule;
-use tracing::warn;
 use std::time::Duration;
 use std::time::Instant;
 use tracing::debug;
 use tracing::info;
+use tracing::warn;
 use tracing_appender::non_blocking::WorkerGuard;
 use types::BuildInfo;
 use types::Config;
@@ -49,22 +49,23 @@ async fn main() {
 
     let _guard = init_tracing_guard(&initial_config);
     let bi = build_info();
-    debug!("Starting mods:\n{:#?}", bi);
-    info!("Version      : {} ({:.1?})", version(), start.elapsed());
-    info!("Rust version : {}", bi.rustc_version);
-    info!("Node version : {}", bi.node_version);
+    debug!("Build info:\n{:#?}", bi);
+    info!("Version        : {} ({:.1?})", version(), start.elapsed());
+    info!("Rust version   : {}", bi.rustc_version);
+    info!("Node version   : {}", bi.node_version);
+    info!("OpenCV version : {}", bi.opencv_version);
     info!(
-        "Debug size   : {} KB ({:.1} MB)",
+        "Debug size     : {} KB ({:.1} MB)",
         bi.binary_debug_size_kb,
         bi.binary_debug_size_kb as f32 / 1000 as f32
     );
     info!(
-        "Release size : {} KB ({:.1} MB)",
+        "Release size   : {} KB ({:.1} MB)",
         bi.binary_release_size_kb,
         bi.binary_release_size_kb as f32 / 1000 as f32
     );
     info!(
-        "js size      : {} KB ({:.1} MB)",
+        "js size        : {} KB ({:.1} MB)",
         bi.main_js_size_kb,
         bi.main_js_size_kb as f32 / 1000 as f32
     );
@@ -138,7 +139,9 @@ async fn main() {
     info!("Sending shutdown to camera");
     let _ = shutdown_cam_tx.send(true);
     info!("Waiting for camera thread to stop...");
-    cam_thread_handle.join().expect("Failed to join camera thread");
+    cam_thread_handle
+        .join()
+        .expect("Failed to join camera thread");
 
     info!("shutting down after {:.1?}", start.elapsed());
 }
