@@ -21,6 +21,7 @@ use crate::{message::Message, util::ValueWithStats};
 pub fn camera_start(
     sender: Sender<Message>,
     shutdown_rx: Receiver<bool>,
+    device_index: i32,
     display: bool,
     skip_april_pose_estimation: bool,
     angle_filter: usize,
@@ -43,7 +44,7 @@ pub fn camera_start(
 
     let window_title = "mods";
     let mut res = false;
-    let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
+    let mut camera = videoio::VideoCapture::new(device_index, videoio::CAP_ANY).unwrap();
     camera
         .set(videoio::CAP_PROP_FRAME_WIDTH, 1920 as f64)
         .unwrap();

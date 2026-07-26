@@ -497,6 +497,7 @@ mod tests {
                 skip_april_pose_estimation: false,
                 angle_filter: 3,
                 min_decision_margin: 20.0,
+                device_index: 0,
             })
             .send()
             .await
@@ -516,6 +517,7 @@ mod tests {
                 skip_april_pose_estimation: false,
                 angle_filter: 3,
                 min_decision_margin: 20.0,
+                device_index: 0,
             }
         );
 

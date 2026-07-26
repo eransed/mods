@@ -211,6 +211,7 @@ mod tests {
             skip_april_pose_estimation: false,
             angle_filter: 5,
             min_decision_margin: 25.0,
+            device_index: 1,
         };
 
         save_config_to_path(&config, &path).unwrap();

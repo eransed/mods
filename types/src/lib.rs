@@ -39,6 +39,7 @@ pub struct Config {
     pub skip_april_pose_estimation: bool,
     pub angle_filter: usize,
     pub min_decision_margin: f32,
+    pub device_index: i32,
 }
 
 impl Default for Config {
@@ -53,6 +54,7 @@ impl Default for Config {
             skip_april_pose_estimation: true,
             angle_filter: 3,
             min_decision_margin: 20.0,
+            device_index: 0,
         }
     }
 }
