@@ -108,8 +108,8 @@ impl Drop for DiscoveryServer {
 }
 
 impl DiscoveryServer {
-    const MULTICAST_ADDR: &'static str = "239.1.1.1:5900";
-    const BIND_ADDR: &'static str = "0.0.0.0:5900";
+    const MULTICAST_ADDR: &'static str = "239.1.1.1:8125";
+    const BIND_ADDR: &'static str = "0.0.0.0:8125";
     const BUFFER_SIZE: usize = 1024;
 
     /// Create a new DiscoveryServer
