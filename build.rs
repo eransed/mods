@@ -77,7 +77,7 @@ fn main() {
 
     let _ = cross_command!("echo Start");
 
-    println!("cargo::rustc-link-arg=-Wl,-rpath,/usr/local/lib");
+    println!("cargo::rustc-link-arg=-Wl,-L/usr/local/lib,-rpath,/usr/local/lib");
 
     // will cause recompilation every time as build.rs modifies them:
     println!("cargo::rerun-if-changed=build.rs");
