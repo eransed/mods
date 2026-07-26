@@ -16,6 +16,11 @@
 npm install -g quicktype
 ```
 
+## Linux
+```
+sudo apt install libclang-dev
+```
+
 ## windows dependencies
 https://github.com/llvm/llvm-project
 

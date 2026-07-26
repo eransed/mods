@@ -98,14 +98,28 @@ pub fn camera_start(
         }
 
         // Convert to grayscale
-        imgproc::cvt_color(
-            &frame,
-            &mut gray,
-            imgproc::COLOR_BGR2GRAY,
-            0,
-            core::AlgorithmHint::ALGO_HINT_DEFAULT,
-        )
-        .unwrap();
+        #[cfg(not(opencv_pre_411))]
+        {
+            imgproc::cvt_color(
+                &frame,
+                &mut gray,
+                imgproc::COLOR_BGR2GRAY,
+                0,
+                core::AlgorithmHint::ALGO_HINT_DEFAULT,
+            )
+            .unwrap();
+        }
+
+        #[cfg(opencv_pre_411)]
+        {
+            imgproc::cvt_color(
+                &frame,
+                &mut gray,
+                imgproc::COLOR_BGR2GRAY,
+                0,
+            )
+            .unwrap();
+        }
 
         // convert to image that the apriltag lib understands
         // todo: optimize

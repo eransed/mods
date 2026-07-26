@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::process::Command;
 use types::BuildInfo;
+use semver::{Version, VersionReq};
 
 macro_rules! p {
     ($($tokens: tt)*) => {
@@ -262,11 +263,19 @@ fn main() {
         windows: cfg!(windows),
     };
 
+    println!("cargo::rustc-check-cfg=cfg(opencv_pre_411)");
     println!("cargo::rustc-check-cfg=cfg(opencv4)");
     println!("cargo::rustc-check-cfg=cfg(opencv5)");
 
+    let opencv_req = VersionReq::parse("<=4.10.0").unwrap();
+    let opencv_ver = Version::parse(&bi.opencv_version).unwrap();
+    let opencv_pre_411 = opencv_req.matches(&opencv_ver);
+
     if bi.opencv_version.starts_with("4.") {
         println!("cargo::rustc-cfg=opencv4");
+        if opencv_pre_411 {
+            println!("cargo::rustc-cfg=opencv_pre_411");
+        }
     } else if bi.opencv_version.starts_with("5.") {
         println!("cargo::rustc-cfg=opencv5");
     }
