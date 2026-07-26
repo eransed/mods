@@ -5,6 +5,7 @@ mod logging;
 mod message;
 mod ws_client;
 mod ws_server;
+mod util;
 
 use crate::logging::init_tracing;
 use config::ConfigModule;

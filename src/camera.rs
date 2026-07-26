@@ -16,7 +16,7 @@ use opencv::core::{Point2f, Point3f, Vector};
 use tokio::sync::{broadcast::Sender, watch::Receiver};
 use tracing::{info, warn};
 
-use crate::message::Message;
+use crate::{message::Message, util::ValueWithStats};
 
 pub fn camera_start(
     sender: Sender<Message>,
@@ -31,7 +31,7 @@ pub fn camera_start(
     use opencv::calib3d::rodrigues;
     #[cfg(opencv4)]
     use opencv::calib3d::solve_pnp;
-    
+
     #[cfg(opencv5)]
     use opencv::geometry::SOLVEPNP_IPPE_SQUARE;
     #[cfg(opencv5)]
@@ -65,6 +65,12 @@ pub fn camera_start(
     let mut gray = Mat::default();
 
     let mut first_frame = false;
+
+    const FILTER_LENGTH_CAP: usize = 60;
+    const FILTER_LENGTH: usize = 20;
+    let mut roll = ValueWithStats::<f64, FILTER_LENGTH_CAP>::new();
+    let mut pitch = ValueWithStats::<f64, FILTER_LENGTH_CAP>::new();
+    let mut yaw = ValueWithStats::<f64, FILTER_LENGTH_CAP>::new();
 
     loop {
         let cread_start = Instant::now();
@@ -129,10 +135,10 @@ pub fn camera_start(
 
         let params = apriltag::TagParams {
             tagsize: 0.0225,
-            fx: 200000 as f64,
-            fy: 200000 as f64,
-            cx: 960 as f64,
-            cy: 540 as f64,
+            fx: 1000 as f64,
+            fy: 1000 as f64,
+            cx: frame.cols() as f64 / 2.0,
+            cy: frame.rows() as f64 / 2.0,
         };
 
         let detection_time = cread_start.elapsed();
@@ -351,6 +357,31 @@ pub fn camera_start(
                 }
             }
 
+            // convert rotation matrix to Euler angles (roll, pitch, yaw)
+            let (r, p, y) = convert_rotation_matrix_to_euler_angles(&rotation_matrix, true);
+
+            roll.push(r);
+            pitch.push(p);
+            yaw.push(y);
+
+            imgproc::put_text(
+                &mut frame,
+                &format!(
+                    "R: {:.2}, P: {:.2}, Y: {:.2}",
+                    roll.mean_last_n(FILTER_LENGTH).unwrap_or_default(),
+                    pitch.mean_last_n(FILTER_LENGTH).unwrap_or_default(),
+                    yaw.mean_last_n(FILTER_LENGTH).unwrap_or_default()
+                ),
+                Point::new(50, 600),
+                imgproc::FONT_HERSHEY_SIMPLEX,
+                1.0,
+                Scalar::new(255.0, 255.0, 255.0, 0.0),
+                2,
+                imgproc::LINE_AA,
+                false,
+            )
+            .unwrap();
+
             // publish
             let tx = *tvec.at_2d::<f64>(0, 0).unwrap() * 10.0;
             let ty = *tvec.at_2d::<f64>(1, 0).unwrap() * 10.0;
@@ -406,4 +437,43 @@ pub fn camera_start(
     }
     info!("Total runtime: {:.1?}", start.elapsed());
     return res;
+}
+
+fn convert_rotation_matrix_to_euler_angles(
+    rotation_matrix: &Mat,
+    use_degrees: bool,
+) -> (f64, f64, f64) {
+    let sy = (rotation_matrix.at_2d::<f64>(0, 0).unwrap().powi(2)
+        + rotation_matrix.at_2d::<f64>(1, 0).unwrap().powi(2))
+    .sqrt();
+    let singular = sy < 1e-6;
+    let (roll, pitch, yaw) = if singular {
+        let roll = rotation_matrix
+            .at_2d::<f64>(1, 2)
+            .unwrap()
+            .atan2(*rotation_matrix.at_2d::<f64>(1, 1).unwrap());
+        let pitch = rotation_matrix.at_2d::<f64>(0, 2).unwrap().atan2(sy);
+        let yaw: f64 = 0.0;
+        (roll, pitch, yaw)
+    } else {
+        let roll = rotation_matrix
+            .at_2d::<f64>(2, 1)
+            .unwrap()
+            .atan2(*rotation_matrix.at_2d::<f64>(2, 2).unwrap());
+        let pitch = -rotation_matrix.at_2d::<f64>(2, 0).unwrap().atan2(sy);
+        let yaw = rotation_matrix
+            .at_2d::<f64>(1, 0)
+            .unwrap()
+            .atan2(*rotation_matrix.at_2d::<f64>(0, 0).unwrap());
+        (roll, pitch, yaw)
+    };
+
+    if use_degrees {
+        let roll = roll.to_degrees();
+        let pitch = pitch.to_degrees();
+        let yaw = yaw.to_degrees();
+        (roll, pitch, yaw)
+    } else {
+        (roll, pitch, yaw)
+    }
 }
