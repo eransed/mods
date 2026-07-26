@@ -262,6 +262,16 @@ fn main() {
         windows: cfg!(windows),
     };
 
+    println!("cargo::rustc-check-cfg=cfg(opencv4)");
+    println!("cargo::rustc-check-cfg=cfg(opencv5)");
+
+
+    if bi.opencv_version.starts_with("4.") {
+        println!("cargo::rustc-cfg=opencv4");
+    } else if bi.opencv_version.starts_with("5.") {
+        println!("cargo::rustc-cfg=opencv5");
+    }
+
     let bi_json = serde_json::to_string_pretty(&bi).expect("Failed to parse json");
 
     let mut file = File::create("build_info.json").expect("Failed to create file");

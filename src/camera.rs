@@ -12,24 +12,33 @@ use opencv::{
     videoio,
 };
 
-// opencv 5
-// use opencv::geometry::SOLVEPNP_IPPE_SQUARE;
-// use opencv::geometry::rodrigues;
-// use opencv::geometry::solve_pnp;
-
-// opencv 4
-use opencv::calib3d::SOLVEPNP_IPPE_SQUARE;
-use opencv::calib3d::rodrigues;
-use opencv::calib3d::solve_pnp;
-
 use opencv::core::{Point2f, Point3f, Vector};
 use tokio::sync::{broadcast::Sender, watch::Receiver};
 use tracing::{info, warn};
 
 use crate::message::Message;
 
-pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>, display: bool, skip_april_pose_estimation: bool) -> bool {
+pub fn camera_start(
+    sender: Sender<Message>,
+    shutdown_rx: Receiver<bool>,
+    display: bool,
+    skip_april_pose_estimation: bool,
+) -> bool {
     let start = std::time::Instant::now();
+    #[cfg(opencv4)]
+    use opencv::calib3d::SOLVEPNP_IPPE_SQUARE;
+    #[cfg(opencv4)]
+    use opencv::calib3d::rodrigues;
+    #[cfg(opencv4)]
+    use opencv::calib3d::solve_pnp;
+    
+    #[cfg(opencv5)]
+    use opencv::geometry::SOLVEPNP_IPPE_SQUARE;
+    #[cfg(opencv5)]
+    use opencv::geometry::rodrigues;
+    #[cfg(opencv5)]
+    use opencv::geometry::solve_pnp;
+
     let window_title = "mods";
     let mut res = false;
     let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();
