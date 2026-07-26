@@ -204,7 +204,7 @@ pub fn camera_start(sender: Sender<Message>, shutdown_rx: Receiver<bool>, displa
             )
             .unwrap();
 
-            if skip_april_pose_estimation {
+            if !skip_april_pose_estimation {
                 // can segfault on apple silicon...
                 // april start
                 let pe = apriltag::Detection::estimate_tag_pose(&det, &params).unwrap();
