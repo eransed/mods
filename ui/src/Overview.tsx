@@ -117,7 +117,7 @@ function Overview() {
   })
 
   return <>
-    <p>{x}, {y}, Distance: {d.toFixed()}</p>
+    <p>{x.toFixed(0)}, {y.toFixed(0)}, Distance: {d.toFixed(1)}</p>
     <section id="center">
       <canvas ref={canvasRef}></canvas>
     </section>

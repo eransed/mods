@@ -1,4 +1,3 @@
-
 use std::ops::{Add, Div, Mul, Sub};
 
 /// Minimal numeric cast trait to avoid external deps.
@@ -26,8 +25,8 @@ where
     T: NumCast,
 {
     buf: [T; N],
-    next: usize,   // next write index
-    count: usize,  // how many values have been pushed (<= N)
+    next: usize,  // next write index
+    count: usize, // how many values have been pushed (<= N)
 }
 
 #[allow(dead_code)]
@@ -354,4 +353,3 @@ mod tests {
         assert_eq!(v / 7, 1);
     }
 }
-

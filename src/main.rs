@@ -3,13 +3,15 @@ mod config;
 mod http;
 mod logging;
 mod message;
+mod udp_discovery_server;
+mod util;
 mod ws_client;
 mod ws_server;
-mod util;
 
 use crate::logging::init_tracing;
 use config::ConfigModule;
 use http::HttpModule;
+use std::net::IpAddr;
 use std::time::Duration;
 use std::time::Instant;
 use tracing::debug;
@@ -18,6 +20,7 @@ use tracing::warn;
 use tracing_appender::non_blocking::WorkerGuard;
 use types::BuildInfo;
 use types::Config;
+use udp_discovery_server::DiscoveryServer;
 use ws_client::WsClient;
 use ws_server::WsServer;
 
@@ -44,6 +47,7 @@ async fn main() {
     let (shutdown_tx, mut shutdown_rx) = tokio::sync::watch::channel(false);
     let (shutdown_cam_tx, shutdown_cam_rx) = tokio::sync::watch::channel(false);
     let (config_request_tx, config_request_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (discovery_tx, discovery_rx) = tokio::sync::mpsc::unbounded_channel();
 
     let config_module = ConfigModule::new(broadcast_sender.clone(), config_request_rx);
     let initial_config = config_module.config().clone();
@@ -76,7 +80,12 @@ async fn main() {
     let cam_thread_handle = std::thread::spawn(move || {
         if initial_config.enable_camera {
             info!("Starting camera thread");
-            camera::camera_start(cam_brdcast, shutdown_cam_rx, initial_config.opencv_display, initial_config.opencv_display);
+            camera::camera_start(
+                cam_brdcast,
+                shutdown_cam_rx,
+                initial_config.opencv_display,
+                initial_config.opencv_display,
+            );
         } else {
             warn!("Camera skipped");
         }
@@ -89,6 +98,7 @@ async fn main() {
         broadcast_sender.clone(),
         shutdown_tx.clone(),
         config_request_tx.clone(),
+        discovery_tx.clone(),
     );
 
     let ws_client = WsClient::new(format!("ws://127.0.0.1:{}", initial_config.ws_port));
@@ -99,6 +109,31 @@ async fn main() {
         [0, 0, 0, 0]
     } else {
         [127, 0, 0, 1]
+    };
+
+    // Initialize UDP Discovery Server
+    let node_name = hostname::get()
+        .ok()
+        .and_then(|h| h.into_string().ok())
+        .unwrap_or_else(|| "mods-server".to_string());
+    let local_ip = IpAddr::from([127, 0, 0, 1]);
+    let system_type = "mods-server".to_string();
+
+    let discovery_server = match DiscoveryServer::new(
+        node_name,
+        local_ip,
+        http_port,
+        system_type,
+        broadcast_sender.clone(),
+        discovery_rx,
+    )
+    .await
+    {
+        Ok(server) => server,
+        Err(e) => {
+            warn!("Failed to initialize UDP Discovery Server: {}", e);
+            std::process::exit(1);
+        }
     };
 
     tokio::spawn(async move {
@@ -117,6 +152,10 @@ async fn main() {
         if let Err(err) = http_module.run(http_addr).await {
             tracing::error!(error = ?err, "failed to start http server");
         }
+    });
+
+    tokio::spawn(async move {
+        discovery_server.run().await;
     });
 
     tokio::spawn(async move {

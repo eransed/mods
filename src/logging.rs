@@ -6,7 +6,6 @@ use tracing_appender::{non_blocking, non_blocking::WorkerGuard};
 use tracing_subscriber::{EnvFilter, fmt, prelude::*, reload};
 use types::Config;
 
-
 static FILTER_HANDLE: OnceLock<reload::Handle<EnvFilter, tracing_subscriber::Registry>> =
     OnceLock::new();
 

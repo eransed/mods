@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+use crate::udp_discovery_server::DiscoveryEvent;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Message {
     Broadcast { sender: &'static str, body: String },
     Ping { sender: &'static str },
     Pong { sender: &'static str },
+    Discovery(DiscoveryEvent),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

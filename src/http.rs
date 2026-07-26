@@ -28,13 +28,14 @@ use tokio::sync::{
 };
 use tracing::{debug, info};
 
-use crate::{config::ConfigRequest, message::Message};
+use crate::{config::ConfigRequest, message::Message, udp_discovery_server::DiscoveryCommand};
 
 pub struct HttpModule {
     name: &'static str,
     sender: BroadcastSender<Message>,
     shutdown: WatchSender<bool>,
     config_request: UnboundedSender<ConfigRequest>,
+    discovery_tx: UnboundedSender<DiscoveryCommand>,
 }
 
 impl HttpModule {
@@ -43,12 +44,14 @@ impl HttpModule {
         sender: BroadcastSender<Message>,
         shutdown: WatchSender<bool>,
         config_request: UnboundedSender<ConfigRequest>,
+        discovery_tx: UnboundedSender<DiscoveryCommand>,
     ) -> Self {
         Self {
             name,
             sender,
             shutdown,
             config_request,
+            discovery_tx,
         }
     }
 
@@ -69,6 +72,7 @@ impl HttpModule {
             sender: self.sender.clone(),
             shutdown: self.shutdown.clone(),
             config_request: self.config_request.clone(),
+            discovery_tx: self.discovery_tx.clone(),
         };
 
         let app = Router::new()
@@ -78,12 +82,17 @@ impl HttpModule {
             .route("/main.js", get(main_js_handler))
             .route("/main.css", get(main_css_handler))
             .route("/build_info.json", get(build_info_json_handler))
-            // api
-            .route("/send", get(send_handler))
+            // api get
+            .route("/send_discovery_beacon", get(send_discovery_beacon_handler))
+            .route("/reset_config", get(reset_config_handler))
+            .route("/endpoints", get(endpoints_handler))
             .route("/shutdown", get(shutdown_handler))
             .route("/config", get(config_handler))
+            .route("/peers", get(peers_handler))
+            .route("/clear_peers", get(clear_peers_handler))
+            .route("/send", get(send_handler))
             .route("/ping", get(ping_handler))
-            .route("/reset_config", get(reset_config_handler))
+            // api post
             .route("/set_config", post(set_config_handler))
             // middleware
             .layer(middleware::from_fn(log_request))
@@ -106,6 +115,23 @@ struct HttpState {
     sender: BroadcastSender<Message>,
     shutdown: WatchSender<bool>,
     config_request: UnboundedSender<ConfigRequest>,
+    discovery_tx: UnboundedSender<DiscoveryCommand>,
+}
+
+async fn endpoints_handler(State(_state): State<HttpState>) -> impl IntoResponse {
+    let endpoints = vec![
+        "/send",
+        "/shutdown",
+        "/config",
+        "/ping",
+        "/peers",
+        "/clear_peers",
+        "/send_discovery_beacon",
+        "/reset_config",
+        "/set_config",
+        "/endpoints",
+    ];
+    (StatusCode::OK, Json(endpoints)).into_response()
 }
 
 async fn log_request(
@@ -315,6 +341,56 @@ async fn ping_handler(
     (StatusCode::OK, Json(response)).into_response()
 }
 
+async fn peers_handler(State(state): State<HttpState>) -> impl IntoResponse {
+    let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+    let request = DiscoveryCommand::GetPeers(response_tx);
+
+    match state.discovery_tx.send(request) {
+        Ok(_) => match response_rx.await {
+            Ok(peers) => {
+                let peer_data: Vec<serde_json::Value> = peers
+                    .iter()
+                    .map(|peer| {
+                        serde_json::json!({
+                            "node_name": peer.node_name,
+                            "ip_address": peer.ip_address.to_string(),
+                            "http_port": peer.http_port,
+                            "system_type": peer.system_type,
+                            "last_seen": peer.last_seen,
+                        })
+                    })
+                    .collect();
+
+                (StatusCode::OK, Json(serde_json::json!(peer_data))).into_response()
+            }
+            Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "peers response failed").into_response(),
+        },
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "peers request failed").into_response(),
+    }
+}
+
+async fn send_discovery_beacon_handler(State(state): State<HttpState>) -> impl IntoResponse {
+    // let (response_tx, _) = tokio::sync::oneshot::channel();
+    // let request = DiscoveryCommand::SendDiscoveryBeacon(Some(response_tx));
+    let request = DiscoveryCommand::SendDiscoveryBeacon(None);
+    match state.discovery_tx.send(request) {
+        Ok(_) => (StatusCode::OK, "discovery beacon sent\n").into_response(),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "discovery beacon request failed",
+        )
+            .into_response(),
+    }
+}
+
+async fn clear_peers_handler(State(state): State<HttpState>) -> impl IntoResponse {
+    let request = DiscoveryCommand::ClearPeers;
+    match state.discovery_tx.send(request) {
+        Ok(_) => (StatusCode::OK, "peers cleared\n").into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "clear peers request failed").into_response(),
+    }
+}
+
 impl Drop for HttpModule {
     fn drop(&mut self) {
         info!("http dropping and shutting down");
@@ -341,6 +417,7 @@ mod tests {
         let (sender, _) = tokio::sync::broadcast::channel(16);
         let (shutdown_tx, _) = tokio::sync::watch::channel(false);
         let (config_request_tx, mut config_request_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (discovery_tx, _) = tokio::sync::mpsc::unbounded_channel();
         let current_config = Arc::new(Mutex::new(Config::default()));
 
         tokio::spawn({
@@ -368,7 +445,7 @@ mod tests {
             }
         });
 
-        let module = HttpModule::new("http", sender, shutdown_tx, config_request_tx);
+        let module = HttpModule::new("http", sender, shutdown_tx, config_request_tx, discovery_tx);
         let addr = SocketAddr::from(([127, 0, 0, 1], 0));
         let listener = TcpListener::bind(addr).await.unwrap();
         let actual_addr = listener.local_addr().unwrap();

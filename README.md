@@ -69,3 +69,15 @@ export DYLD_FALLBACK_LIBRARY_PATH="$(xcode-select --print-path)/Toolchains/Xcode
 export LDFLAGS=-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/lib  
 ```
+
+
+
+### Develop and test
+
+As a last step after cargo check passes run cargo fmt and then cargo check again. Errors AND warnings is not allowed and shall be fixed.
+
+To run all tests use the following command:
+
+```
+cargo test --release
+```

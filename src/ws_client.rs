@@ -1,7 +1,7 @@
 use futures_util::StreamExt;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
-use tracing::{info, error};
+use tracing::{error, info};
 
 pub struct WsClient {
     url: String,

@@ -265,7 +265,6 @@ fn main() {
     println!("cargo::rustc-check-cfg=cfg(opencv4)");
     println!("cargo::rustc-check-cfg=cfg(opencv5)");
 
-
     if bi.opencv_version.starts_with("4.") {
         println!("cargo::rustc-cfg=opencv4");
     } else if bi.opencv_version.starts_with("5.") {

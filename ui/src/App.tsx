@@ -3,6 +3,7 @@ import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import Overview from './Overview'
 import { About } from './About'
 import { msPretty } from './lib/utils'
+import { Api } from './Api'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
 
@@ -56,6 +57,11 @@ const pages = [
     label: 'About',
     description: 'Application information.',
   },
+  {
+    path: '/api',
+    label: 'API',
+    description: 'View available API endpoints.',
+  }
 ]
 
 function App() {
@@ -223,6 +229,7 @@ function App() {
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<Overview />} />
             <Route path="/about" element={<About port={rootPort} />} />
+            <Route path="/api" element={<Api port={rootPort} />} />
             {pages.map((page) => (
               <Route
                 key={page.path}

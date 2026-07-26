@@ -10,7 +10,6 @@ use tokio::sync::{
 use tracing::{debug, error, info, warn};
 use types::Config;
 
-
 pub enum ConfigRequest {
     Get {
         requester: &'static str,
@@ -70,9 +69,10 @@ fn load_config_from_path(path: &Path) -> Config {
 fn save_config_to_path(config: &Config, path: &Path) -> std::io::Result<()> {
     let contents = serde_json::to_string_pretty(config).expect("config should serialize");
     if let Some(parent) = path.parent()
-        && !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent)?;
-        }
+        && !parent.as_os_str().is_empty()
+    {
+        fs::create_dir_all(parent)?;
+    }
     fs::write(path, contents)
 }
 
@@ -141,6 +141,9 @@ impl ConfigModule {
                     Ok(Message::Pong { sender }) => {
                         debug!("pong received from {}", sender);
                     }
+                    Ok(Message::Discovery(event)) => {
+                        debug!("discovery event received: {:?}", event);
+                    }
                     Err(_) => {
                         error!("broadcast channel closed");
                         break;
@@ -155,7 +158,7 @@ impl ConfigModule {
 
 impl Drop for ConfigModule {
     fn drop(&mut self) {
-        info!("dropping and shutting down");
+        info!("config dropping and shutting down");
     }
 }
 
