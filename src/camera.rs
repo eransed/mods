@@ -22,6 +22,7 @@ pub fn camera_start(
     sender: Sender<Message>,
     shutdown_rx: Receiver<bool>,
     device_index: i32,
+    device_width: f64,
     display: bool,
     skip_april_pose_estimation: bool,
     angle_filter: usize,
@@ -44,9 +45,12 @@ pub fn camera_start(
 
     let window_title = "mods";
     let mut res = false;
+
+    info!("Starting camera: {} with frame width: {}", device_index, device_width);
+
     let mut camera = videoio::VideoCapture::new(device_index, videoio::CAP_ANY).unwrap();
     camera
-        .set(videoio::CAP_PROP_FRAME_WIDTH, 1920 as f64)
+        .set(videoio::CAP_PROP_FRAME_WIDTH, device_width)
         .unwrap();
 
     if !camera.is_opened().unwrap() {

@@ -498,6 +498,7 @@ mod tests {
                 angle_filter: 3,
                 min_decision_margin: 20.0,
                 device_index: 0,
+                device_width: 1920 as f64,
             })
             .send()
             .await
@@ -518,6 +519,7 @@ mod tests {
                 angle_filter: 3,
                 min_decision_margin: 20.0,
                 device_index: 0,
+                device_width: 1920 as f64,
             }
         );
 

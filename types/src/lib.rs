@@ -40,6 +40,7 @@ pub struct Config {
     pub angle_filter: usize,
     pub min_decision_margin: f32,
     pub device_index: i32,
+    pub device_width: f64,
 }
 
 impl Default for Config {
@@ -55,6 +56,7 @@ impl Default for Config {
             angle_filter: 3,
             min_decision_margin: 20.0,
             device_index: 0,
+            device_width: 1920 as f64,
         }
     }
 }

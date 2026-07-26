@@ -84,6 +84,7 @@ async fn main() {
                 cam_brdcast,
                 shutdown_cam_rx,
                 initial_config.device_index,
+                initial_config.device_width,
                 initial_config.opencv_display,
                 initial_config.skip_april_pose_estimation,
                 initial_config.angle_filter,
