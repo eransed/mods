@@ -209,6 +209,8 @@ mod tests {
             enable_camera: true,
             opencv_display: true,
             skip_april_pose_estimation: false,
+            angle_filter: 5,
+            min_decision_margin: 25.0,
         };
 
         save_config_to_path(&config, &path).unwrap();

@@ -495,6 +495,8 @@ mod tests {
                 enable_camera: true,
                 opencv_display: true,
                 skip_april_pose_estimation: false,
+                angle_filter: 3,
+                min_decision_margin: 20.0,
             })
             .send()
             .await
@@ -512,6 +514,8 @@ mod tests {
                 enable_camera: true,
                 opencv_display: true,
                 skip_april_pose_estimation: false,
+                angle_filter: 3,
+                min_decision_margin: 20.0,
             }
         );
 

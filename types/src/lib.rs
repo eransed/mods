@@ -28,7 +28,7 @@ pub struct BuildInfo {
     pub windows: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     pub http_port: u16,
     pub ws_port: u16,
@@ -37,18 +37,22 @@ pub struct Config {
     pub enable_camera: bool,
     pub opencv_display: bool,
     pub skip_april_pose_estimation: bool,
+    pub angle_filter: usize,
+    pub min_decision_margin: f32,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            http_port: 8080,
-            ws_port: 8081,
+            http_port: 8123,
+            ws_port: 8124,
             log_level: "info".to_string(),
             allow_remote_connections: false,
             enable_camera: true,
-            opencv_display: true,
-            skip_april_pose_estimation: false,
+            opencv_display: false,
+            skip_april_pose_estimation: true,
+            angle_filter: 3,
+            min_decision_margin: 20.0,
         }
     }
 }

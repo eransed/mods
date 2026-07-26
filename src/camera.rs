@@ -23,6 +23,8 @@ pub fn camera_start(
     shutdown_rx: Receiver<bool>,
     display: bool,
     skip_april_pose_estimation: bool,
+    angle_filter: usize,
+    min_decision_margin: f32,
 ) -> bool {
     let start = std::time::Instant::now();
     #[cfg(opencv4)]
@@ -67,7 +69,7 @@ pub fn camera_start(
     let mut first_frame = false;
 
     const FILTER_LENGTH_CAP: usize = 60;
-    const FILTER_LENGTH: usize = 20;
+    let filter_length = angle_filter as usize;
     let mut roll = ValueWithStats::<f64, FILTER_LENGTH_CAP>::new();
     let mut pitch = ValueWithStats::<f64, FILTER_LENGTH_CAP>::new();
     let mut yaw = ValueWithStats::<f64, FILTER_LENGTH_CAP>::new();
@@ -150,7 +152,7 @@ pub fn camera_start(
             //     continue;
             // }
 
-            if det.decision_margin() < 40.0 {
+            if det.decision_margin() < min_decision_margin {
                 continue;
             }
 
@@ -368,9 +370,9 @@ pub fn camera_start(
                 &mut frame,
                 &format!(
                     "R: {:.2}, P: {:.2}, Y: {:.2}",
-                    roll.mean_last_n(FILTER_LENGTH).unwrap_or_default(),
-                    pitch.mean_last_n(FILTER_LENGTH).unwrap_or_default(),
-                    yaw.mean_last_n(FILTER_LENGTH).unwrap_or_default()
+                    roll.mean_last_n(filter_length).unwrap_or_default(),
+                    pitch.mean_last_n(filter_length).unwrap_or_default(),
+                    yaw.mean_last_n(filter_length).unwrap_or_default()
                 ),
                 Point::new(50, 600),
                 imgproc::FONT_HERSHEY_SIMPLEX,

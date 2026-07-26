@@ -70,14 +70,14 @@ function App() {
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
   const disconnectStart = useRef<number | null>(null)
   const [disconnectedSince, setDisconnectedSince] = useState(0)
-  const [wsPort, setWsPort] = useState(8081)
+  const [wsPort, setWsPort] = useState(8124)
 
   const protocol = 'http'
   const rootUrl = window.location.hostname
-  const rootPort = 8080
+  const rootPort = parseInt(window.location.port || '8123', 10)
   const host = `${protocol}://${rootUrl}:${rootPort}`
 
-  const defaultWsPort = 8081
+  const defaultWsPort = 8124
 
   useEffect(() => {
     console.log('useEffect')
