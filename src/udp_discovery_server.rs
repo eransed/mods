@@ -160,12 +160,12 @@ impl DiscoveryServer {
             .map_err(|e| format!("Failed to set SO_REUSEADDR: {}", e))?;
 
         // Platform-specific SO_REUSEPORT configuration
-        #[cfg(not(target_os = "windows"))]
-        {
-            socket2_obj
-                .set_reuse_port(true)
-                .map_err(|e| format!("Failed to set SO_REUSEPORT: {}", e))?;
-        }
+        // #[cfg(not(target_os = "windows"))]
+        // {
+        //     socket2_obj
+        //         .set_reuse_port(true)
+        //         .map_err(|e| format!("Failed to set SO_REUSEPORT: {}", e))?;
+        // }
 
         // Convert back to std::net::UdpSocket
         let std_socket = std::net::UdpSocket::from(socket2_obj);
