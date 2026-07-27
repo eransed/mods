@@ -5,6 +5,7 @@ import { About } from './About'
 import { msPretty } from './lib/utils'
 import { Api } from './Api'
 import { Camera } from './Camera'
+import { Settings } from './Settings'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
 
@@ -296,9 +297,10 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<Overview />} />
+            <Route path="/settings" element={<Settings http_port={rootPort} />} />
             <Route path="/camera" element={websocket ? <Camera webSocket={websocket} /> : null} />
-            <Route path="/about" element={<About port={rootPort} />} />
             <Route path="/api" element={<Api port={rootPort} />} />
+            <Route path="/about" element={<About port={rootPort} />} />
             {pages.map((page) => (
               <Route
                 key={page.path}

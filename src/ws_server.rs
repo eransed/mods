@@ -162,7 +162,7 @@ impl WsServer {
                             }
                         }
                         Ok(WsMessage::Close(_)) => {
-                            warn!("ws_server websocket client disconnected {}", client_addr);
+                            info!("ws_server websocket client disconnected {}", client_addr);
                             break;
                         }
                         Ok(_) => {}
