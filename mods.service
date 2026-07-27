@@ -1,0 +1,13 @@
+[Unit]
+Description=Event Router
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=7
+ExecStart=/usr/bin/mods
+
+[Install]
+WantedBy=multi-user.target

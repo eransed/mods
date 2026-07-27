@@ -19,6 +19,7 @@ npm install -g quicktype
 ## Linux
 ```
 sudo apt install libclang-dev
+sudo apt install libopencv-dev
 ```
 
 ## windows dependencies
