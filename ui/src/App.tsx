@@ -258,7 +258,9 @@ function App() {
                     `nav-link${isActive ? ' nav-link-active' : ''}`
                   }
                   onClick={() => {
-                    setSidebarOpen(false)
+                    if (screenWidth <= 600) {
+                      setSidebarOpen(false)
+                    }
                   }}
                 >
                   {page.label}
