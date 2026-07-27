@@ -76,10 +76,9 @@ impl WsServer {
             while let Ok(message) = receiver.recv().await {
                 match message {
                     Message::Broadcast { sender, body } => {
-                        let text = format!("{sender}: {body}");
-                        debug!(%sender, %text, "ws_server broadcasting internal message");
+                        debug!(%sender, %body, "ws_server broadcasting internal message");
                         let mut clients = clients.lock().await;
-                        clients.retain(|client| client.send(WsMessage::Text(text.clone())).is_ok());
+                        clients.retain(|client| client.send(WsMessage::Text(body.clone())).is_ok());
                     }
                     Message::Pong { sender } => {
                         if let Some(text) = encode_topic_message(&Message::Pong { sender }) {

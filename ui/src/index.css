@@ -152,7 +152,7 @@ h1 {
   transition: background 0.5s ease-in-out;
 }
 
-@media (max-width: 800px) {
+/* @media (max-width: 800px) {
   .app-shell {
     grid-template-columns: 1fr;
   }
@@ -165,4 +165,4 @@ h1 {
   .nav-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
+} */

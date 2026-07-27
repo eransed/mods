@@ -4,6 +4,7 @@ use apriltag::{Detector, Family, image_buf::DEFAULT_ALIGNMENT_U8};
 use opencv::{
     core::{self, Point, Scalar, Size},
     highgui,
+    imgcodecs::imencode,
     imgproc::{
         self,
         LineTypes::{FILLED, LINE_AA},
@@ -12,9 +13,11 @@ use opencv::{
     videoio,
 };
 
+use base64::prelude::*;
 use opencv::core::{Point2f, Point3f, Vector};
 use tokio::sync::{broadcast::Sender, watch::Receiver};
 use tracing::{info, warn};
+use types::{RawImageDetection, TagPose};
 
 use crate::{message::Message, util::ValueWithStats};
 
@@ -46,7 +49,10 @@ pub fn camera_start(
     let window_title = "mods";
     let mut res = false;
 
-    info!("Starting camera: {} with frame width: {}", device_index, device_width);
+    info!(
+        "Starting camera: {} with frame width: {}",
+        device_index, device_width
+    );
 
     let mut camera = videoio::VideoCapture::new(device_index, videoio::CAP_ANY).unwrap();
     camera
@@ -117,13 +123,7 @@ pub fn camera_start(
 
         #[cfg(opencv_pre_411)]
         {
-            imgproc::cvt_color(
-                &frame,
-                &mut gray,
-                imgproc::COLOR_BGR2GRAY,
-                0,
-            )
-            .unwrap();
+            imgproc::cvt_color(&frame, &mut gray, imgproc::COLOR_BGR2GRAY, 0).unwrap();
         }
 
         // convert to image that the apriltag lib understands
@@ -162,11 +162,13 @@ pub fn camera_start(
             cy: frame.rows() as f64 / 2.0,
         };
 
+        let mut tags = vec![];
+
         let detection_time = cread_start.elapsed();
 
         for (di, det) in detections.iter().enumerate() {
             let pose_esti_start = Instant::now();
-            let id = det.id();
+            // let id = det.id();
             // if id < 21 || id > 21 {
             //     continue;
             // }
@@ -407,18 +409,21 @@ pub fn camera_start(
             let tx = *tvec.at_2d::<f64>(0, 0).unwrap() * 10.0;
             let ty = *tvec.at_2d::<f64>(1, 0).unwrap() * 10.0;
             let tz = *tvec.at_2d::<f64>(2, 0).unwrap() * 10.0;
-            let m = Message::Broadcast {
-                sender: "cam",
-                body: format!(
-                    "id {} x: {:.3}, y: {:.3}, z: {:.3}, time: {:.1?}",
-                    id,
-                    tx,
-                    ty,
-                    tz,
-                    pose_esti_start.elapsed()
-                ),
+
+            let fr = roll.mean_last_n(filter_length).unwrap_or_default();
+            let fp = pitch.mean_last_n(filter_length).unwrap_or_default();
+            let fy = yaw.mean_last_n(filter_length).unwrap_or_default();
+
+            let tag_pose = TagPose {
+                id: det.id(),
+                center_image: (det.center()[0], det.center()[1]),
+                decision_margin: det.decision_margin(),
+                translation: (tx, ty, tz),
+                rotation: (fr, fp, fy),
+                pose_estimation_time_us: pose_esti_start.elapsed().as_micros() as u32,
             };
-            sender.send(m).unwrap();
+
+            tags.push(tag_pose);
         }
 
         let mut small_frame = Mat::default();
@@ -432,6 +437,27 @@ pub fn camera_start(
             imgproc::INTER_AREA,
         )
         .unwrap();
+
+        let par = core::Vector::<i32>::new();
+        let mut png_encoded_frame = Vector::<u8>::new();
+
+        imencode(".png", &small_frame, &mut png_encoded_frame, &par).unwrap();
+
+        let mut raw_image_detection = RawImageDetection {
+            tags: tags,
+            image_data_base64: BASE64_STANDARD.encode(&png_encoded_frame),
+            image_width: small_frame.cols() as u32,
+            detection_time_us: 0,
+        };
+
+        raw_image_detection.detection_time_us = detection_time.as_micros() as u32;
+
+        let m = Message::Broadcast {
+            sender: "camera",
+            body: serde_json::to_string(&raw_image_detection).unwrap(),
+        };
+
+        sender.send(m).unwrap();
 
         if display {
             highgui::imshow(window_title, &small_frame).unwrap();

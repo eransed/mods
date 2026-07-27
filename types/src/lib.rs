@@ -60,3 +60,21 @@ impl Default for Config {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TagPose {
+    pub id: usize,
+    pub center_image: (f64, f64),
+    pub decision_margin: f32,
+    pub translation: (f64, f64, f64),
+    pub rotation: (f64, f64, f64),
+    pub pose_estimation_time_us: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RawImageDetection {
+    pub tags: Vec<TagPose>,
+    pub image_data_base64: String,
+    pub image_width: u32,
+    pub detection_time_us: u32,
+}

@@ -4,6 +4,7 @@ import Overview from './Overview'
 import { About } from './About'
 import { msPretty } from './lib/utils'
 import { Api } from './Api'
+import { Camera } from './Camera'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
 
@@ -61,6 +62,11 @@ const pages = [
     path: '/api',
     label: 'API',
     description: 'View available API endpoints.',
+  },
+  {
+    path: '/camera',
+    label: 'Camera',
+    description: 'View camera feed.',
   }
 ]
 
@@ -68,20 +74,28 @@ function App() {
   console.log('App')
   const [status, setStatus] = useState<ConnectionState>('connecting')
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  const [websocket, setWebsocket] = useState<WebSocket | null>(null)
   const disconnectStart = useRef<number | null>(null)
+  const websocketRef = useRef<WebSocket | null>(null)
   const [disconnectedSince, setDisconnectedSince] = useState(0)
   const [wsPort, setWsPort] = useState(8124)
 
   const protocol = 'http'
   const rootUrl = window.location.hostname
-  const rootPort = parseInt(window.location.port || '8123', 10)
+
+  let rootPort = parseInt(window.location.port || '8123', 10)
+  // the root http port when running the dev server must be set to the default port of 8123
+  // determine if we are running in dev mode or production mode based on the port number
+  if (import.meta.env) {
+    rootPort = 8123
+  }
+
   const host = `${protocol}://${rootUrl}:${rootPort}`
 
   const defaultWsPort = 8124
 
   useEffect(() => {
     console.log('useEffect')
-    let websocket: WebSocket | null = null
     let isCancelled = false
 
     const connect = async () => {
@@ -155,26 +169,34 @@ function App() {
         const wsUrl =
           import.meta.env.VITE_WS_URL ?? `${protocol}://${hostname}:${resolvedWsPort}`
 
-        websocket = new WebSocket(wsUrl)
+        const newWebSocket = new WebSocket(wsUrl)
 
-        websocket.onopen = () => {
+        newWebSocket.onopen = () => {
           console.log('websocket open')
           setStatus('connected')
           disconnectStart.current = null
           setReconnectAttempts(0)
         }
 
-        websocket.onclose = () => {
+        newWebSocket.onclose = () => {
           console.warn('websocket closed')
           setStatus('disconnected')
+          setWebsocket(null)
           handleReconnect()
         }
 
-        websocket.onerror = () => {
+        newWebSocket.onerror = () => {
           console.error('websocket error')
           setStatus('error')
           handleReconnect()
         }
+
+        // newWebSocket.onmessage = (event) => {
+        //   console.log('websocket message received:', event.data)
+        // }
+
+        websocketRef.current = newWebSocket
+        setWebsocket(newWebSocket)
       } else {
         console.warn("Could not fetch the config, will not connect to websocket")
         handleReconnect()
@@ -188,7 +210,7 @@ function App() {
     return () => {
       console.log('Cancelled')
       isCancelled = true
-      websocket?.close()
+      websocketRef.current?.close()
     }
   }, [defaultWsPort, host])
 
@@ -228,6 +250,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<Overview />} />
+            <Route path="/camera" element={websocket ? <Camera webSocket={websocket} /> : null} />
             <Route path="/about" element={<About port={rootPort} />} />
             <Route path="/api" element={<Api port={rootPort} />} />
             {pages.map((page) => (

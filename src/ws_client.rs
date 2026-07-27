@@ -1,7 +1,7 @@
 use futures_util::StreamExt;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 pub struct WsClient {
     url: String,
@@ -28,13 +28,13 @@ impl WsClient {
         while let Some(message_result) = socket.next().await {
             match message_result {
                 Ok(WsMessage::Frame(frame)) => {
-                    info!(frame = %frame, "ws_client received frame");
+                    debug!(frame = %frame, "ws_client received frame");
                 }
                 Ok(WsMessage::Text(text)) => {
-                    info!(text = %text, "ws_client received text");
+                    debug!(text = %text, "ws_client received text");
                 }
                 Ok(WsMessage::Binary(data)) => {
-                    info!(bytes = ?data, "ws_client received binary");
+                    debug!(bytes = ?data, "ws_client received binary");
                 }
                 Ok(WsMessage::Ping(payload)) => {
                     info!(payload = ?payload, "ws_client received ping");
