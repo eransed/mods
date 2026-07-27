@@ -10,7 +10,7 @@ use tokio::sync::{
 };
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use crate::message::{Message, TopicMessage};
 
