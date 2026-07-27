@@ -72,7 +72,6 @@ const pages = [
 ]
 
 function App() {
-  console.log('App')
   const [status, setStatus] = useState<ConnectionState>('connecting')
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
   const [websocket, setWebsocket] = useState<WebSocket | null>(null)
@@ -223,7 +222,6 @@ function App() {
 
     }
 
-    console.log('Prime connect')
     connect()
 
     return () => {
@@ -233,7 +231,6 @@ function App() {
     }
   }, [defaultWsPort, host])
 
-  console.log('Render')
   return (
     <div className={`app-shell${screenWidth <= 600 ? ' small' : ''}${sidebarOpen ? ' sidebar-open' : ''}`}>
       <aside className={`sidebar${screenWidth <= 600 ? ' small' : ''}${screenWidth <= 600 && sidebarOpen ? ' visible' : ''}`}>
