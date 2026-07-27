@@ -75,6 +75,7 @@ pub struct TagPose {
 pub struct RawImageDetection {
     pub tags: Vec<TagPose>,
     pub image_data_base64: String,
-    pub image_width: u32,
+    pub image_size: (i32, i32),
+    pub native_image_size: (i32, i32),
     pub detection_time_us: u32,
 }

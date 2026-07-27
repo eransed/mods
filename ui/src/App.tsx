@@ -75,6 +75,8 @@ function App() {
   const [status, setStatus] = useState<ConnectionState>('connecting')
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
   const [websocket, setWebsocket] = useState<WebSocket | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 600)
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth)
   const disconnectStart = useRef<number | null>(null)
   const websocketRef = useRef<WebSocket | null>(null)
   const [disconnectedSince, setDisconnectedSince] = useState(0)
@@ -93,6 +95,26 @@ function App() {
   const host = `${protocol}://${rootUrl}:${rootPort}`
 
   const defaultWsPort = 8124
+
+  useEffect(() => {
+    const handleResize = () => {
+      const newWidth = window.innerWidth
+      setScreenWidth(newWidth)
+      // Only auto-close menu on small screens when resizing to small
+      if (newWidth <= 600) {
+        setSidebarOpen(false)
+      } else {
+        setSidebarOpen(true)
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen)
+  }
 
   useEffect(() => {
     console.log('useEffect')
@@ -191,10 +213,6 @@ function App() {
           handleReconnect()
         }
 
-        // newWebSocket.onmessage = (event) => {
-        //   console.log('websocket message received:', event.data)
-        // }
-
         websocketRef.current = newWebSocket
         setWebsocket(newWebSocket)
       } else {
@@ -216,9 +234,20 @@ function App() {
 
   console.log('Render')
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <h2>Menu</h2>
+    <div className={`app-shell${screenWidth <= 600 ? ' small' : ''}${sidebarOpen ? ' sidebar-open' : ''}`}>
+      <aside className={`sidebar${screenWidth <= 600 ? ' small' : ''}${screenWidth <= 600 && sidebarOpen ? ' visible' : ''}`}>
+        <div className="sidebar-header">
+          <button
+            className="hamburger-btn"
+            onClick={toggleSidebar}
+            aria-label="Toggle menu"
+            aria-expanded={sidebarOpen}
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
         <nav aria-label="Primary">
           <ul className="nav-list">
             {pages.map((page) => (
@@ -228,6 +257,9 @@ function App() {
                   className={({ isActive }) =>
                     `nav-link${isActive ? ' nav-link-active' : ''}`
                   }
+                  onClick={() => {
+                    setSidebarOpen(false)
+                  }}
                 >
                   {page.label}
                 </NavLink>
@@ -237,9 +269,21 @@ function App() {
         </nav>
       </aside>
 
-      <main className="content">
+      <main className={`content${screenWidth <= 600 ? ' small' : ''}`}>
         <header className="header">
-          <h1>Oak - Event Router</h1>
+          {!sidebarOpen && (
+            <button
+              className="hamburger-btn header-hamburger"
+              onClick={toggleSidebar}
+              aria-label="Toggle menu"
+              aria-expanded={sidebarOpen}
+            >
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+          )}
+          <h1>mods</h1>
           <p className="status" aria-live="polite">
             <span className={`dot dot-${status}`} aria-hidden="true" />
             {status}{reconnectAttempts > 0 ? `[${msPretty(disconnectedSince)}]` : null} - {wsPort}

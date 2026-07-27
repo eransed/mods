@@ -15,7 +15,8 @@ interface RawImageDetection {
         pose_estimation_time_us: number;
     }>;
     image_data_base64: string;
-    image_width: number;
+    image_size: [number, number];
+    native_image_size: [number, number];
     detection_time_us: number;
 }
 
@@ -57,7 +58,8 @@ export function Camera({ webSocket }: CameraProps) {
                     <div style={{ color: '#eee' }}>
                         <p>Tags detected: {data.tags.length}</p>
                         <p>Detection time: {(data.detection_time_us / 1000).toFixed(dec)}ms</p>
-                        <p>Image width: {data.image_width}px</p>
+                        <p>Image size: {data.image_size[0]} x {data.image_size[1]}</p>
+                        <p>Native image size: {data.native_image_size[0]} x {data.native_image_size[1]}</p>
                         {data.tags.map((tag) => (
                             <div key={tag.id} style={{ marginBottom: '1rem', paddingLeft: '1rem', borderLeft: '2px solid #555', color: '#aea' }}>
                                 <p>Tag ID: {tag.id}</p>

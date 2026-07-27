@@ -446,7 +446,8 @@ pub fn camera_start(
         let mut raw_image_detection = RawImageDetection {
             tags: tags,
             image_data_base64: BASE64_STANDARD.encode(&png_encoded_frame),
-            image_width: small_frame.cols() as u32,
+            image_size: (small_frame.cols(), small_frame.rows()),
+            native_image_size: (frame.cols(), frame.rows()),
             detection_time_us: 0,
         };
 
