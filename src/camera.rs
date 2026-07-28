@@ -201,7 +201,7 @@ pub fn camera_start(
                 Point::new(center[0] as i32, center[1] as i32),
                 imgproc::FONT_HERSHEY_SIMPLEX,
                 1.0,
-                Scalar::new(170.0, 170.0, 170.0, 0.0),
+                Scalar::new(50.0, 50.0, 255.0, 0.0),
                 2,
                 imgproc::LINE_AA,
                 false,
