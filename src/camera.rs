@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{collections::HashMap, time::Instant};
 
 use apriltag::{Detector, Family, image_buf::DEFAULT_ALIGNMENT_U8};
 use opencv::{
@@ -17,6 +17,12 @@ use tracing::{info, warn};
 use types::{RawImageDetection, TagPose};
 
 use crate::{message::Message, util::ValueWithStats};
+
+pub struct RPY {
+    pub r: ValueWithStats<f64, 30>,
+    pub p: ValueWithStats<f64, 30>,
+    pub y: ValueWithStats<f64, 30>,
+}
 
 pub fn camera_start(
     sender: Sender<Message>,
@@ -76,11 +82,9 @@ pub fn camera_start(
 
     let mut first_frame = false;
 
-    const FILTER_LENGTH_CAP: usize = 60;
+    let mut tag_rot_map: HashMap<usize, RPY> = Default::default();
+
     let filter_length = angle_filter as usize;
-    let mut roll = ValueWithStats::<f64, FILTER_LENGTH_CAP>::new();
-    let mut pitch = ValueWithStats::<f64, FILTER_LENGTH_CAP>::new();
-    let mut yaw = ValueWithStats::<f64, FILTER_LENGTH_CAP>::new();
 
     loop {
         let cread_start = Instant::now();
@@ -259,18 +263,31 @@ pub fn camera_start(
             // convert rotation matrix to Euler angles (roll, pitch, yaw)
             let (r, p, y) = convert_rotation_matrix_to_euler_angles(&rotation_matrix, true);
 
-            roll.push(r);
-            pitch.push(p);
-            yaw.push(y);
+            // initialize the tag rotation map if it doesn't exist for this tag ID
+            if tag_rot_map.get(&det.id()).is_none() {
+                info!("Initializing rotation map for tag ID: {}", det.id());
+                tag_rot_map.insert(
+                    det.id(),
+                    RPY {
+                        r: ValueWithStats::new(),
+                        p: ValueWithStats::new(),
+                        y: ValueWithStats::new(),
+                    },
+                );
+            }
+
+            tag_rot_map.get_mut(&det.id()).expect("Failed to get rotation map").r.push(r);
+            tag_rot_map.get_mut(&det.id()).expect("Failed to get rotation map").p.push(p);
+            tag_rot_map.get_mut(&det.id()).expect("Failed to get rotation map").y.push(y);
 
             // publish
             let tx = *tvec.at_2d::<f64>(0, 0).unwrap() * 10.0;
             let ty = *tvec.at_2d::<f64>(1, 0).unwrap() * 10.0;
             let tz = *tvec.at_2d::<f64>(2, 0).unwrap() * 10.0;
 
-            let fr = roll.mean_last_n(filter_length).unwrap_or_default();
-            let fp = pitch.mean_last_n(filter_length).unwrap_or_default();
-            let fy = yaw.mean_last_n(filter_length).unwrap_or_default();
+            let fr = tag_rot_map[&det.id()].r.mean_last_n(filter_length).unwrap_or_default();
+            let fp = tag_rot_map[&det.id()].p.mean_last_n(filter_length).unwrap_or_default();
+            let fy = tag_rot_map[&det.id()].y.mean_last_n(filter_length).unwrap_or_default();
 
             let tag_pose = TagPose {
                 id: det.id(),
