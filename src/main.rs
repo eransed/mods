@@ -169,6 +169,9 @@ async fn main() {
 
     info!(http_port, "http server listening at");
     info!(ws_port, "websocket server listening at");
+
+    info!("Current working directory: {}", std::env::current_dir().unwrap().display());
+
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
             info!("received ctrl-c");

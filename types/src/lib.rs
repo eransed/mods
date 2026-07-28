@@ -49,7 +49,7 @@ impl Default for Config {
             http_port: 8123,
             ws_port: 8124,
             log_level: "info".to_string(),
-            allow_remote_connections: false,
+            allow_remote_connections: true,
             enable_camera: true,
             opencv_display: false,
             skip_april_pose_estimation: true,
