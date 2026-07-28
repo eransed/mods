@@ -90,12 +90,12 @@ function App() {
   let rootPort = parseInt(window.location.port || '8123', 10)
   // the root http port when running the dev server must be set to the default port of 8123
   // determine if we are running in dev mode or production mode based on the port number
-  if (import.meta.env) {
-    console.log('import.meta.env:', import.meta.env)
-    console.log('Running in dev mode, using default port 8123 for http')
-    rootPort = 8123
-  } else {
+  if (import.meta.env.PROD) {
     console.log('Running in production mode, using port from window.location.port =', window.location.port)
+  } else {
+    console.log('Running in dev mode, using default port 8123 for http')
+    console.log('import.meta.env:', import.meta.env)
+    rootPort = 8123
   }
 
   const host = `${protocol}://${rootUrl}:${rootPort}`

@@ -90,6 +90,9 @@ sleep 3
 log_info "Copying binary..."
 sudo cp -v ./target/release/mods /usr/bin/mods
 
+log_info "Creating config directory..."
+sudo mkdir -p /etc/mods_service
+
 log_info "Copying systemd unit file..."
 
 sudo cp -v ./mods.service /etc/systemd/system/.
