@@ -105,7 +105,7 @@ const useCanvas = (draw: (ctx: CanvasRenderingContext2D, x: number, y: number, f
   return canvasRef
 }
 
-function Overview() {
+export function Overview() {
 
   const [x, setx] = useState(0)
   const [y, sety] = useState(0)
@@ -123,5 +123,3 @@ function Overview() {
     </section>
   </>
 }
-
-export default Overview;

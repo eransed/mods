@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import type { BuildInfo } from "./types/BuildInfo"
+import type { BuildInfo } from "../types/BuildInfo"
 
 export interface AboutProps {
   port: number

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
-import Overview from './Overview'
-import { About } from './About'
 import { msPretty } from './lib/utils'
-import { Api } from './Api'
-import { Camera } from './Camera'
-import { Settings } from './Settings'
+import { Overview } from './components/Overview'
+import { Api } from './components/Api'
+import { Camera } from './components/Camera'
+import { Settings } from './components/Settings'
+import { About } from './components/About'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
 
