@@ -4,11 +4,8 @@ use apriltag::{Detector, Family, image_buf::DEFAULT_ALIGNMENT_U8};
 use opencv::{
     core::{self, Point, Scalar, Size},
     highgui,
+    imgproc,
     imgcodecs::imencode,
-    imgproc::{
-        self,
-        LineTypes::{FILLED, LINE_AA},
-    },
     prelude::*,
     videoio,
 };
@@ -27,7 +24,7 @@ pub fn camera_start(
     device_index: i32,
     device_width: f64,
     display: bool,
-    skip_april_pose_estimation: bool,
+    _skip_april_pose_estimation: bool,
     angle_filter: usize,
     min_decision_margin: f32,
 ) -> bool {
@@ -95,7 +92,6 @@ pub fn camera_start(
 
         camera.read(&mut frame).unwrap();
 
-        let processing_start = Instant::now();
         if frame.empty() {
             warn!("Empty frame!");
             continue;
@@ -164,9 +160,7 @@ pub fn camera_start(
 
         let mut tags = vec![];
 
-        let detection_time = cread_start.elapsed();
-
-        for (di, det) in detections.iter().enumerate() {
+        for (_, det) in detections.iter().enumerate() {
             let pose_esti_start = Instant::now();
             // let id = det.id();
             // if id < 21 || id > 21 {
@@ -177,8 +171,8 @@ pub fn camera_start(
                 continue;
             }
 
+            // Draw the tag outline and ID on the frame
             let corners = det.corners();
-
             for i in 0..4 {
                 let p0 = Point::new(corners[i][0] as i32, corners[i][1] as i32);
 
@@ -191,7 +185,7 @@ pub fn camera_start(
                     &mut frame,
                     p0,
                     p1,
-                    Scalar::new(70.0, 255.0, 70.0, 0.0),
+                    Scalar::new(50.0, 255.0, 50.0, 0.0),
                     2,
                     imgproc::LINE_AA,
                     0,
@@ -199,98 +193,20 @@ pub fn camera_start(
                 .unwrap();
             }
 
+            // Draw the tag ID at the center of the tag
             let center = det.center();
-
             imgproc::put_text(
                 &mut frame,
-                &format!("{}. T{} ({:.1})", di, det.id(), det.decision_margin()),
+                &format!("{}", det.id()),
                 Point::new(center[0] as i32, center[1] as i32),
                 imgproc::FONT_HERSHEY_SIMPLEX,
                 1.0,
-                Scalar::new(80.0, 80.0, 255.0, 0.0),
+                Scalar::new(170.0, 170.0, 170.0, 0.0),
                 2,
                 imgproc::LINE_AA,
                 false,
             )
             .unwrap();
-
-            let rect = core::Rect {
-                x: 1,
-                y: 1,
-                width: 700,
-                height: 700,
-            };
-
-            let c = core::Scalar::new(0.0, 0.0, 0.0, 0.0);
-
-            imgproc::rectangle(&mut frame, rect, c, FILLED.into(), LINE_AA.into(), 0).unwrap();
-
-            imgproc::put_text(
-                &mut frame,
-                &format!(
-                    "Detection time: {:.1?} - PT: {:.1?}",
-                    detection_time,
-                    processing_start.elapsed()
-                ),
-                Point::new(30, 50),
-                imgproc::FONT_HERSHEY_SIMPLEX,
-                1.0,
-                Scalar::new(255.0, 0.0, 255.0, 0.0),
-                2,
-                imgproc::LINE_AA,
-                false,
-            )
-            .unwrap();
-
-            if !skip_april_pose_estimation {
-                // can segfault on apple silicon...
-                // april start
-                let pe = apriltag::Detection::estimate_tag_pose(&det, &params).unwrap();
-                let tra = pe.translation().data();
-                let mut index = 0;
-                for r in 0..pe.translation().nrows() {
-                    for c in 0..pe.translation().ncols() {
-                        let ri32: i32 = r.try_into().unwrap();
-                        let ci32: i32 = c.try_into().unwrap();
-                        imgproc::put_text(
-                            &mut frame,
-                            &format!("{:.3}", tra[index] * 10000 as f64),
-                            Point::new(30 + 200 * ri32, 100 + 50 * ci32),
-                            imgproc::FONT_HERSHEY_SIMPLEX,
-                            1.0,
-                            Scalar::new(255.0, 255.0, 255.0, 0.0),
-                            2,
-                            imgproc::LINE_AA,
-                            false,
-                        )
-                        .unwrap();
-                        index = index + 1;
-                    }
-                }
-
-                let rot = pe.rotation().data();
-                let mut index = 0;
-                for r in 0..pe.rotation().nrows() {
-                    for c in 0..pe.rotation().ncols() {
-                        let ri32: i32 = r.try_into().unwrap();
-                        let ci32: i32 = c.try_into().unwrap();
-                        imgproc::put_text(
-                            &mut frame,
-                            &format!("{:.2}", rot[index]),
-                            Point::new(30 + 200 * ri32, 150 + 50 * ci32),
-                            imgproc::FONT_HERSHEY_SIMPLEX,
-                            1.0,
-                            Scalar::new(10.0, 255.0, 10.0, 0.0),
-                            2,
-                            imgproc::LINE_AA,
-                            false,
-                        )
-                        .unwrap();
-                        index = index + 1;
-                    }
-                }
-            }
-            // april stop
 
             // Build 3D object points for the tag corners (tag frame, Z=0 plane).
             // Order must match det.corners() order.
@@ -340,70 +256,12 @@ pub fn camera_start(
 
             rodrigues(&rvec, &mut rotation_matrix, &mut core::no_array()).unwrap();
 
-            // Print translation (tvec is 3x1)
-            for r in 0..3 {
-                let ri32: i32 = r;
-                // let t = *tvec.at::<f64>(r).unwrap();
-                let t = *tvec.at_2d::<f64>(r, 0).unwrap();
-                imgproc::put_text(
-                    &mut frame,
-                    &format!("{:.3}", t * 10.0),
-                    Point::new(30 + 200 * ri32, 400),
-                    imgproc::FONT_HERSHEY_SIMPLEX,
-                    1.0,
-                    Scalar::new(0.0, 255.0, 255.0, 0.0),
-                    2,
-                    imgproc::LINE_AA,
-                    false,
-                )
-                .unwrap();
-            }
-
-            // Print rotation matrix (3x3)
-            for r in 0..3 {
-                for c in 0..3 {
-                    let ri32: i32 = r;
-                    let ci32: i32 = c;
-                    let v = *rotation_matrix.at_2d::<f64>(r, c).unwrap();
-                    imgproc::put_text(
-                        &mut frame,
-                        &format!("{:.2}", v),
-                        Point::new(30 + 200 * ri32, 450 + 50 * ci32),
-                        imgproc::FONT_HERSHEY_SIMPLEX,
-                        1.0,
-                        Scalar::new(255.0, 255.0, 0.0, 0.0),
-                        2,
-                        imgproc::LINE_AA,
-                        false,
-                    )
-                    .unwrap();
-                }
-            }
-
             // convert rotation matrix to Euler angles (roll, pitch, yaw)
             let (r, p, y) = convert_rotation_matrix_to_euler_angles(&rotation_matrix, true);
 
             roll.push(r);
             pitch.push(p);
             yaw.push(y);
-
-            imgproc::put_text(
-                &mut frame,
-                &format!(
-                    "R: {:.2}, P: {:.2}, Y: {:.2}",
-                    roll.mean_last_n(filter_length).unwrap_or_default(),
-                    pitch.mean_last_n(filter_length).unwrap_or_default(),
-                    yaw.mean_last_n(filter_length).unwrap_or_default()
-                ),
-                Point::new(50, 600),
-                imgproc::FONT_HERSHEY_SIMPLEX,
-                1.0,
-                Scalar::new(255.0, 255.0, 255.0, 0.0),
-                2,
-                imgproc::LINE_AA,
-                false,
-            )
-            .unwrap();
 
             // publish
             let tx = *tvec.at_2d::<f64>(0, 0).unwrap() * 10.0;
@@ -426,8 +284,8 @@ pub fn camera_start(
             tags.push(tag_pose);
         }
 
-        let mut small_frame = Mat::default();
         let resize_factor = 0.4;
+        let mut small_frame = Mat::default();
         imgproc::resize(
             &frame,
             &mut small_frame,
@@ -443,15 +301,13 @@ pub fn camera_start(
 
         imencode(".png", &small_frame, &mut png_encoded_frame, &par).unwrap();
 
-        let mut raw_image_detection = RawImageDetection {
+        let raw_image_detection = RawImageDetection {
             tags: tags,
             image_data_base64: BASE64_STANDARD.encode(&png_encoded_frame),
             image_size: (small_frame.cols(), small_frame.rows()),
             native_image_size: (frame.cols(), frame.rows()),
-            detection_time_us: 0,
+            detection_time_us: cread_start.elapsed().as_micros() as u32,
         };
-
-        raw_image_detection.detection_time_us = detection_time.as_micros() as u32;
 
         let m = Message::Broadcast {
             sender: "camera",
