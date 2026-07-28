@@ -44,10 +44,10 @@ fn load_config_from_path(path: &Path) -> Config {
         Ok(contents) => match serde_json::from_str::<Config>(&contents) {
             Ok(config) => config,
             Err(err) => {
-                debug!(error = ?err, path = ?path, "failed to parse config.json, using default config");
+                error!(error = ?err, path = ?path, "failed to parse config.json, using default config");
                 let default = Config::default();
                 if let Err(write_err) = save_config_to_path(&default, path) {
-                    debug!(error = ?write_err, path = ?path, "failed to write default config");
+                    error!(error = ?write_err, path = ?path, "failed to write default config");
                 }
                 default
             }
@@ -55,12 +55,12 @@ fn load_config_from_path(path: &Path) -> Config {
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
             let default = Config::default();
             if let Err(write_err) = save_config_to_path(&default, path) {
-                debug!(error = ?write_err, path = ?path, "failed to create default config file");
+                error!(error = ?write_err, path = ?path, "failed to create default config file");
             }
             default
         }
         Err(err) => {
-            debug!(error = ?err, path = ?path, "failed to read config.json, using default config");
+            error!(error = ?err, path = ?path, "failed to read config.json, using default config");
             Config::default()
         }
     }
@@ -73,6 +73,7 @@ fn save_config_to_path(config: &Config, path: &Path) -> std::io::Result<()> {
     {
         fs::create_dir_all(parent)?;
     }
+    info!("Saving config to {}", path.display());
     fs::write(path, contents)
 }
 
@@ -109,7 +110,7 @@ impl ConfigModule {
                             self.config = config.clone();
                             set_log_level(&self.config.log_level);
                             if let Err(err) = save_config_to_path(&self.config, &config_path()) {
-                                debug!(error = ?err, "failed to persist config to config.json");
+                                error!(error = ?err, "failed to persist config to config.json");
                             }
                             let _ = response.send(self.config.clone());
                         }
@@ -118,7 +119,7 @@ impl ConfigModule {
                             self.config = Config::default();
                             set_log_level(&self.config.log_level);
                             if let Err(err) = save_config_to_path(&self.config, &config_path()) {
-                                debug!(error = ?err, "failed to persist default config to config.json");
+                                error!(error = ?err, "failed to persist default config to config.json");
                             }
                             let _ = response.send(self.config.clone());
                         }
