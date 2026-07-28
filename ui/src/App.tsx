@@ -72,10 +72,12 @@ const pages = [
 ]
 
 function App() {
+  const cutoffWidth = 600
+
   const [status, setStatus] = useState<ConnectionState>('connecting')
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
   const [websocket, setWebsocket] = useState<WebSocket | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 600)
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > cutoffWidth)
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
   const disconnectStart = useRef<number | null>(null)
   const websocketRef = useRef<WebSocket | null>(null)
@@ -89,10 +91,15 @@ function App() {
   // the root http port when running the dev server must be set to the default port of 8123
   // determine if we are running in dev mode or production mode based on the port number
   if (import.meta.env) {
+    console.log('import.meta.env:', import.meta.env)
+    console.log('Running in dev mode, using default port 8123 for http')
     rootPort = 8123
+  } else {
+    console.log('Running in production mode, using port from window.location.port =', window.location.port)
   }
 
   const host = `${protocol}://${rootUrl}:${rootPort}`
+  console.log('host:', host)
 
   const defaultWsPort = 8124
 
@@ -101,7 +108,7 @@ function App() {
       const newWidth = window.innerWidth
       setScreenWidth(newWidth)
       // Only auto-close menu on small screens when resizing to small
-      if (newWidth <= 600) {
+      if (newWidth <= cutoffWidth) {
         setSidebarOpen(false)
       } else {
         setSidebarOpen(true)
@@ -184,13 +191,12 @@ function App() {
       }
 
       if (gotConfig) {
-        console.log('Connecting to WebSocket on port', resolvedWsPort)
         setWsPort(resolvedWsPort)
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
         const hostname = window.location.hostname || '127.0.0.1'
-        const wsUrl =
-          import.meta.env.VITE_WS_URL ?? `${protocol}://${hostname}:${resolvedWsPort}`
-
+        const wsUrl = `${protocol}://${hostname}:${resolvedWsPort}`
+        
+        console.log('Connecting to WebSocket: ', wsUrl)
         const newWebSocket = new WebSocket(wsUrl)
 
         newWebSocket.onopen = () => {
@@ -232,8 +238,8 @@ function App() {
   }, [defaultWsPort, host])
 
   return (
-    <div className={`app-shell${screenWidth <= 600 ? ' small' : ''}${sidebarOpen ? ' sidebar-open' : ''}`}>
-      <aside className={`sidebar${screenWidth <= 600 ? ' small' : ''}${screenWidth <= 600 && sidebarOpen ? ' visible' : ''}`}>
+    <div className={`app-shell${screenWidth <= cutoffWidth ? ' small' : ''}${sidebarOpen ? ' sidebar-open' : ''}`}>
+      <aside className={`sidebar${screenWidth <= cutoffWidth ? ' small' : ''}${screenWidth <= cutoffWidth && sidebarOpen ? ' visible' : ''}`}>
         <div className="sidebar-header">
           <button
             className="hamburger-btn"
@@ -256,7 +262,7 @@ function App() {
                     `nav-link${isActive ? ' nav-link-active' : ''}`
                   }
                   onClick={() => {
-                    if (screenWidth <= 600) {
+                    if (screenWidth <= cutoffWidth) {
                       setSidebarOpen(false)
                     }
                   }}
@@ -269,7 +275,7 @@ function App() {
         </nav>
       </aside>
 
-      <main className={`content${screenWidth <= 600 ? ' small' : ''}`}>
+      <main className={`content${screenWidth <= cutoffWidth ? ' small' : ''}`}>
         <header className="header">
           {!sidebarOpen && (
             <button
