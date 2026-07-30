@@ -85,6 +85,8 @@ pub fn camera_start(
     if !camera.is_opened().unwrap() {
         error!("Failed to open camera");
         return;
+    } else {
+        info!("Camera is open");
     }
 
     if display {
