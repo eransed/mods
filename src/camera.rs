@@ -120,7 +120,8 @@ pub fn camera_start(
 
         if frame.empty() {
             warn!("Empty frame!");
-            std::thread::sleep(time::Duration::from_millis(200));
+            std::thread::sleep(time::Duration::from_millis(500));
+            continue;
         }
 
         if !first_frame {
