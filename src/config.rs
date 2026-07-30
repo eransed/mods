@@ -214,6 +214,7 @@ mod tests {
             min_decision_margin: 25.0,
             device_index: 1,
             device_width: 1920 as f64,
+            camera_fetch_delay_ms: 0
         };
 
         save_config_to_path(&config, &path).unwrap();

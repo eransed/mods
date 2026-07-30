@@ -41,6 +41,7 @@ pub struct Config {
     pub min_decision_margin: f32,
     pub device_index: i32,
     pub device_width: f64,
+    pub camera_fetch_delay_ms: u64,
 }
 
 impl Default for Config {
@@ -57,6 +58,7 @@ impl Default for Config {
             min_decision_margin: 20.0,
             device_index: 0,
             device_width: 1920 as f64,
+            camera_fetch_delay_ms: 0,
         }
     }
 }

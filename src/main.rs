@@ -89,6 +89,7 @@ async fn main() {
                 initial_config.skip_april_pose_estimation,
                 initial_config.angle_filter,
                 initial_config.min_decision_margin,
+                initial_config.camera_fetch_delay_ms,
             );
             warn!("Camera returned");
         } else {

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Instant};
+use std::{collections::HashMap, time::{self, Instant}};
 
 use apriltag::{Detector, Family, image_buf::DEFAULT_ALIGNMENT_U8};
 use opencv::{
@@ -33,6 +33,7 @@ pub fn camera_start(
     _skip_april_pose_estimation: bool,
     angle_filter: usize,
     min_decision_margin: f32,
+    camera_fetch_delay_ms: u64,
 ) {
     let start = std::time::Instant::now();
     #[cfg(opencv4)]
@@ -107,6 +108,7 @@ pub fn camera_start(
     let filter_length = angle_filter as usize;
 
     loop {
+
         let cread_start = Instant::now();
 
         if *shutdown_rx.borrow() {
@@ -118,7 +120,7 @@ pub fn camera_start(
 
         if frame.empty() {
             warn!("Empty frame!");
-            continue;
+            std::thread::sleep(time::Duration::from_millis(200));
         }
 
         if !first_frame {
@@ -365,6 +367,9 @@ pub fn camera_start(
             if key == ('q' as i32) {
                 break;
             }
+        }
+        if camera_fetch_delay_ms > 0 {
+            std::thread::sleep(std::time::Duration::from_millis(camera_fetch_delay_ms));
         }
     }
 

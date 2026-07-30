@@ -499,6 +499,7 @@ mod tests {
                 min_decision_margin: 20.0,
                 device_index: 0,
                 device_width: 1920 as f64,
+                camera_fetch_delay_ms: 0,
             })
             .send()
             .await
@@ -520,6 +521,7 @@ mod tests {
                 min_decision_margin: 20.0,
                 device_index: 0,
                 device_width: 1920 as f64,
+                camera_fetch_delay_ms: 0,
             }
         );
 
