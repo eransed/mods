@@ -26,7 +26,7 @@ reqwest = { version = "0.12", features = ["json"] }
 tower = { version = "0.4" }
 tower-http = { version = "0.3", features = ["cors"] }
 chrono = "0.4.41"
-opencv = "0.99.0"
+opencv = "0.100.0"
 apriltag = "0.4.0"
 bincode = "1.3"
 socket2 = "0.5"
