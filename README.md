@@ -87,3 +87,13 @@ To run all tests use the following command:
 ```
 cargo test --release
 ```
+
+```
+sudo ufw allow 8123
+lsusb
+sudo apt install v4l-utils
+sudo v4l2-ctl --list-devices
+sudo v4l2-ctl -d /dev/video0 --list-formats-ext
+journalctl -fu mods
+```
+
