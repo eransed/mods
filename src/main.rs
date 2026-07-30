@@ -90,6 +90,7 @@ async fn main() {
                 initial_config.angle_filter,
                 initial_config.min_decision_margin,
             );
+            warn!("Camera returned");
         } else {
             warn!("Camera skipped");
         }

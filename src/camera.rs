@@ -13,7 +13,7 @@ use opencv::{
 use base64::prelude::*;
 use opencv::core::{Point2f, Point3f, Vector};
 use tokio::sync::{broadcast::Sender, watch::Receiver};
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 use types::{RawImageDetection, TagPose};
 
 use crate::{message::Message, util::ValueWithStats};
@@ -33,7 +33,7 @@ pub fn camera_start(
     _skip_april_pose_estimation: bool,
     angle_filter: usize,
     min_decision_margin: f32,
-) -> bool {
+) {
     let start = std::time::Instant::now();
     #[cfg(opencv4)]
     use opencv::calib3d::SOLVEPNP_IPPE_SQUARE;
@@ -50,20 +50,40 @@ pub fn camera_start(
     use opencv::geometry::solve_pnp;
 
     let window_title = "mods";
-    let mut res = false;
 
     info!(
-        "Starting camera: {} with frame width: {}",
+        "Trying to start camera: {} with frame width: {}",
         device_index, device_width
     );
 
-    let mut camera = videoio::VideoCapture::new(device_index, videoio::CAP_ANY).unwrap();
-    camera
-        .set(videoio::CAP_PROP_FRAME_WIDTH, device_width)
-        .unwrap();
+    let mut camera = match videoio::VideoCapture::new(device_index, videoio::CAP_ANY) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Failed to create camera: {}", e);
+            return;
+        },
+    };
+
+    match camera
+        .set(videoio::CAP_PROP_FRAME_WIDTH, device_width) {
+            Ok(_) => (),
+            Err(e) => {
+                error!("Failed to set CAP_PROP_FRAME_WIDTH: {}", e);
+            },
+        };
+
+    match camera.get(videoio::CAP_PROP_FRAME_WIDTH) {
+        Ok(w) => {
+            info!("Camera CAP_PROP_FRAME_WIDTH: {}", w);
+        },
+        Err(e) => {
+            error!("Failed to read camera CAP_PROP_FRAME_WIDTH: {}", e);
+        },
+    }
 
     if !camera.is_opened().unwrap() {
-        panic!("Failed to open camera");
+        error!("Failed to open camera");
+        return;
     }
 
     if display {
@@ -343,7 +363,6 @@ pub fn camera_start(
             let c = char::from_u32(key.try_into().unwrap());
             info!("key={} ({:?})", key, c);
             if key == ('q' as i32) {
-                res = true;
                 break;
             }
         }
@@ -357,7 +376,6 @@ pub fn camera_start(
         highgui::wait_key(1).unwrap();
     }
     info!("Total runtime: {:.1?}", start.elapsed());
-    return res;
 }
 
 fn convert_rotation_matrix_to_euler_angles(
