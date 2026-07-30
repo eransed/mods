@@ -150,6 +150,7 @@ impl DiscoveryServer {
     /// Setup UDP socket: bind to BIND_ADDR and join multicast group
     async fn setup_socket() -> Result<tokio::net::UdpSocket, String> {
         // Create and bind standard UDP socket first
+        info!("Binding to {}", Self::BIND_ADDR);
         let std_socket = UdpSocket::bind(Self::BIND_ADDR)
             .map_err(|e| format!("Failed to bind UDP socket: {}", e))?;
 
