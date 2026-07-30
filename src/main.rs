@@ -14,6 +14,10 @@ use http::HttpModule;
 use std::net::IpAddr;
 use std::time::Duration;
 use std::time::Instant;
+use sysinfo::MemoryRefreshKind;
+use sysinfo::Pid;
+use sysinfo::System;
+
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
@@ -42,10 +46,11 @@ pub fn version() -> String {
 
 #[tokio::main]
 async fn main() {
-    let start = Instant::now();
+    let main_start = Instant::now();
     let (broadcast_sender, _) = tokio::sync::broadcast::channel(16);
     let (shutdown_tx, mut shutdown_rx) = tokio::sync::watch::channel(false);
     let (shutdown_cam_tx, shutdown_cam_rx) = tokio::sync::watch::channel(false);
+    let (shutdown_sys_tx, shutdown_sys_rx) = tokio::sync::watch::channel(false);
     let (config_request_tx, config_request_rx) = tokio::sync::mpsc::unbounded_channel();
     let (discovery_tx, discovery_rx) = tokio::sync::mpsc::unbounded_channel();
 
@@ -55,7 +60,11 @@ async fn main() {
     let _guard = init_tracing_guard(&initial_config);
     let bi = build_info();
     debug!("Build info:\n{:#?}", bi);
-    info!("Version        : {} ({:.1?})", version(), start.elapsed());
+    info!(
+        "Version        : {} ({:.1?})",
+        version(),
+        main_start.elapsed()
+    );
     info!("Rust version   : {}", bi.rustc_version);
     info!("Node version   : {}", bi.node_version);
     info!("OpenCV version : {}", bi.opencv_version);
@@ -74,6 +83,67 @@ async fn main() {
         bi.main_js_size_kb,
         bi.main_js_size_kb as f32 / 1000 as f32
     );
+
+    info!("Init sys");
+    let mut sys = System::new_all();
+    sys.refresh_all();
+
+    // RAM and swap information:
+    info!("total memory: {} bytes", sys.total_memory());
+    info!("used memory : {} bytes", sys.used_memory());
+    info!("total swap  : {} bytes", sys.total_swap());
+    info!("used swap   : {} bytes", sys.used_swap());
+
+    // Display system information:
+    info!("System name:             {:?}", System::name());
+    info!("System kernel version:   {:?}", System::kernel_version());
+    info!("System OS version:       {:?}", System::os_version());
+    info!("System host name:        {:?}", System::host_name());
+
+    info!("Number of cores: {}", sys.cpus().len());
+
+    let pid = Pid::from_u32(std::process::id());
+
+    info!("Process ID: {}", pid);
+    let pid_array = [pid];
+
+    let sys_thread_handle = std::thread::spawn(move || {
+        loop {
+            let query_start = Instant::now();
+            if *shutdown_sys_rx.borrow() {
+                info!("System loop shutdown requested");
+                break;
+            }
+            sys.refresh_cpu_usage();
+            sys.refresh_memory_specifics(MemoryRefreshKind::nothing().with_ram());
+            sys.refresh_processes_specifics(
+                sysinfo::ProcessesToUpdate::Some(&pid_array),
+                false,
+                sysinfo::ProcessRefreshKind::nothing()
+                    .with_memory()
+                    .with_cpu(),
+            );
+            let cpu_percent = sys.global_cpu_usage();
+            let ram_percent = 100 * sys.used_memory() / sys.total_memory();
+            let p = sys.process(pid).unwrap();
+            let mem = p.memory() / 1024 / 1024;
+            let acc = p.accumulated_cpu_time();
+            let pcpu = p.cpu_usage();
+
+            info!(
+                "[{:.1?}] --- CPU: {:.1}%   RAM: {:.1}%   CPU[{}]: {:.2}%   MEM: {:.1}MB   ACC: {:.1}ms   RUNTIME: {:.1?}",
+                query_start.elapsed(),
+                cpu_percent,
+                ram_percent,
+                pid,
+                pcpu,
+                mem,
+                acc,
+                main_start.elapsed()
+            );
+            std::thread::sleep(std::time::Duration::from_millis(2000));
+        }
+    });
 
     let cam_brdcast = broadcast_sender.clone();
 
@@ -172,7 +242,10 @@ async fn main() {
     info!(http_port, "http server listening at");
     info!(ws_port, "websocket server listening at");
 
-    info!("Current working directory: {}", std::env::current_dir().unwrap().display());
+    info!(
+        "Current working directory: {}",
+        std::env::current_dir().unwrap().display()
+    );
 
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
@@ -185,6 +258,11 @@ async fn main() {
         }
     }
 
+    info!("Sending shutdown to sys");
+    let _ = shutdown_sys_tx.send(true);
+    info!("Waiting for sys thread to stop...");
+    sys_thread_handle.join().expect("Failed to join sys thread");
+
     info!("Sending shutdown to camera");
     let _ = shutdown_cam_tx.send(true);
     info!("Waiting for camera thread to stop...");
@@ -192,5 +270,12 @@ async fn main() {
         .join()
         .expect("Failed to join camera thread");
 
-    info!("shutting down after {:.1?}", start.elapsed());
+    info!("shutting down after {:.1?}", main_start.elapsed());
+}
+
+pub struct SystemInfo {
+    pub total_memory: u64,
+    pub used_memory: u64,
+    pub total_swap: u64,
+    pub used_swap: u64,
 }
