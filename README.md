@@ -20,6 +20,7 @@ npm install -g quicktype
 ```
 sudo apt install libclang-dev
 sudo apt install libopencv-dev
+sudo apt install libssl-dev
 ```
 
 ## windows dependencies
