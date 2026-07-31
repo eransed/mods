@@ -49,8 +49,6 @@ async fn main() {
     let main_start = Instant::now();
     let (broadcast_sender, _) = tokio::sync::broadcast::channel(16);
     let (shutdown_tx, mut shutdown_rx) = tokio::sync::watch::channel(false);
-    let (shutdown_cam_tx, shutdown_cam_rx) = tokio::sync::watch::channel(false);
-    let (shutdown_sys_tx, shutdown_sys_rx) = tokio::sync::watch::channel(false);
     let (config_request_tx, config_request_rx) = tokio::sync::mpsc::unbounded_channel();
     let (discovery_tx, discovery_rx) = tokio::sync::mpsc::unbounded_channel();
 
@@ -107,10 +105,11 @@ async fn main() {
     info!("Process ID: {}", pid);
     let pid_array = [pid];
 
+    let sdrxsys = shutdown_rx.clone();
     let sys_thread_handle = std::thread::spawn(move || {
         loop {
             let query_start = Instant::now();
-            if *shutdown_sys_rx.borrow() {
+            if *sdrxsys.borrow() {
                 info!("System loop shutdown requested");
                 break;
             }
@@ -146,13 +145,13 @@ async fn main() {
     });
 
     let cam_brdcast = broadcast_sender.clone();
-
+    let sdrxcam = shutdown_rx.clone();
     let cam_thread_handle = std::thread::spawn(move || {
         if initial_config.enable_camera {
             info!("Starting camera thread");
             camera::camera_start(
                 cam_brdcast,
-                shutdown_cam_rx,
+                sdrxcam,
                 initial_config.device_index,
                 initial_config.device_width,
                 initial_config.opencv_display,
@@ -258,13 +257,11 @@ async fn main() {
         }
     }
 
-    info!("Sending shutdown to sys");
-    let _ = shutdown_sys_tx.send(true);
+    info!("Sending shutdown signal");
+    let _ = shutdown_tx.send(true);
+    
     info!("Waiting for sys thread to stop...");
     sys_thread_handle.join().expect("Failed to join sys thread");
-
-    info!("Sending shutdown to camera");
-    let _ = shutdown_cam_tx.send(true);
     info!("Waiting for camera thread to stop...");
     cam_thread_handle
         .join()
