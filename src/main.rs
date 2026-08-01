@@ -163,11 +163,11 @@ async fn main() {
         initial_config.device_index,
         initial_config.device_width,
         initial_config.opencv_display,
-        initial_config.skip_april_pose_estimation,
         initial_config.angle_filter,
         initial_config.min_decision_margin,
         initial_config.camera_fetch_delay_ms,
         initial_config.camera_send_image,
+        initial_config.camera_send_image_resize_factor,
       );
       warn!("Camera returned");
     } else {

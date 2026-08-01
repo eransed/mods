@@ -99,45 +99,54 @@ export function Settings({ http_port }: SettingsProps) {
 
 function ConfigBooleanField({ label, value, onChange }: { label: string; value: boolean; onChange: (newValue: boolean) => void }) {
     return (
-        <div>
-            <label>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', height: '1.8rem' }}>
+            <div style={{marginLeft: '1rem'}}>
                 {label}:
+            </div>
+            <div>
                 <input
                     type="checkbox"
                     checked={value}
                     onChange={(e) => onChange(e.target.checked)}
+                    id={'id-' + (1e9 * Math.random()).toFixed(0)}
                 />
-            </label>
+            </div>
         </div>
     );
 }
 
 function ConfigNumberField({ label, value, onChange }: { label: string; value: number; onChange: (newValue: number) => void }) {
     return (
-        <div>
-            <label>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', height: '1.8rem'}}>
+            <div style={{marginLeft: '1rem'}}>
                 {label}:
+            </div>
+            <div>
                 <input
                     type="number"
                     value={value}
                     onChange={(e) => onChange(Number(e.target.value))}
+                    id={'id-' + (1e9 * Math.random()).toFixed(0)}
                 />
-            </label>
+            </div>
         </div>
     );
 }
 
 function ConfigStringField({ label, value, onChange }: { label: string; value: string; onChange: (newValue: string) => void }) {
     return (
-        <div>
-            <label>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', height: '1.8rem' }}>
+            <div style={{marginLeft: '1rem'}}>
                 {label}:
+            </div>
+            <div>
                 <input
                     type="text"
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
+                    id={'id-' + (1e9 * Math.random()).toFixed(0)}
                 />
-            </label>
+            </div>
         </div>
     );
 }

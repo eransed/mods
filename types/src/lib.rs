@@ -36,13 +36,13 @@ pub struct Config {
     pub allow_remote_connections: bool,
     pub enable_camera: bool,
     pub opencv_display: bool,
-    pub skip_april_pose_estimation: bool,
     pub angle_filter: usize,
     pub min_decision_margin: f32,
     pub device_index: i32,
     pub device_width: f64,
     pub camera_fetch_delay_ms: u64,
     pub camera_send_image: bool,
+    pub camera_send_image_resize_factor: f64
 }
 
 impl Default for Config {
@@ -54,13 +54,13 @@ impl Default for Config {
             allow_remote_connections: true,
             enable_camera: true,
             opencv_display: false,
-            skip_april_pose_estimation: true,
             angle_filter: 3,
             min_decision_margin: 20.0,
             device_index: 0,
             device_width: 1920 as f64,
             camera_fetch_delay_ms: 0,
             camera_send_image: true,
+            camera_send_image_resize_factor: 0.4,
         }
     }
 }

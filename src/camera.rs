@@ -13,6 +13,12 @@ use opencv::{
   videoio,
 };
 
+#[cfg(opencv4)]
+use opencv::calib3d::{SOLVEPNP_IPPE_SQUARE, rodrigues, solve_pnp};
+
+#[cfg(opencv5)]
+use opencv::geometry::{SOLVEPNP_IPPE_SQUARE, rodrigues, solve_pnp};
+
 use base64::prelude::*;
 use opencv::core::{Point2f, Point3f, Vector};
 use tokio::sync::{broadcast::Sender, watch::Receiver};
@@ -20,12 +26,6 @@ use tracing::{error, info, warn};
 use types::{RawImageDetection, TagPose};
 
 use crate::{message::Message, util::ValueWithStats};
-
-#[cfg(opencv4)]
-use opencv::calib3d::{SOLVEPNP_IPPE_SQUARE, rodrigues, solve_pnp};
-
-#[cfg(opencv5)]
-use opencv::geometry::{SOLVEPNP_IPPE_SQUARE, rodrigues, solve_pnp};
 
 pub struct RPY {
   pub r: ValueWithStats<f64, 30>,
@@ -36,7 +36,6 @@ pub struct RPY {
 pub struct Frequency {
   start: Instant,
   count: u64,
-  // elapsed: Duration,
 }
 
 impl Frequency {
@@ -44,12 +43,10 @@ impl Frequency {
     Self {
       start: Instant::now(),
       count: 0,
-      // elapsed: Duration::from_micros(0)
     }
   }
 
   pub fn update(&mut self) -> f32 {
-    // self.elapsed = self.start.elapsed();
     let t = self.start.elapsed().as_secs_f32();
     self.count = self.count + 1;
     let f = self.count as f32 / t;
@@ -63,11 +60,11 @@ pub fn camera_start(
   device_index: i32,
   device_width: f64,
   display: bool,
-  _skip_april_pose_estimation: bool,
   angle_filter: usize,
   min_decision_margin: f32,
   camera_fetch_delay_ms: u64,
   camera_send_image: bool,
+  camera_send_image_resize_factor: f64,
 ) {
   let start = std::time::Instant::now();
 
@@ -349,13 +346,12 @@ pub fn camera_start(
     let mut small_frame = Mat::default();
     if camera_send_image {
       let img_encoding_time = Instant::now();
-      let resize_factor = 0.4;
       imgproc::resize(
         &frame,
         &mut small_frame,
         Size::default(),
-        resize_factor,
-        resize_factor,
+        camera_send_image_resize_factor,
+        camera_send_image_resize_factor,
         imgproc::INTER_AREA,
       )
       .unwrap();

@@ -187,13 +187,13 @@ mod tests {
       allow_remote_connections: false,
       enable_camera: true,
       opencv_display: true,
-      skip_april_pose_estimation: false,
       angle_filter: 5,
       min_decision_margin: 25.0,
       device_index: 1,
       device_width: 1920 as f64,
       camera_fetch_delay_ms: 0,
-      camera_send_image: false
+      camera_send_image: false,
+      camera_send_image_resize_factor: 0.4,
     };
 
     save_config_to_path(&config, &path).unwrap();

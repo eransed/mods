@@ -442,13 +442,13 @@ mod tests {
         allow_remote_connections: false,
         enable_camera: true,
         opencv_display: true,
-        skip_april_pose_estimation: false,
         angle_filter: 3,
         min_decision_margin: 20.0,
         device_index: 0,
         device_width: 1920 as f64,
         camera_fetch_delay_ms: 0,
         camera_send_image: false,
+        camera_send_image_resize_factor: 0.4,
       })
       .send()
       .await
@@ -465,13 +465,13 @@ mod tests {
         allow_remote_connections: false,
         enable_camera: true,
         opencv_display: true,
-        skip_april_pose_estimation: false,
         angle_filter: 3,
         min_decision_margin: 20.0,
         device_index: 0,
         device_width: 1920 as f64,
         camera_fetch_delay_ms: 0,
         camera_send_image: false,
+        camera_send_image_resize_factor: 0.4,
       }
     );
 

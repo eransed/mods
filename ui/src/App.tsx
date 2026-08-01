@@ -83,7 +83,7 @@ function Docs() {
   // }, 300)
 
   let m =
-  `
+    `
   graph TD
     A[Client] --> B[Load Balancer]
     B --> C[Server01]
@@ -120,21 +120,17 @@ function App() {
   let rootPort = parseInt(window.location.port || '8123', 10)
   // the root http port when running the dev server must be set to the default port of 8123
   // determine if we are running in dev mode or production mode based on the port number
-  if (import.meta.env.PROD) {
-    console.log('Running in production mode, using port from window.location.port =', window.location.port)
-  } else {
-    console.log('Running in dev mode, using default port 8123 for http')
-    console.log('import.meta.env:', import.meta.env)
+  if (!import.meta.env.PROD) {
     rootPort = 8123
   }
 
   const host = `${protocol}://${rootUrl}:${rootPort}`
-  console.log('host:', host)
 
   const defaultWsPort = 8124
 
   useEffect(() => {
     const handleResize = () => {
+      console.log('RESIZE')
       const newWidth = window.innerWidth
       setScreenWidth(newWidth)
       // Only auto-close menu on small screens when resizing to small
@@ -155,6 +151,14 @@ function App() {
 
   useEffect(() => {
     console.log('useEffect')
+    if (import.meta.env.PROD) {
+      console.log('Running in production mode, using port from window.location.port =', window.location.port)
+    } else {
+      console.log('Running in dev mode, using default port 8123 for http')
+      console.log('import.meta.env:', import.meta.env)
+    }
+    console.log('host:', host)
+
     let isCancelled = false
 
     const connect = async () => {
@@ -258,7 +262,7 @@ function App() {
               let mem = (o.SystemStatus.pid_mem_bytes as number / 1024 / 1024).toFixed(1)
               setSys(`${cpu}% | ${ram}% | ${mem}MB | `)
             }
-          } catch {}
+          } catch { }
         }
 
         websocketRef.current = newWebSocket
