@@ -21,6 +21,12 @@ use types::{RawImageDetection, TagPose};
 
 use crate::{message::Message, util::ValueWithStats};
 
+#[cfg(opencv4)]
+use opencv::calib3d::{SOLVEPNP_IPPE_SQUARE, rodrigues, solve_pnp};
+
+#[cfg(opencv5)]
+use opencv::geometry::{SOLVEPNP_IPPE_SQUARE, rodrigues, solve_pnp};
+
 pub struct RPY {
   pub r: ValueWithStats<f64, 30>,
   pub p: ValueWithStats<f64, 30>,
@@ -35,7 +41,7 @@ pub struct Frequency {
 
 impl Frequency {
   pub fn new() -> Self {
-    Self { 
+    Self {
       start: Instant::now(),
       count: 0,
       // elapsed: Duration::from_micros(0)
@@ -64,19 +70,6 @@ pub fn camera_start(
   camera_send_image: bool,
 ) {
   let start = std::time::Instant::now();
-  #[cfg(opencv4)]
-  use opencv::calib3d::SOLVEPNP_IPPE_SQUARE;
-  #[cfg(opencv4)]
-  use opencv::calib3d::rodrigues;
-  #[cfg(opencv4)]
-  use opencv::calib3d::solve_pnp;
-
-  #[cfg(opencv5)]
-  use opencv::geometry::SOLVEPNP_IPPE_SQUARE;
-  #[cfg(opencv5)]
-  use opencv::geometry::rodrigues;
-  #[cfg(opencv5)]
-  use opencv::geometry::solve_pnp;
 
   let window_title = "mods";
 
