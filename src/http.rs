@@ -1,556 +1,504 @@
 use axum::{
-    Json, Router,
-    body::Body,
-    extract::{ConnectInfo, Query, State},
-    http::{
-        Method, Request, StatusCode,
-        header::{
-            ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
-            ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_REQUEST_METHOD, HeaderValue,
-        },
+  Json, Router,
+  body::Body,
+  extract::{ConnectInfo, Query, State},
+  http::{
+    Method, Request, StatusCode,
+    header::{
+      ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN,
+      ACCESS_CONTROL_REQUEST_METHOD, HeaderValue,
     },
-    middleware::{self, Next},
-    response::IntoResponse,
-    routing::{get, post},
+  },
+  middleware::{self, Next},
+  response::IntoResponse,
+  routing::{get, post},
 };
 
 use axum::http::HeaderMap;
 use types::Config;
 
 use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    time::{Duration, Instant},
+  collections::HashMap,
+  net::SocketAddr,
+  time::{Duration, Instant},
 };
 use tokio::net::TcpListener;
 use tokio::sync::{
-    broadcast::Sender as BroadcastSender, mpsc::UnboundedSender, watch::Sender as WatchSender,
+  broadcast::Sender as BroadcastSender, mpsc::UnboundedSender, watch::Sender as WatchSender,
 };
 use tracing::{debug, info};
 
 use crate::{config::ConfigRequest, message::Message, udp_discovery_server::DiscoveryCommand};
 
 pub struct HttpModule {
+  name: &'static str,
+  sender: BroadcastSender<Message>,
+  shutdown: WatchSender<bool>,
+  config_request: UnboundedSender<ConfigRequest>,
+  discovery_tx: UnboundedSender<DiscoveryCommand>,
+}
+
+impl HttpModule {
+  pub fn new(
     name: &'static str,
     sender: BroadcastSender<Message>,
     shutdown: WatchSender<bool>,
     config_request: UnboundedSender<ConfigRequest>,
     discovery_tx: UnboundedSender<DiscoveryCommand>,
-}
+  ) -> Self {
+    Self { name, sender, shutdown, config_request, discovery_tx }
+  }
 
-impl HttpModule {
-    pub fn new(
-        name: &'static str,
-        sender: BroadcastSender<Message>,
-        shutdown: WatchSender<bool>,
-        config_request: UnboundedSender<ConfigRequest>,
-        discovery_tx: UnboundedSender<DiscoveryCommand>,
-    ) -> Self {
-        Self {
-            name,
-            sender,
-            shutdown,
-            config_request,
-            discovery_tx,
+  pub async fn run(self, addr: SocketAddr) -> std::io::Result<()> {
+    let sender = self.sender.clone();
+    let mut receiver = sender.subscribe();
+    tokio::spawn(async move {
+      while let Ok(message) = receiver.recv().await {
+        if let Message::Ping { sender: origin } = message {
+          let _ = sender.send(Message::Pong { sender: self.name });
+          let _ = origin;
         }
-    }
+      }
+    });
 
-    pub async fn run(self, addr: SocketAddr) -> std::io::Result<()> {
-        let sender = self.sender.clone();
-        let mut receiver = sender.subscribe();
-        tokio::spawn(async move {
-            while let Ok(message) = receiver.recv().await {
-                if let Message::Ping { sender: origin } = message {
-                    let _ = sender.send(Message::Pong { sender: self.name });
-                    let _ = origin;
-                }
-            }
-        });
+    let state = HttpState {
+      name: self.name,
+      sender: self.sender.clone(),
+      shutdown: self.shutdown.clone(),
+      config_request: self.config_request.clone(),
+      discovery_tx: self.discovery_tx.clone(),
+    };
 
-        let state = HttpState {
-            name: self.name,
-            sender: self.sender.clone(),
-            shutdown: self.shutdown.clone(),
-            config_request: self.config_request.clone(),
-            discovery_tx: self.discovery_tx.clone(),
-        };
+    let app = Router::new()
+      .fallback(get(index_handler))
+      // static files
+      .route("/", get(index_handler))
+      .route("/main.js", get(main_js_handler))
+      .route("/main.css", get(main_css_handler))
+      .route("/build_info.json", get(build_info_json_handler))
+      // api get
+      .route("/send_discovery_beacon", get(send_discovery_beacon_handler))
+      .route("/reset_config", get(reset_config_handler))
+      .route("/endpoints", get(endpoints_handler))
+      .route("/shutdown", get(shutdown_handler))
+      .route("/config", get(config_handler))
+      .route("/peers", get(peers_handler))
+      .route("/clear_peers", get(clear_peers_handler))
+      .route("/send", get(send_handler))
+      .route("/ping", get(ping_handler))
+      // api post
+      .route("/set_config", post(set_config_handler))
+      // middleware
+      .layer(middleware::from_fn(log_request))
+      .with_state(state);
 
-        let app = Router::new()
-            .fallback(get(index_handler))
-            // static files
-            .route("/", get(index_handler))
-            .route("/main.js", get(main_js_handler))
-            .route("/main.css", get(main_css_handler))
-            .route("/build_info.json", get(build_info_json_handler))
-            // api get
-            .route("/send_discovery_beacon", get(send_discovery_beacon_handler))
-            .route("/reset_config", get(reset_config_handler))
-            .route("/endpoints", get(endpoints_handler))
-            .route("/shutdown", get(shutdown_handler))
-            .route("/config", get(config_handler))
-            .route("/peers", get(peers_handler))
-            .route("/clear_peers", get(clear_peers_handler))
-            .route("/send", get(send_handler))
-            .route("/ping", get(ping_handler))
-            // api post
-            .route("/set_config", post(set_config_handler))
-            // middleware
-            .layer(middleware::from_fn(log_request))
-            .with_state(state);
-
-        info!(%addr, "http listening on");
-        let listener = TcpListener::bind(addr).await?;
-        axum::serve(
-            listener,
-            app.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .await
-        .map_err(std::io::Error::other)
-    }
+    info!(%addr, "http listening on");
+    let listener = TcpListener::bind(addr).await?;
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+      .await
+      .map_err(std::io::Error::other)
+  }
 }
 
 #[derive(Clone)]
 struct HttpState {
-    name: &'static str,
-    sender: BroadcastSender<Message>,
-    shutdown: WatchSender<bool>,
-    config_request: UnboundedSender<ConfigRequest>,
-    discovery_tx: UnboundedSender<DiscoveryCommand>,
+  name: &'static str,
+  sender: BroadcastSender<Message>,
+  shutdown: WatchSender<bool>,
+  config_request: UnboundedSender<ConfigRequest>,
+  discovery_tx: UnboundedSender<DiscoveryCommand>,
 }
 
 async fn endpoints_handler(State(_state): State<HttpState>) -> impl IntoResponse {
-    let endpoints = vec![
-        "/send",
-        "/shutdown",
-        "/config",
-        "/ping",
-        "/peers",
-        "/clear_peers",
-        "/send_discovery_beacon",
-        "/reset_config",
-        "/set_config",
-        "/endpoints",
-    ];
-    (StatusCode::OK, Json(endpoints)).into_response()
+  let endpoints = vec![
+    "/send",
+    "/shutdown",
+    "/config",
+    "/ping",
+    "/peers",
+    "/clear_peers",
+    "/send_discovery_beacon",
+    "/reset_config",
+    "/set_config",
+    "/endpoints",
+  ];
+  (StatusCode::OK, Json(endpoints)).into_response()
 }
 
 async fn log_request(
-    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
-    request: Request<Body>,
-    next: Next,
+  ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
+  request: Request<Body>,
+  next: Next,
 ) -> impl IntoResponse {
-    let is_preflight = request
-        .headers()
-        .contains_key(ACCESS_CONTROL_REQUEST_METHOD)
-        && request.method() == Method::OPTIONS;
-    let query = request.uri().query().unwrap_or_default().to_string();
-    info!(
-        peer_addr = %peer_addr,
-        path = %request.uri().path(),
-        query = %query,
-        "req"
-    );
+  let is_preflight = request.headers().contains_key(ACCESS_CONTROL_REQUEST_METHOD)
+    && request.method() == Method::OPTIONS;
+  let query = request.uri().query().unwrap_or_default().to_string();
+  info!(
+      peer_addr = %peer_addr,
+      path = %request.uri().path(),
+      query = %query,
+      "req"
+  );
 
-    let mut response = if is_preflight {
-        StatusCode::NO_CONTENT.into_response()
-    } else {
-        next.run(request).await
-    };
+  let mut response =
+    if is_preflight { StatusCode::NO_CONTENT.into_response() } else { next.run(request).await };
 
-    let headers = response.headers_mut();
-    headers.insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
-    headers.insert(
-        ACCESS_CONTROL_ALLOW_METHODS,
-        HeaderValue::from_static("GET, POST, OPTIONS"),
-    );
-    headers.insert(
-        ACCESS_CONTROL_ALLOW_HEADERS,
-        HeaderValue::from_static("Content-Type, Authorization"),
-    );
+  let headers = response.headers_mut();
+  headers.insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+  headers.insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("GET, POST, OPTIONS"));
+  headers
+    .insert(ACCESS_CONTROL_ALLOW_HEADERS, HeaderValue::from_static("Content-Type, Authorization"));
 
-    response
+  response
 }
 
 fn parse_max_response_time_micros(query_params: &HashMap<String, String>) -> u64 {
-    query_params
-        .get("max_response_time_micros")
-        .and_then(|value| value.parse::<u64>().ok())
-        .unwrap_or(500_000)
+  query_params
+    .get("max_response_time_micros")
+    .and_then(|value| value.parse::<u64>().ok())
+    .unwrap_or(500_000)
 }
 
 async fn send_handler(State(state): State<HttpState>) -> impl IntoResponse {
-    let message = Message::Broadcast {
-        sender: state.name,
-        body: "hello from http".to_string(),
-    };
-    let _ = state.sender.send(message);
-    (StatusCode::OK, "message sent\n")
+  let message = Message::Broadcast { sender: state.name, body: "hello from http".to_string() };
+  let _ = state.sender.send(message);
+  (StatusCode::OK, "message sent\n")
 }
 
 // make sure to set the correct mime types for the static files:
 async fn index_handler(State(_state): State<HttpState>) -> impl IntoResponse {
-    let indexhtml = include_str!("../ui/dist/index.html");
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        "Content-Type",
-        "text/html"
-            .parse()
-            .expect("Failed to parse Content-Type header"),
-    );
-    (headers, indexhtml.to_string())
+  let indexhtml = include_str!("../ui/dist/index.html");
+  let mut headers = HeaderMap::new();
+  headers.insert("Content-Type", "text/html".parse().expect("Failed to parse Content-Type header"));
+  (headers, indexhtml.to_string())
 }
 
 async fn main_js_handler(State(_state): State<HttpState>) -> impl IntoResponse {
-    let mainjs = include_str!("../ui/dist/main.js");
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        "Content-Type",
-        "text/javascript"
-            .parse()
-            .expect("Failed to parse Content-Type header"),
-    );
-    (headers, mainjs.to_string())
+  let mainjs = include_str!("../ui/dist/main.js");
+  let mut headers = HeaderMap::new();
+  headers.insert(
+    "Content-Type",
+    "text/javascript".parse().expect("Failed to parse Content-Type header"),
+  );
+  (headers, mainjs.to_string())
 }
 
 async fn main_css_handler(State(_state): State<HttpState>) -> impl IntoResponse {
-    let maincss = include_str!("../ui/dist/main.css");
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        "Content-Type",
-        "text/css"
-            .parse()
-            .expect("Failed to parse Content-Type header"),
-    );
-    (headers, maincss.to_string())
+  let maincss = include_str!("../ui/dist/main.css");
+  let mut headers = HeaderMap::new();
+  headers.insert("Content-Type", "text/css".parse().expect("Failed to parse Content-Type header"));
+  (headers, maincss.to_string())
 }
 
 async fn build_info_json_handler(State(_state): State<HttpState>) -> impl IntoResponse {
-    let buildinfojson = include_str!("../build_info.json");
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        "Content-Type",
-        "application/json"
-            .parse()
-            .expect("Failed to parse Content-Type header"),
-    );
-    (headers, buildinfojson.to_string())
+  let buildinfojson = include_str!("../build_info.json");
+  let mut headers = HeaderMap::new();
+  headers.insert(
+    "Content-Type",
+    "application/json".parse().expect("Failed to parse Content-Type header"),
+  );
+  (headers, buildinfojson.to_string())
 }
 
 async fn shutdown_handler(State(state): State<HttpState>) -> impl IntoResponse {
-    let _ = state.shutdown.send(true);
-    (StatusCode::OK, "shutting down\r\n")
+  let _ = state.shutdown.send(true);
+  (StatusCode::OK, "shutting down\r\n")
 }
 
 async fn config_handler(State(state): State<HttpState>) -> impl IntoResponse {
-    let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-    let request = ConfigRequest::Get {
-        requester: state.name,
-        response: response_tx,
-    };
+  let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+  let request = ConfigRequest::Get { requester: state.name, response: response_tx };
 
-    match state.config_request.send(request) {
-        Ok(_) => match response_rx.await {
-            Ok(config) => (StatusCode::OK, Json(config)).into_response(),
-            Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config response failed").into_response(),
-        },
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config request failed").into_response(),
-    }
+  match state.config_request.send(request) {
+    Ok(_) => match response_rx.await {
+      Ok(config) => (StatusCode::OK, Json(config)).into_response(),
+      Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config response failed").into_response(),
+    },
+    Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config request failed").into_response(),
+  }
 }
 
 async fn set_config_handler(
-    State(state): State<HttpState>,
-    Json(new_config): Json<Config>,
+  State(state): State<HttpState>,
+  Json(new_config): Json<Config>,
 ) -> impl IntoResponse {
-    let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-    let request = ConfigRequest::Set {
-        requester: state.name,
-        config: new_config,
-        response: response_tx,
-    };
+  let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+  let request =
+    ConfigRequest::Set { requester: state.name, config: new_config, response: response_tx };
 
-    match state.config_request.send(request) {
-        Ok(_) => match response_rx.await {
-            Ok(updated) => (StatusCode::OK, Json(updated)).into_response(),
-            Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config response failed").into_response(),
-        },
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config request failed").into_response(),
-    }
+  match state.config_request.send(request) {
+    Ok(_) => match response_rx.await {
+      Ok(updated) => (StatusCode::OK, Json(updated)).into_response(),
+      Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config response failed").into_response(),
+    },
+    Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config request failed").into_response(),
+  }
 }
 
 async fn reset_config_handler(State(state): State<HttpState>) -> impl IntoResponse {
-    let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-    let request = ConfigRequest::Reset {
-        requester: state.name,
-        response: response_tx,
-    };
+  let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+  let request = ConfigRequest::Reset { requester: state.name, response: response_tx };
 
-    match state.config_request.send(request) {
-        Ok(_) => match response_rx.await {
-            Ok(default_config) => (StatusCode::OK, Json(default_config)).into_response(),
-            Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config response failed").into_response(),
-        },
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config request failed").into_response(),
-    }
+  match state.config_request.send(request) {
+    Ok(_) => match response_rx.await {
+      Ok(default_config) => (StatusCode::OK, Json(default_config)).into_response(),
+      Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config response failed").into_response(),
+    },
+    Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config request failed").into_response(),
+  }
 }
 
 async fn ping_handler(
-    ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
-    Query(query_params): Query<HashMap<String, String>>,
-    State(state): State<HttpState>,
+  ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
+  Query(query_params): Query<HashMap<String, String>>,
+  State(state): State<HttpState>,
 ) -> impl IntoResponse {
-    let max_response_time_micros = parse_max_response_time_micros(&query_params);
-    debug!(
-        peer_addr = %peer_addr,
-        query_params = ?query_params,
-        "handling ping request"
-    );
+  let max_response_time_micros = parse_max_response_time_micros(&query_params);
+  debug!(
+      peer_addr = %peer_addr,
+      query_params = ?query_params,
+      "handling ping request"
+  );
 
-    let ping_sent_time = Instant::now();
-    let _ = state.sender.send(Message::Ping { sender: state.name });
+  let ping_sent_time = Instant::now();
+  let _ = state.sender.send(Message::Ping { sender: state.name });
 
-    let mut latencies = HashMap::new();
-    let mut receiver = state.sender.subscribe();
-    let deadline = tokio::time::Instant::now() + Duration::from_micros(max_response_time_micros);
-    let mut modules_responses = 0;
-    let number_of_modules = 3;
+  let mut latencies = HashMap::new();
+  let mut receiver = state.sender.subscribe();
+  let deadline = tokio::time::Instant::now() + Duration::from_micros(max_response_time_micros);
+  let mut modules_responses = 0;
+  let number_of_modules = 3;
 
-    while tokio::time::Instant::now() < deadline {
-        match tokio::time::timeout_at(deadline, receiver.recv()).await {
-            Ok(Ok(Message::Pong { sender, .. })) => {
-                let latency_us = ping_sent_time.elapsed().as_micros() as u64;
-                latencies.insert(sender.to_string() + "_us", latency_us);
-            }
-            Ok(Ok(_)) => {}
-            Ok(Err(_)) | Err(_) => break,
-        }
-        modules_responses += 1;
-        if modules_responses >= number_of_modules {
-            debug!(
-                "All {} modules have responded to the ping",
-                number_of_modules
-            );
-            break;
-        }
+  while tokio::time::Instant::now() < deadline {
+    match tokio::time::timeout_at(deadline, receiver.recv()).await {
+      Ok(Ok(Message::Pong { sender, .. })) => {
+        let latency_us = ping_sent_time.elapsed().as_micros() as u64;
+        latencies.insert(sender.to_string() + "_us", latency_us);
+      }
+      Ok(Ok(_)) => {}
+      Ok(Err(_)) | Err(_) => break,
     }
+    modules_responses += 1;
+    if modules_responses >= number_of_modules {
+      debug!("All {} modules have responded to the ping", number_of_modules);
+      break;
+    }
+  }
 
-    let response = serde_json::json!({
-        "latencies": latencies,
-        "total_latency_us": ping_sent_time.elapsed().as_micros() as u64,
-    });
+  let response = serde_json::json!({
+      "latencies": latencies,
+      "total_latency_us": ping_sent_time.elapsed().as_micros() as u64,
+  });
 
-    (StatusCode::OK, Json(response)).into_response()
+  (StatusCode::OK, Json(response)).into_response()
 }
 
 async fn peers_handler(State(state): State<HttpState>) -> impl IntoResponse {
-    let (response_tx, response_rx) = tokio::sync::oneshot::channel();
-    let request = DiscoveryCommand::GetPeers(response_tx);
+  let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+  let request = DiscoveryCommand::GetPeers(response_tx);
 
-    match state.discovery_tx.send(request) {
-        Ok(_) => match response_rx.await {
-            Ok(peers) => {
-                let peer_data: Vec<serde_json::Value> = peers
-                    .iter()
-                    .map(|peer| {
-                        serde_json::json!({
-                            "node_name": peer.node_name,
-                            "ip_address": peer.ip_address.to_string(),
-                            "http_port": peer.http_port,
-                            "system_type": peer.system_type,
-                            "last_seen": peer.last_seen,
-                        })
-                    })
-                    .collect();
+  match state.discovery_tx.send(request) {
+    Ok(_) => match response_rx.await {
+      Ok(peers) => {
+        let peer_data: Vec<serde_json::Value> = peers
+          .iter()
+          .map(|peer| {
+            serde_json::json!({
+                "node_name": peer.node_name,
+                "ip_address": peer.ip_address.to_string(),
+                "http_port": peer.http_port,
+                "system_type": peer.system_type,
+                "last_seen": peer.last_seen,
+            })
+          })
+          .collect();
 
-                (StatusCode::OK, Json(serde_json::json!(peer_data))).into_response()
-            }
-            Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "peers response failed").into_response(),
-        },
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "peers request failed").into_response(),
-    }
+        (StatusCode::OK, Json(serde_json::json!(peer_data))).into_response()
+      }
+      Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "peers response failed").into_response(),
+    },
+    Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "peers request failed").into_response(),
+  }
 }
 
 async fn send_discovery_beacon_handler(State(state): State<HttpState>) -> impl IntoResponse {
-    // let (response_tx, _) = tokio::sync::oneshot::channel();
-    // let request = DiscoveryCommand::SendDiscoveryBeacon(Some(response_tx));
-    let request = DiscoveryCommand::SendDiscoveryBeacon(None);
-    match state.discovery_tx.send(request) {
-        Ok(_) => (StatusCode::OK, "discovery beacon sent\n").into_response(),
-        Err(_) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "discovery beacon request failed",
-        )
-            .into_response(),
+  // let (response_tx, _) = tokio::sync::oneshot::channel();
+  // let request = DiscoveryCommand::SendDiscoveryBeacon(Some(response_tx));
+  let request = DiscoveryCommand::SendDiscoveryBeacon(None);
+  match state.discovery_tx.send(request) {
+    Ok(_) => (StatusCode::OK, "discovery beacon sent\n").into_response(),
+    Err(_) => {
+      (StatusCode::INTERNAL_SERVER_ERROR, "discovery beacon request failed").into_response()
     }
+  }
 }
 
 async fn clear_peers_handler(State(state): State<HttpState>) -> impl IntoResponse {
-    let request = DiscoveryCommand::ClearPeers;
-    match state.discovery_tx.send(request) {
-        Ok(_) => (StatusCode::OK, "peers cleared\n").into_response(),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "clear peers request failed").into_response(),
-    }
+  let request = DiscoveryCommand::ClearPeers;
+  match state.discovery_tx.send(request) {
+    Ok(_) => (StatusCode::OK, "peers cleared\n").into_response(),
+    Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "clear peers request failed").into_response(),
+  }
 }
 
 impl Drop for HttpModule {
-    fn drop(&mut self) {
-        info!("http dropping and shutting down");
-    }
+  fn drop(&mut self) {
+    info!("http dropping and shutting down");
+  }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::{net::SocketAddr, sync::Arc, time::Duration};
-    use tokio::{net::TcpListener, sync::Mutex};
-    use types::Config;
+  use super::*;
+  use std::{net::SocketAddr, sync::Arc, time::Duration};
+  use tokio::{net::TcpListener, sync::Mutex};
+  use types::Config;
 
-    #[test]
-    fn parse_max_response_time_micros_uses_query_value_or_default() {
-        let mut query_params = HashMap::new();
-        assert_eq!(parse_max_response_time_micros(&query_params), 500_000);
+  #[test]
+  fn parse_max_response_time_micros_uses_query_value_or_default() {
+    let mut query_params = HashMap::new();
+    assert_eq!(parse_max_response_time_micros(&query_params), 500_000);
 
-        query_params.insert("max_response_time_micros".to_string(), "1234".to_string());
-        assert_eq!(parse_max_response_time_micros(&query_params), 1234);
-    }
+    query_params.insert("max_response_time_micros".to_string(), "1234".to_string());
+    assert_eq!(parse_max_response_time_micros(&query_params), 1234);
+  }
 
-    async fn spawn_http_module() -> (SocketAddr, tokio::task::JoinHandle<std::io::Result<()>>) {
-        let (sender, _) = tokio::sync::broadcast::channel(16);
-        let (shutdown_tx, _) = tokio::sync::watch::channel(false);
-        let (config_request_tx, mut config_request_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (discovery_tx, _) = tokio::sync::mpsc::unbounded_channel();
-        let current_config = Arc::new(Mutex::new(Config::default()));
+  async fn spawn_http_module() -> (SocketAddr, tokio::task::JoinHandle<std::io::Result<()>>) {
+    let (sender, _) = tokio::sync::broadcast::channel(16);
+    let (shutdown_tx, _) = tokio::sync::watch::channel(false);
+    let (config_request_tx, mut config_request_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (discovery_tx, _) = tokio::sync::mpsc::unbounded_channel();
+    let current_config = Arc::new(Mutex::new(Config::default()));
 
-        tokio::spawn({
-            let current_config = current_config.clone();
-            async move {
-                while let Some(request) = config_request_rx.recv().await {
-                    match request {
-                        ConfigRequest::Get { response, .. } => {
-                            let _ = response.send(current_config.lock().await.clone());
-                        }
-                        ConfigRequest::Set {
-                            config, response, ..
-                        } => {
-                            let response_config = config.clone();
-                            *current_config.lock().await = config;
-                            let _ = response.send(response_config);
-                        }
-                        ConfigRequest::Reset { response, .. } => {
-                            let default = Config::default();
-                            *current_config.lock().await = default.clone();
-                            let _ = response.send(default);
-                        }
-                    }
-                }
+    tokio::spawn({
+      let current_config = current_config.clone();
+      async move {
+        while let Some(request) = config_request_rx.recv().await {
+          match request {
+            ConfigRequest::Get { response, .. } => {
+              let _ = response.send(current_config.lock().await.clone());
             }
-        });
-
-        let module = HttpModule::new("http", sender, shutdown_tx, config_request_tx, discovery_tx);
-        let addr = SocketAddr::from(([127, 0, 0, 1], 0));
-        let listener = TcpListener::bind(addr).await.unwrap();
-        let actual_addr = listener.local_addr().unwrap();
-        drop(listener);
-
-        let handle = tokio::spawn(async move { module.run(actual_addr).await });
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        (actual_addr, handle)
-    }
-
-    #[tokio::test]
-    async fn send_endpoint_returns_ok() {
-        let (addr, handle) = spawn_http_module().await;
-        let response = reqwest::get(format!("http://{addr}/send")).await.unwrap();
-
-        assert!(response.status().is_success());
-        let body = response.text().await.unwrap();
-        assert_eq!(body, "message sent\n");
-
-        handle.abort();
-    }
-
-    #[tokio::test]
-    async fn config_endpoint_returns_default_config() {
-        let (addr, handle) = spawn_http_module().await;
-        let response = reqwest::get(format!("http://{addr}/config")).await.unwrap();
-
-        assert!(response.status().is_success());
-        let config: Config = response.json().await.unwrap();
-        assert_eq!(config, Config::default());
-
-        handle.abort();
-    }
-
-    #[tokio::test]
-    async fn set_config_endpoint_returns_updated_config() {
-        let (addr, handle) = spawn_http_module().await;
-        let client = reqwest::Client::new();
-        let response = client
-            .post(format!("http://{addr}/set_config"))
-            .json(&Config {
-                http_port: 8080,
-                ws_port: 8085,
-                log_level: "debug".to_string(),
-                allow_remote_connections: false,
-                enable_camera: true,
-                opencv_display: true,
-                skip_april_pose_estimation: false,
-                angle_filter: 3,
-                min_decision_margin: 20.0,
-                device_index: 0,
-                device_width: 1920 as f64,
-                camera_fetch_delay_ms: 0,
-            })
-            .send()
-            .await
-            .unwrap();
-
-        assert!(response.status().is_success());
-        let config: Config = response.json().await.unwrap();
-        assert_eq!(
-            config,
-            Config {
-                http_port: 8080,
-                ws_port: 8085,
-                log_level: "debug".to_string(),
-                allow_remote_connections: false,
-                enable_camera: true,
-                opencv_display: true,
-                skip_april_pose_estimation: false,
-                angle_filter: 3,
-                min_decision_margin: 20.0,
-                device_index: 0,
-                device_width: 1920 as f64,
-                camera_fetch_delay_ms: 0,
+            ConfigRequest::Set { config, response, .. } => {
+              let response_config = config.clone();
+              *current_config.lock().await = config;
+              let _ = response.send(response_config);
             }
-        );
+            ConfigRequest::Reset { response, .. } => {
+              let default = Config::default();
+              *current_config.lock().await = default.clone();
+              let _ = response.send(default);
+            }
+          }
+        }
+      }
+    });
 
-        handle.abort();
-    }
+    let module = HttpModule::new("http", sender, shutdown_tx, config_request_tx, discovery_tx);
+    let addr = SocketAddr::from(([127, 0, 0, 1], 0));
+    let listener = TcpListener::bind(addr).await.unwrap();
+    let actual_addr = listener.local_addr().unwrap();
+    drop(listener);
 
-    #[tokio::test]
-    async fn reset_config_endpoint_returns_default_config() {
-        let (addr, handle) = spawn_http_module().await;
-        let response = reqwest::get(format!("http://{addr}/reset_config"))
-            .await
-            .unwrap();
+    let handle = tokio::spawn(async move { module.run(actual_addr).await });
+    tokio::time::sleep(Duration::from_millis(50)).await;
 
-        assert!(response.status().is_success());
-        let config: Config = response.json().await.unwrap();
-        assert_eq!(config, Config::default());
+    (actual_addr, handle)
+  }
 
-        handle.abort();
-    }
+  #[tokio::test]
+  async fn send_endpoint_returns_ok() {
+    let (addr, handle) = spawn_http_module().await;
+    let response = reqwest::get(format!("http://{addr}/send")).await.unwrap();
 
-    #[tokio::test]
-    async fn ping_endpoint_returns_json_latency_map() {
-        let (addr, handle) = spawn_http_module().await;
-        let response = reqwest::get(format!("http://{addr}/ping")).await.unwrap();
+    assert!(response.status().is_success());
+    let body = response.text().await.unwrap();
+    assert_eq!(body, "message sent\n");
 
-        assert!(response.status().is_success());
-        let body: serde_json::Value = response.json().await.unwrap();
-        assert!(body.is_object());
+    handle.abort();
+  }
 
-        handle.abort();
-    }
+  #[tokio::test]
+  async fn config_endpoint_returns_default_config() {
+    let (addr, handle) = spawn_http_module().await;
+    let response = reqwest::get(format!("http://{addr}/config")).await.unwrap();
+
+    assert!(response.status().is_success());
+    let config: Config = response.json().await.unwrap();
+    assert_eq!(config, Config::default());
+
+    handle.abort();
+  }
+
+  #[tokio::test]
+  async fn set_config_endpoint_returns_updated_config() {
+    let (addr, handle) = spawn_http_module().await;
+    let client = reqwest::Client::new();
+    let response = client
+      .post(format!("http://{addr}/set_config"))
+      .json(&Config {
+        http_port: 8080,
+        ws_port: 8085,
+        log_level: "debug".to_string(),
+        allow_remote_connections: false,
+        enable_camera: true,
+        opencv_display: true,
+        skip_april_pose_estimation: false,
+        angle_filter: 3,
+        min_decision_margin: 20.0,
+        device_index: 0,
+        device_width: 1920 as f64,
+        camera_fetch_delay_ms: 0,
+        camera_send_image: false,
+      })
+      .send()
+      .await
+      .unwrap();
+
+    assert!(response.status().is_success());
+    let config: Config = response.json().await.unwrap();
+    assert_eq!(
+      config,
+      Config {
+        http_port: 8080,
+        ws_port: 8085,
+        log_level: "debug".to_string(),
+        allow_remote_connections: false,
+        enable_camera: true,
+        opencv_display: true,
+        skip_april_pose_estimation: false,
+        angle_filter: 3,
+        min_decision_margin: 20.0,
+        device_index: 0,
+        device_width: 1920 as f64,
+        camera_fetch_delay_ms: 0,
+        camera_send_image: false,
+      }
+    );
+
+    handle.abort();
+  }
+
+  #[tokio::test]
+  async fn reset_config_endpoint_returns_default_config() {
+    let (addr, handle) = spawn_http_module().await;
+    let response = reqwest::get(format!("http://{addr}/reset_config")).await.unwrap();
+
+    assert!(response.status().is_success());
+    let config: Config = response.json().await.unwrap();
+    assert_eq!(config, Config::default());
+
+    handle.abort();
+  }
+
+  #[tokio::test]
+  async fn ping_endpoint_returns_json_latency_map() {
+    let (addr, handle) = spawn_http_module().await;
+    let response = reqwest::get(format!("http://{addr}/ping")).await.unwrap();
+
+    assert!(response.status().is_success());
+    let body: serde_json::Value = response.json().await.unwrap();
+    assert!(body.is_object());
+
+    handle.abort();
+  }
 }

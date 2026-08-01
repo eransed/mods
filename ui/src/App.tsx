@@ -6,6 +6,7 @@ import { Api } from './components/Api'
 import { Camera } from './components/Camera'
 import { Settings } from './components/Settings'
 import { About } from './components/About'
+// import mermaid from 'mermaid'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
 
@@ -68,10 +69,38 @@ const pages = [
     path: '/camera',
     label: 'Camera',
     description: 'View camera feed.',
+  },
+  {
+    path: '/docs',
+    label: 'Docs',
+    description: 'Documentation',
   }
 ]
 
+function Docs() {
+  // setTimeout(() => {
+  //   mermaid.run();
+  // }, 300)
+
+  let m =
+  `
+  graph TD
+    A[Client] --> B[Load Balancer]
+    B --> C[Server01]
+    B --> D[Server02]
+
+  `
+  return <>
+    <div>
+      <pre className="mermaid">
+        {m}
+      </pre>
+    </div>
+  </>
+}
+
 function App() {
+  // mermaid.initialize({})
   const cutoffWidth = 600
 
   const [status, setStatus] = useState<ConnectionState>('connecting')
@@ -195,7 +224,7 @@ function App() {
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
         const hostname = window.location.hostname || '127.0.0.1'
         const wsUrl = `${protocol}://${hostname}:${resolvedWsPort}`
-        
+
         console.log('Connecting to WebSocket: ', wsUrl)
         const newWebSocket = new WebSocket(wsUrl)
 
@@ -300,6 +329,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<Overview />} />
+            <Route path="/docs" element={<Docs />} />
             <Route path="/settings" element={<Settings http_port={rootPort} />} />
             <Route path="/camera" element={websocket ? <Camera webSocket={websocket} /> : null} />
             <Route path="/api" element={<Api port={rootPort} />} />

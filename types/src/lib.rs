@@ -42,6 +42,7 @@ pub struct Config {
     pub device_index: i32,
     pub device_width: f64,
     pub camera_fetch_delay_ms: u64,
+    pub camera_send_image: bool,
 }
 
 impl Default for Config {
@@ -59,6 +60,7 @@ impl Default for Config {
             device_index: 0,
             device_width: 1920 as f64,
             camera_fetch_delay_ms: 0,
+            camera_send_image: true,
         }
     }
 }
@@ -80,4 +82,6 @@ pub struct RawImageDetection {
     pub image_size: (i32, i32),
     pub native_image_size: (i32, i32),
     pub detection_time_us: u32,
+    pub image_encoding_time_us: u32,
+    pub send_freq: f32,
 }

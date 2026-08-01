@@ -18,6 +18,8 @@ interface RawImageDetection {
     image_size: [number, number];
     native_image_size: [number, number];
     detection_time_us: number;
+    image_encoding_time_us: number;
+    send_freq: number;
 }
 
 export function Camera({ webSocket }: CameraProps) {
@@ -27,7 +29,7 @@ export function Camera({ webSocket }: CameraProps) {
         const handleMessage = (event: MessageEvent) => {
             try {
                 const message = JSON.parse(event.data) as RawImageDetection;
-                if (message && message.tags && message.image_data_base64) {
+                if (message && message.tags) {
                     setData(message);
                 }
             } catch (error) {
@@ -49,19 +51,21 @@ export function Camera({ webSocket }: CameraProps) {
         <div>
             {data ? (
                 <div>
-                    <img
+                    {data.image_data_base64.length > 0 && <img
                         src={`data:image/png;base64,${data.image_data_base64}`}
                         alt="Camera Feed"
                         style={{
                             maxWidth: '100%',
                             height: 'auto',
                         }}
-                    />
+                    />}
                     <div style={{ color: '#eee' }}>
                         <p>Tags detected: {data.tags.length}</p>
                         <p>Detection time: {(data.detection_time_us / 1000).toFixed(dec)}ms</p>
                         <p>Image size: {data.image_size[0]} x {data.image_size[1]}</p>
                         <p>Native image size: {data.native_image_size[0]} x {data.native_image_size[1]}</p>
+                        <p>Encoding time: {(data.image_encoding_time_us / 1000).toFixed(dec)}ms</p>
+                        <p>Send frequency: {data.send_freq.toFixed(dec)}Hz</p>
                         {data.tags.map((tag) => (
                             <div key={tag.id} style={{ marginBottom: '1rem', paddingLeft: '1rem', borderLeft: '2px solid #555', color: '#aea' }}>
                                 <p>Tag ID: {tag.id}</p>

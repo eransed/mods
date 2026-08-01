@@ -7,152 +7,131 @@ use tracing_subscriber::{EnvFilter, fmt, prelude::*, reload};
 use types::Config;
 
 static FILTER_HANDLE: OnceLock<reload::Handle<EnvFilter, tracing_subscriber::Registry>> =
-    OnceLock::new();
+  OnceLock::new();
 
 pub struct LineRotatingFile {
-    base_path: PathBuf,
-    max_lines: usize,
-    max_files: usize,
-    file: File,
-    line_count: usize,
+  base_path: PathBuf,
+  max_lines: usize,
+  max_files: usize,
+  file: File,
+  line_count: usize,
 }
 
 impl LineRotatingFile {
-    pub fn new(base_path: PathBuf, max_lines: usize, max_files: usize) -> io::Result<Self> {
-        if let Some(parent) = base_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-
-        let line_count = if base_path.exists() {
-            let file = File::open(&base_path)?;
-            BufReader::new(file).lines().count()
-        } else {
-            0
-        };
-
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&base_path)?;
-        Ok(Self {
-            base_path,
-            max_lines,
-            max_files,
-            file,
-            line_count,
-        })
+  pub fn new(base_path: PathBuf, max_lines: usize, max_files: usize) -> io::Result<Self> {
+    if let Some(parent) = base_path.parent() {
+      fs::create_dir_all(parent)?;
     }
 
-    fn rotated_path(&self, index: usize) -> PathBuf {
-        let file_name = self
-            .base_path
-            .file_name()
-            .expect("log file name missing")
-            .to_string_lossy();
-        self.base_path
-            .with_file_name(format!("{file_name}.{index}"))
+    let line_count = if base_path.exists() {
+      let file = File::open(&base_path)?;
+      BufReader::new(file).lines().count()
+    } else {
+      0
+    };
+
+    let file = OpenOptions::new().create(true).append(true).open(&base_path)?;
+    Ok(Self { base_path, max_lines, max_files, file, line_count })
+  }
+
+  fn rotated_path(&self, index: usize) -> PathBuf {
+    let file_name = self.base_path.file_name().expect("log file name missing").to_string_lossy();
+    self.base_path.with_file_name(format!("{file_name}.{index}"))
+  }
+
+  fn rotate_if_needed(&mut self, additional_lines: usize) -> io::Result<()> {
+    if self.line_count + additional_lines < self.max_lines {
+      return Ok(());
     }
 
-    fn rotate_if_needed(&mut self, additional_lines: usize) -> io::Result<()> {
-        if self.line_count + additional_lines < self.max_lines {
-            return Ok(());
+    self.file.flush()?;
+
+    if self.max_files > 0 {
+      let oldest = self.rotated_path(self.max_files);
+      if oldest.exists() {
+        fs::remove_file(&oldest)?;
+      }
+
+      for i in (1..self.max_files).rev() {
+        let from = self.rotated_path(i);
+        let to = self.rotated_path(i + 1);
+        if from.exists() {
+          fs::rename(from, to)?;
         }
-
-        self.file.flush()?;
-
-        if self.max_files > 0 {
-            let oldest = self.rotated_path(self.max_files);
-            if oldest.exists() {
-                fs::remove_file(&oldest)?;
-            }
-
-            for i in (1..self.max_files).rev() {
-                let from = self.rotated_path(i);
-                let to = self.rotated_path(i + 1);
-                if from.exists() {
-                    fs::rename(from, to)?;
-                }
-            }
-        }
-
-        if self.base_path.exists() {
-            let rotated = self.rotated_path(1);
-            fs::rename(&self.base_path, rotated)?;
-        }
-
-        self.file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&self.base_path)?;
-        self.line_count = 0;
-        Ok(())
+      }
     }
+
+    if self.base_path.exists() {
+      let rotated = self.rotated_path(1);
+      fs::rename(&self.base_path, rotated)?;
+    }
+
+    self.file = OpenOptions::new().create(true).append(true).open(&self.base_path)?;
+    self.line_count = 0;
+    Ok(())
+  }
 }
 
 impl Write for LineRotatingFile {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let newline_count = buf.iter().filter(|&&b| b == b'\n').count();
-        self.rotate_if_needed(newline_count)?;
-        let written = self.file.write(buf)?;
-        self.line_count += newline_count;
-        Ok(written)
-    }
+  fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+    let newline_count = buf.iter().filter(|&&b| b == b'\n').count();
+    self.rotate_if_needed(newline_count)?;
+    let written = self.file.write(buf)?;
+    self.line_count += newline_count;
+    Ok(written)
+  }
 
-    fn flush(&mut self) -> io::Result<()> {
-        self.file.flush()
-    }
+  fn flush(&mut self) -> io::Result<()> {
+    self.file.flush()
+  }
 }
 
 fn build_filter(log_level: &str) -> EnvFilter {
-    EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level))
+  EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level))
 }
 
 pub fn init_tracing(config: &Config) -> WorkerGuard {
-    let time_fmt = String::from("%Y-%m-%d %H:%M:%S%.6f");
-    let (filter_layer, reload_handle) = reload::Layer::new(build_filter(&config.log_level));
-    let stdout_layer = fmt::layer()
-        .with_writer(std::io::stdout)
-        .with_timer(fmt::time::ChronoLocal::new(time_fmt.clone()))
-        .with_thread_ids(true)
-        .with_thread_names(true)
-        .with_file(true)
-        .with_line_number(true)
-        .with_ansi(true);
+  let time_fmt = String::from("%Y-%m-%d %H:%M:%S%.6f");
+  let (filter_layer, reload_handle) = reload::Layer::new(build_filter(&config.log_level));
+  let stdout_layer = fmt::layer()
+    .with_writer(std::io::stdout)
+    .with_timer(fmt::time::ChronoLocal::new(time_fmt.clone()))
+    .with_thread_ids(true)
+    .with_thread_names(true)
+    .with_file(true)
+    .with_line_number(true)
+    .with_ansi(true);
 
-    let file_appender = LineRotatingFile::new(PathBuf::from("logs/mods.log"), 20_000, 50)
-        .expect("failed to initialize rotating log file");
-    let (non_blocking, guard) = non_blocking(file_appender);
-    let file_layer = fmt::layer()
-        .with_writer(non_blocking)
-        .with_timer(fmt::time::ChronoLocal::new(time_fmt))
-        .with_thread_ids(true)
-        .with_file(true)
-        .with_line_number(true)
-        .with_ansi(false);
+  let file_appender = LineRotatingFile::new(PathBuf::from("logs/mods.log"), 20_000, 50)
+    .expect("failed to initialize rotating log file");
+  let (non_blocking, guard) = non_blocking(file_appender);
+  let file_layer = fmt::layer()
+    .with_writer(non_blocking)
+    .with_timer(fmt::time::ChronoLocal::new(time_fmt))
+    .with_thread_ids(true)
+    .with_file(true)
+    .with_line_number(true)
+    .with_ansi(false);
 
-    tracing_subscriber::registry()
-        .with(filter_layer)
-        .with(stdout_layer)
-        .with(file_layer)
-        .init();
+  tracing_subscriber::registry().with(filter_layer).with(stdout_layer).with(file_layer).init();
 
-    let _ = FILTER_HANDLE.set(reload_handle);
-    guard
+  let _ = FILTER_HANDLE.set(reload_handle);
+  guard
 }
 
 pub fn set_log_level(log_level: &str) {
-    if let Some(handle) = FILTER_HANDLE.get() {
-        let _ = handle.reload(build_filter(log_level));
-    }
+  if let Some(handle) = FILTER_HANDLE.get() {
+    let _ = handle.reload(build_filter(log_level));
+  }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::build_filter;
+  use super::build_filter;
 
-    #[test]
-    fn build_filter_uses_requested_level() {
-        let filter = build_filter("debug");
-        assert!(filter.to_string().contains("debug"));
-    }
+  #[test]
+  fn build_filter_uses_requested_level() {
+    let filter = build_filter("debug");
+    assert!(filter.to_string().contains("debug"));
+  }
 }

@@ -1,64 +1,68 @@
 use futures_util::StreamExt;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace};
 
 pub struct WsClient {
-    url: String,
+  url: String,
 }
 
 impl WsClient {
-    pub fn new(url: String) -> Self {
-        Self { url }
-    }
+  pub fn new(url: String) -> Self {
+    Self { url }
+  }
 
-    pub async fn run(self) {
-        info!(url = %self.url, "ws_client connecting...");
+  pub async fn run(self) {
+    info!(url = %self.url, "ws_client connecting...");
 
-        let (mut socket, _response) = match connect_async(&self.url).await {
-            Ok(pair) => pair,
-            Err(err) => {
-                error!(error = ?err, "ws_client failed to connect");
-                return;
-            }
-        };
+    let (mut socket, _response) = match connect_async(&self.url).await {
+      Ok(pair) => pair,
+      Err(err) => {
+        error!(error = ?err, "ws_client failed to connect");
+        return;
+      }
+    };
 
-        info!("ws_client connected to websocket server");
+    info!("ws_client connected to websocket server");
 
-        while let Some(message_result) = socket.next().await {
-            match message_result {
-                Ok(WsMessage::Frame(frame)) => {
-                    debug!(frame = %frame, "ws_client received frame");
-                }
-                Ok(WsMessage::Text(text)) => {
-                    debug!(text = %text, "ws_client received text");
-                }
-                Ok(WsMessage::Binary(data)) => {
-                    debug!(bytes = ?data, "ws_client received binary");
-                }
-                Ok(WsMessage::Ping(payload)) => {
-                    info!(payload = ?payload, "ws_client received ping");
-                }
-                Ok(WsMessage::Pong(payload)) => {
-                    info!(payload = ?payload, "ws_client received pong");
-                }
-                Ok(WsMessage::Close(frame)) => {
-                    info!(frame = ?frame, "ws_client websocket closed");
-                    break;
-                }
-                Err(err) => {
-                    error!(error = ?err, "ws_client websocket error");
-                    break;
-                }
-            }
+    while let Some(message_result) = socket.next().await {
+      match message_result {
+        Ok(WsMessage::Frame(frame)) => {
+          debug!(frame = %frame, "ws_client received frame");
         }
-
-        info!("ws_client shutting down");
+        Ok(WsMessage::Text(text)) => {
+          if text.len() > 300 {
+            trace!("ws_client received text, {} bytes", text.len());
+          } else {
+            trace!("ws_client received text, {} bytes: {}", text.len(), text);
+          }
+        }
+        Ok(WsMessage::Binary(data)) => {
+          debug!(bytes = ?data, "ws_client received binary");
+        }
+        Ok(WsMessage::Ping(payload)) => {
+          info!(payload = ?payload, "ws_client received ping");
+        }
+        Ok(WsMessage::Pong(payload)) => {
+          info!(payload = ?payload, "ws_client received pong");
+        }
+        Ok(WsMessage::Close(frame)) => {
+          info!(frame = ?frame, "ws_client websocket closed");
+          break;
+        }
+        Err(err) => {
+          error!(error = ?err, "ws_client websocket error");
+          break;
+        }
+      }
     }
+
+    info!("ws_client shutting down");
+  }
 }
 
 impl Drop for WsClient {
-    fn drop(&mut self) {
-        info!("ws_client dropping and shutting down");
-    }
+  fn drop(&mut self) {
+    info!("ws_client dropping and shutting down");
+  }
 }
