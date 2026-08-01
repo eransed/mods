@@ -53,7 +53,7 @@ impl PeerInfo {
 }
 
 /// DiscoveryEvent — events broadcast to all modules
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DiscoveryEvent {
   PeerDiscovered(PeerInfo),
   PeerUpdated(PeerInfo),

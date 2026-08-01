@@ -125,6 +125,7 @@ impl ConfigModule {
               Ok(Message::Discovery(event)) => {
                   debug!("discovery event received: {:?}", event);
               }
+              Ok(_) => {}
               Err(_) => {
                   error!("broadcast channel closed");
                   break;

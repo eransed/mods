@@ -105,6 +105,7 @@ function App() {
 
   const [status, setStatus] = useState<ConnectionState>('connecting')
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  const [sys, setSys] = useState('')
   const [websocket, setWebsocket] = useState<WebSocket | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > cutoffWidth)
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
@@ -248,6 +249,18 @@ function App() {
           handleReconnect()
         }
 
+        newWebSocket.onmessage = (e) => {
+          try {
+            let o = JSON.parse(e.data)
+            if (o.SystemStatus) {
+              let cpu = (o.SystemStatus.cpu_percent as number).toFixed(1)
+              let ram = (o.SystemStatus.ram_percent as number).toFixed(1)
+              let mem = (o.SystemStatus.pid_mem_bytes as number / 1024 / 1024).toFixed(1)
+              setSys(`${cpu}% | ${ram}% | ${mem}MB | `)
+            }
+          } catch {}
+        }
+
         websocketRef.current = newWebSocket
         setWebsocket(newWebSocket)
       } else {
@@ -321,7 +334,7 @@ function App() {
           <h1>mods</h1>
           <p className="status" aria-live="polite">
             <span className={`dot dot-${status}`} aria-hidden="true" />
-            {status}{reconnectAttempts > 0 ? `[${msPretty(disconnectedSince)}]` : null} - {wsPort}
+            {sys}{status}{reconnectAttempts > 0 ? `[${msPretty(disconnectedSince)}]` : null} - {wsPort}
           </p>
         </header>
 

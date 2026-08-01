@@ -9,6 +9,7 @@ mod ws_client;
 mod ws_server;
 
 use crate::logging::init_tracing;
+use crate::message::Message;
 use config::ConfigModule;
 use http::HttpModule;
 use std::net::IpAddr;
@@ -75,15 +76,22 @@ async fn main() {
     bi.main_js_size_kb as f32 / 1000 as f32
   );
 
-  info!("Init sys");
   let mut sys = System::new_all();
   sys.refresh_all();
 
+  let b2gb = |b: u64| b as f32 / 1024.0 / 1024.0 / 1024.0;
+  let b2mb = |b: u64| b as f32 / 1024.0 / 1024.0;
+  let free_memory = sys.total_memory() - sys.used_memory();
+  let free_swap = sys.total_swap() - sys.used_swap();
+
   // RAM and swap information:
-  info!("total memory: {} bytes", sys.total_memory());
-  info!("used memory : {} bytes", sys.used_memory());
-  info!("total swap  : {} bytes", sys.total_swap());
-  info!("used swap   : {} bytes", sys.used_swap());
+  info!("Total memory: {} bytes ({:.1}GB)", sys.total_memory(), b2gb(sys.total_memory()));
+  info!("Used memory : {} bytes ({:.1}GB)", sys.used_memory(), b2gb(sys.used_memory()));
+  info!("Free memory : {} bytes ({:.1}GB)", free_memory, b2gb(free_memory));
+
+  info!("Total swap  : {} bytes ({:.1}GB)", sys.total_swap(), b2gb(sys.total_swap()));
+  info!("Used swap   : {} bytes ({:.1}GB)", sys.used_swap(), b2gb(sys.used_swap()));
+  info!("Free swap   : {} bytes ({:.1}GB)", free_swap, b2gb(free_swap));
 
   // Display system information:
   info!("System name:             {:?}", System::name());
@@ -99,6 +107,7 @@ async fn main() {
   let pid_array = [pid];
 
   let sdrxsys = shutdown_rx.clone();
+  let sysbrd = broadcast_sender.clone();
   let sys_thread_handle = std::thread::spawn(move || {
     loop {
       let query_start = Instant::now();
@@ -114,13 +123,16 @@ async fn main() {
         sysinfo::ProcessRefreshKind::nothing().with_memory().with_cpu(),
       );
       let cpu_percent = sys.global_cpu_usage();
-      let ram_percent = 100 * sys.used_memory() / sys.total_memory();
-      let ram_use_mb = sys.used_memory() / 1024 / 1024;
-      let ram_tot_mb = sys.total_memory() / 1024 / 1024;
+      let ram_percent = (100 * sys.used_memory() / sys.total_memory()) as f32;
+      let ram_use_mb = b2mb(sys.used_memory());
+      let ram_tot_mb = b2mb(sys.total_memory());
       let p = sys.process(pid).unwrap();
-      let mem = p.memory() / 1024 / 1024;
-      let acc = p.accumulated_cpu_time();
-      let pcpu = p.cpu_usage();
+      let pid_mem_bytes = p.memory();
+      let pid_mem_use_mb = b2mb(pid_mem_bytes);
+      let pid_acc_cpu_time_ms = p.accumulated_cpu_time();
+      let pid_cpu_percent = p.cpu_usage();
+
+      sysbrd.send(Message::SystemStatus{cpu_percent, ram_percent, pid_mem_bytes}).expect("Failed to send system status");
 
       debug!(
         "[{:.1?}] -- CPU: {:.1}%   RAM: {:.1}% ({:.0}MB / {:.0}MB)   CPU[{}]: {:.2}%   MEM: {:.1}MB   ACC: {:.1}ms   RUNTIME: {:.1?}",
@@ -130,12 +142,13 @@ async fn main() {
         ram_use_mb,
         ram_tot_mb,
         pid,
-        pcpu,
-        mem,
-        acc,
+        pid_cpu_percent,
+        pid_mem_use_mb,
+        pid_acc_cpu_time_ms,
         main_start.elapsed()
       );
-      std::thread::sleep(std::time::Duration::from_millis(2000));
+      let sys_status_delay_ms = 1000;
+      std::thread::sleep(std::time::Duration::from_millis(sys_status_delay_ms));
     }
   });
 
