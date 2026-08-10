@@ -1,0 +1,6 @@
+{
+    "rust-analyzer.check.extraEnv": {
+        "APRILTAG_SYS_WINDOWS_PTHREAD_INCLUDE_DIR":"$VCPKG_ROOT/installed/x64-windows-static/include",
+        "APRILTAG_SYS_WINDOWS_PTHREAD_STATIC_LIB":"$VCPKG_ROOT/installed/x64-windows-static/lib/pthreadVC3.lib"
+    }
+}
