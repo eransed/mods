@@ -61,7 +61,7 @@ fn save_config_to_path(config: &Config, path: &Path) -> std::io::Result<()> {
   {
     fs::create_dir_all(parent)?;
   }
-  info!("Saving config to {}", path.display());
+  info!("Saving config to {}: {:#?}", path.display(), config);
   fs::write(path, contents)
 }
 

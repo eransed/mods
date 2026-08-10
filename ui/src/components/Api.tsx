@@ -66,7 +66,12 @@ export function Api({ port }: ApiProps) {
   }
 
   if (error) {
-    return <p>Error</p>;
+    return <>
+      <div>
+        <h1>API</h1>
+        <p>{`${error}`}</p>
+      </div>
+    </>
   }
 
   return (

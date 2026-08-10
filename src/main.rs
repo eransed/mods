@@ -132,7 +132,9 @@ async fn main() {
       let pid_acc_cpu_time_ms = p.accumulated_cpu_time();
       let pid_cpu_percent = p.cpu_usage();
 
-      sysbrd.send(Message::SystemStatus{cpu_percent, ram_percent, pid_mem_bytes}).expect("Failed to send system status");
+      sysbrd
+        .send(Message::SystemStatus { cpu_percent, ram_percent, pid_mem_bytes })
+        .expect("Failed to send system status");
 
       debug!(
         "[{:.1?}] -- CPU: {:.1}%   RAM: {:.1}% ({:.0}MB / {:.0}MB)   CPU[{}]: {:.2}%   MEM: {:.1}MB   ACC: {:.1}ms   RUNTIME: {:.1?}",

@@ -34,6 +34,91 @@ select {
   font: inherit;
 }
 
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  /* display: none; <- Crashes Chrome on hover */
+  -webkit-appearance: none;
+  margin: 0;
+  /* <-- Apparently some margin are still there even though it's hidden */
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+  /* Firefox */
+}
+
+input[type="text"],
+input[type="number"],
+input[type="password"],
+textarea,
+select {
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: 1px solid var(--accent);
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  color: #fff;
+  font: inherit;
+}
+
+label input[type=checkbox] {
+  display: none; /* Hide the default checkbox */
+}
+
+label b, label i {
+  margin-right: 0.5rem;
+}
+
+label i {
+  color: #888;
+}
+
+/* Style the artificial checkbox */
+label span {
+  height: 20px;
+  width: 20px;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+  display: inline-block;
+  position: relative;
+  vertical-align: -5px;
+}
+
+/* Style its checked state...with a ticked icon */
+label input[type=checkbox]:checked + span:before {
+  content: '\2714';
+  color: #fff;
+  position: absolute;
+  top: -3px;
+  left: 2px;
+}
+
+button {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.config-field,
+.config-save {
+  margin-left: 1rem;
+}
+
+.config-field {
+  margin-bottom: 0.5rem;
+}
+
 h1,
 h2,
 p,

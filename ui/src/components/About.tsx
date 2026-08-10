@@ -42,7 +42,12 @@ export function About({ port }: AboutProps) {
   }
 
   if (error) {
-    return <p>Error</p>;
+    return <>
+      <div>
+        <h1>About</h1>
+        <p>{`${error}`}</p>
+      </div>
+    </>
   }
 
   function version() {
@@ -50,7 +55,7 @@ export function About({ port }: AboutProps) {
   }
 
   function verSpan() {
-    return (<span style={{color: '#999'}}>
+    return (<span style={{ color: '#999' }}>
       {version()}
     </span>)
   }

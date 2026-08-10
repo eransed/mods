@@ -71,14 +71,42 @@ macro_rules! cross_command {
 }
 
 fn main() {
-  let btu = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f %z").to_string();
+  let simple_compile = false;
+  let opencv_version = cross_command!("opencv_version").expect("Failed to read opencv_version");
+  println!("cargo::rustc-check-cfg=cfg(opencv_pre_411)");
+  println!("cargo::rustc-check-cfg=cfg(opencv4)");
+  println!("cargo::rustc-check-cfg=cfg(opencv5)");
+  let opencv_req = VersionReq::parse("<=4.10.0").unwrap();
 
-  let _ = cross_command!("echo Start");
+  let ocv_ver_str = String::from_utf8(opencv_version.stdout)
+    .expect("Failed to convert bytes to string")
+    .trim()
+    .to_string();
+
+  let opencv_ver = Version::parse(&ocv_ver_str).unwrap();
+  let opencv_pre_411 = opencv_req.matches(&opencv_ver);
+  if ocv_ver_str.starts_with("4.") {
+    println!("cargo::rustc-cfg=opencv4");
+    if opencv_pre_411 {
+      println!("cargo::rustc-cfg=opencv_pre_411");
+    }
+  } else if ocv_ver_str.starts_with("5.") {
+    println!("cargo::rustc-cfg=opencv5");
+  }
 
   println!("cargo::rustc-link-search=native=/usr/local/lib");
   println!("cargo::rustc-link-arg=-Wl,-rpath,/usr/local/lib");
 
+  if simple_compile {
+    return;
+  }
+
+  let btu = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f %z").to_string();
+
+  let _ = cross_command!("echo Start");
+
   // will cause recompilation every time as build.rs modifies them:
+  let build_ui = true;
   println!("cargo::rerun-if-changed=build.rs");
   println!("cargo::rerun-if-changed=ui");
   println!("cargo::rerun-if-changed=build_info.json");
@@ -150,8 +178,6 @@ fn main() {
     }
     Err(_) => String::from("-"),
   };
-
-  let opencv_version = cross_command!("opencv_version").expect("Failed to read opencv_version");
 
   let du_release_mods_size_kb_cmd =
     cross_command!("du", "-k", "target/release/mods").expect("Failed to read release mods size");
@@ -237,10 +263,7 @@ fn main() {
       .expect("Failed to convert bytes to string")
       .trim()
       .to_string(),
-    opencv_version: String::from_utf8(opencv_version.stdout)
-      .expect("Failed to convert bytes to string")
-      .trim()
-      .to_string(),
+    opencv_version: ocv_ver_str,
     cargo_pkg_name: env!("CARGO_PKG_NAME").to_string(),
     cargo_pkg_version: env!("CARGO_PKG_VERSION").to_string(),
     build_time_utc: btu,
@@ -254,23 +277,6 @@ fn main() {
       .to_string(),
     windows: cfg!(windows),
   };
-
-  println!("cargo::rustc-check-cfg=cfg(opencv_pre_411)");
-  println!("cargo::rustc-check-cfg=cfg(opencv4)");
-  println!("cargo::rustc-check-cfg=cfg(opencv5)");
-
-  let opencv_req = VersionReq::parse("<=4.10.0").unwrap();
-  let opencv_ver = Version::parse(&bi.opencv_version).unwrap();
-  let opencv_pre_411 = opencv_req.matches(&opencv_ver);
-
-  if bi.opencv_version.starts_with("4.") {
-    println!("cargo::rustc-cfg=opencv4");
-    if opencv_pre_411 {
-      println!("cargo::rustc-cfg=opencv_pre_411");
-    }
-  } else if bi.opencv_version.starts_with("5.") {
-    println!("cargo::rustc-cfg=opencv5");
-  }
 
   let bi_json = serde_json::to_string_pretty(&bi).expect("Failed to parse json");
 
@@ -291,8 +297,6 @@ fn main() {
   if !quicktype_build_info_cmd.status.success() {
     panic!("Failed to convert build_info.json to BuildInfo.ts");
   }
-
-  let build_ui = true;
 
   if build_ui {
     use std::env;

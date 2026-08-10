@@ -24,6 +24,7 @@ interface RawImageDetection {
 
 export function Camera({ webSocket }: CameraProps) {
     const [data, setData] = useState<RawImageDetection | null>(null);
+    const [errorState, setErrorState] = useState<any>('No data received');
 
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
@@ -34,6 +35,7 @@ export function Camera({ webSocket }: CameraProps) {
                 }
             } catch (error) {
                 console.error('Failed to parse camera message:', error);
+                setErrorState(`Failed to parse camera message: ${error}`)
             }
         };
 
@@ -43,6 +45,13 @@ export function Camera({ webSocket }: CameraProps) {
             webSocket.removeEventListener('message', handleMessage);
         };
     }, [webSocket]);
+
+    if (errorState) {
+        return <>
+            <h1>Camera</h1>
+            <p>{`${errorState}`}</p>
+        </>
+    }
 
     const dec = 1;
     const translationScale = 100; // Scale translation values by 100 for display

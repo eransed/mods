@@ -27,6 +27,7 @@ use types::{RawImageDetection, TagPose};
 
 use crate::{message::Message, util::ValueWithStats};
 
+#[derive(Clone, Copy, Debug)]
 pub struct RPY {
   pub r: ValueWithStats<f64, 30>,
   pub p: ValueWithStats<f64, 30>,
@@ -306,6 +307,9 @@ pub fn camera_start(
           det.id(),
           RPY { r: ValueWithStats::new(), p: ValueWithStats::new(), y: ValueWithStats::new() },
         );
+
+        let k: Vec<&usize> = tag_rot_map.keys().collect();
+        info!("Rotation map: {:?}", k);
       }
 
       tag_rot_map.get_mut(&det.id()).expect("Failed to get rotation map").r.push(r);
