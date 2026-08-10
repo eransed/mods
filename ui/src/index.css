@@ -60,6 +60,7 @@ select {
   padding-right: 0.5rem;
   color: #fff;
   font: inherit;
+  width: 7rem;
 }
 
 label input[type=checkbox] {
@@ -72,6 +73,7 @@ label b, label i {
 
 label i {
   color: #888;
+  font-size: 0.8rem;
 }
 
 /* Style the artificial checkbox */
@@ -87,11 +89,13 @@ label span {
 
 /* Style its checked state...with a ticked icon */
 label input[type=checkbox]:checked + span:before {
+  /* content: '\2713'; */
   content: '\2714';
+  /* content: '\2715'; */
   color: #fff;
   position: absolute;
   top: -3px;
-  left: 2px;
+  left: 3px;
 }
 
 button {
@@ -116,7 +120,13 @@ button:disabled {
 }
 
 .config-field {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.config-field-old-value {
+  margin-left: 0.5rem;
+  color: #888;
+  font-size: 0.8rem;
 }
 
 h1,

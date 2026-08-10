@@ -83,6 +83,7 @@ export function Settings({ http_port }: SettingsProps) {
                     <ConfigField
                         label={key}
                         value={value}
+                        oldValue={config ? config[key as keyof Config] : null}
                         onChange={(newValue) => {
                             if (configModified) {
                                 const updatedConfig = { ...configModified, [key]: newValue };
@@ -107,10 +108,11 @@ export function Settings({ http_port }: SettingsProps) {
 interface ConfigFieldProps {
     label: string;
     value: boolean | number | string;
+    oldValue: boolean | number | string | null;
     onChange: (newValue: boolean | number | string) => void;
 }
 
-function ConfigField({ label, value, onChange }: ConfigFieldProps) {
+function ConfigField({ label, value, oldValue, onChange }: ConfigFieldProps) {
     let inp = <div>Unsupported config parameter type: {typeof value} ({label})</div>
     let id = 'id-' + (1e9 * Math.random()).toFixed(0)
     if (typeof value === 'boolean') {
@@ -154,6 +156,9 @@ function ConfigField({ label, value, onChange }: ConfigFieldProps) {
                     {inp}
                     {typeof value === 'boolean' && <span></span>}
                 </label>
+                <span className="config-field-old-value">
+                    {`${oldValue}`}
+                </span>
             </div>
         </div>
     );
