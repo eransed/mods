@@ -32,6 +32,7 @@ export function Camera({ webSocket }: CameraProps) {
                 const message = JSON.parse(event.data) as RawImageDetection;
                 if (message && message.tags) {
                     setData(message);
+                    setErrorState(null);
                 }
             } catch (error) {
                 console.error('Failed to parse camera message:', error);
