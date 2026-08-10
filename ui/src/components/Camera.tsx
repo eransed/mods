@@ -25,6 +25,14 @@ interface RawImageDetection {
 export function Camera({ webSocket }: CameraProps) {
     const [data, setData] = useState<RawImageDetection | null>(null);
     const [errorState, setErrorState] = useState<any>('No data received');
+    const [bytesReceived, setBytesReceived] = useState<number>(0);
+    const [framesReceived, setFramesReceived] = useState<number>(0);
+    const [receivedFrequency, setReceivedFrequency] = useState<number>(0);
+    const [msSinceFirstFrame, setMsSinceFirstFrame] = useState<number>(0);
+    const [averageBytesPerFrame, setAverageBytesPerFrame] = useState<number>(0);
+    let firstFrameTime: number | null = null;
+    let framesReceivedCount = 0;
+    let bytesReceivedCount = 0;
 
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
@@ -32,7 +40,20 @@ export function Camera({ webSocket }: CameraProps) {
                 const message = JSON.parse(event.data) as RawImageDetection;
                 if (message && message.tags) {
                     setData(message);
+                    bytesReceivedCount += message.image_data_base64.length;
+                    setBytesReceived(bytesReceivedCount);
+                    framesReceivedCount += 1;
+                    setFramesReceived(framesReceivedCount);
+                    setAverageBytesPerFrame(bytesReceivedCount / framesReceivedCount);
                     setErrorState(null);
+                    if (firstFrameTime === null) {
+                        firstFrameTime = performance.now();
+                    } else {
+                        const msElapsed = performance.now() - firstFrameTime;
+                        const frequency = (framesReceivedCount) / (msElapsed / 1000);
+                        setMsSinceFirstFrame(msElapsed);
+                        setReceivedFrequency(frequency);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to parse camera message:', error);
@@ -54,7 +75,7 @@ export function Camera({ webSocket }: CameraProps) {
         </>
     }
 
-    const dec = 1;
+    const dec = 2;
     const translationScale = 100; // Scale translation values by 100 for display
 
     return (
@@ -76,6 +97,11 @@ export function Camera({ webSocket }: CameraProps) {
                         <p>Native image size: {data.native_image_size[0]} x {data.native_image_size[1]}</p>
                         <p>Encoding time: {(data.image_encoding_time_us / 1000).toFixed(dec)}ms</p>
                         <p>Send frequency: {data.send_freq.toFixed(dec)}Hz</p>
+                        <p>Received frequency: {receivedFrequency.toFixed(dec)}Hz</p>
+                        <p>Data received: {(bytesReceived / 1024 / 1024).toFixed(dec)} MB</p>
+                        <p>Average bytes per frame: {(averageBytesPerFrame / 1024 / 1024).toFixed(dec)} MB</p>
+                        <p>Frames received: {framesReceived}</p>
+                        <p>Time elapsed: {(msSinceFirstFrame / 1000).toFixed(dec)}s</p>
                         {data.tags.map((tag) => (
                             <div key={tag.id} style={{ marginBottom: '1rem', paddingLeft: '1rem', borderLeft: '2px solid #555', color: '#aea' }}>
                                 <p>Tag ID: {tag.id}</p>

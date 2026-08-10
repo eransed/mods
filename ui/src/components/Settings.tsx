@@ -12,6 +12,7 @@ export interface Config {
     enable_camera: boolean;
     camera_send_image: boolean;
     camera_send_image_resize_factor: number;
+    camera_fetch_delay_ms: number;
     opencv_display: boolean;
     skip_april_pose_estimation: boolean;
     angle_filter: number;
@@ -29,6 +30,7 @@ function configEqual(a: Config, b: Config): boolean {
     if (a.enable_camera !== b.enable_camera) return false;
     if (a.camera_send_image !== b.camera_send_image) return false;
     if (a.camera_send_image_resize_factor !== b.camera_send_image_resize_factor) return false;
+    if (a.camera_fetch_delay_ms !== b.camera_fetch_delay_ms) return false;
     if (a.opencv_display !== b.opencv_display) return false;
     if (a.skip_april_pose_estimation !== b.skip_april_pose_estimation) return false;
     if (a.angle_filter !== b.angle_filter) return false;
