@@ -159,7 +159,7 @@ function ConfigField({ label, value, oldValue, onChange }: ConfigFieldProps) {
                     {typeof value === 'boolean' && <span></span>}
                 </label>
                 <span className="config-field-old-value">
-                    {`${oldValue}`}
+                    {value !== oldValue ? `${oldValue}` : null}
                 </span>
             </div>
         </div>
