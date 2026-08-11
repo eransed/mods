@@ -195,6 +195,7 @@ fn main() {
     cross_command!("du", "-k", "ui/dist/main.css").expect("Failed to read ui/dist/main.css size");
 
   let bi = BuildInfo {
+    compiled_with_sensor_support: cfg!(feature = "sensor"),
     binary_release_size_kb: du_release_mods_size_kb_cmd
       .stdout
       .split(|&b| b == b'\t')

@@ -26,6 +26,7 @@ pub struct BuildInfo {
     pub target_avx2: bool,
     pub target_neon: bool,
     pub windows: bool,
+    pub compiled_with_sensor_support: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

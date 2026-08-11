@@ -12,6 +12,12 @@
 - vcpkg?
 - cmake?
 
+
+## Build and run with camera sensor support (requires opencv and apriltag libs):
+```
+cargo run --release --features sensor
+```
+
 ```
 npm install -g quicktype
 ```

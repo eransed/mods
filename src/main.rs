@@ -1,4 +1,6 @@
+#[cfg(feature = "sensor")]
 mod camera;
+
 mod config;
 mod http;
 mod logging;
@@ -59,7 +61,13 @@ async fn main() {
   info!("Version        : {} ({:.1?})", version(), main_start.elapsed());
   info!("Rust version   : {}", bi.rustc_version);
   info!("Node version   : {}", bi.node_version);
-  info!("OpenCV version : {}", bi.opencv_version);
+  #[cfg(feature = "sensor")] {
+    info!("OpenCV version : {}", bi.opencv_version);
+  }
+  #[cfg(not(feature = "sensor"))] {
+    warn!("Compiled without sensor support");
+  }
+
   info!(
     "Debug size     : {} KB ({:.1} MB)",
     bi.binary_debug_size_kb,
@@ -154,28 +162,30 @@ async fn main() {
     }
   });
 
-  let cam_brdcast = broadcast_sender.clone();
-  let sdrxcam = shutdown_rx.clone();
-  let cam_thread_handle = std::thread::spawn(move || {
-    if initial_config.enable_camera {
-      info!("Starting camera thread");
-      camera::camera_start(
-        cam_brdcast,
-        sdrxcam,
-        initial_config.device_index,
-        initial_config.device_width,
-        initial_config.opencv_display,
-        initial_config.angle_filter,
-        initial_config.min_decision_margin,
-        initial_config.camera_fetch_delay_ms,
-        initial_config.camera_send_image,
-        initial_config.camera_send_image_resize_factor,
-      );
-      warn!("Camera returned");
-    } else {
-      warn!("Camera skipped");
-    }
-  });
+  #[cfg(feature = "sensor")] {
+    let cam_brdcast = broadcast_sender.clone();
+    let sdrxcam = shutdown_rx.clone();
+    let cam_thread_handle = std::thread::spawn(move || {
+      if initial_config.enable_camera {
+        info!("Starting camera thread");
+        camera::camera_start(
+          cam_brdcast,
+          sdrxcam,
+          initial_config.device_index,
+          initial_config.device_width,
+          initial_config.opencv_display,
+          initial_config.angle_filter,
+          initial_config.min_decision_margin,
+          initial_config.camera_fetch_delay_ms,
+          initial_config.camera_send_image,
+          initial_config.camera_send_image_resize_factor,
+        );
+        warn!("Camera returned");
+      } else {
+        warn!("Camera skipped");
+      }
+    });
+  }
 
   let ws_server = WsServer::new("ws_server", broadcast_sender.clone());
 
@@ -266,8 +276,11 @@ async fn main() {
 
   info!("Waiting for sys thread to stop...");
   sys_thread_handle.join().expect("Failed to join sys thread");
-  info!("Waiting for camera thread to stop...");
-  cam_thread_handle.join().expect("Failed to join camera thread");
+
+  #[cfg(feature = "sensor")] {
+    info!("Waiting for camera thread to stop...");
+    cam_thread_handle.join().expect("Failed to join camera thread");
+  }
 
   info!("shutting down after {:.1?}", main_start.elapsed());
 }
