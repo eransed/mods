@@ -29,6 +29,24 @@ cargo llvm-cov --html
 npm install -g quicktype
 ```
 
+
+docker run -d -p 5000:5000 --name registry registry:2.7
+
+docker tag ubuntu localhost:5000/ubuntu
+
+docker push localhost:5000/ubuntu
+
+```
+docker run -d -p 8123:8123/tcp -p 8124:8124/tcp midnightair.local:6000/mods-runner
+```
+
+sudo vi /etc/docker/daemon.json
+{
+  "insecure-registries": ["midnightair.local:6000"]
+}
+
+sudo systemctl restart docker
+
 ## Linux
 ```
 sudo apt install libclang-dev
