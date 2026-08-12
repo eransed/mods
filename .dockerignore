@@ -1,5 +1,6 @@
 /target
 /logs
-/output
 config.json
 build_info.json
+/.vscode
+/output

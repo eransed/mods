@@ -1,0 +1,47 @@
+# syntax=docker/dockerfile:1
+# use 22.04 to link with GLIBC 2.35
+FROM ubuntu:22.04
+RUN apt update && apt upgrade -y
+RUN apt install git file tree curl pkg-config libssl-dev build-essential gcc-arm-linux-gnueabihf -y
+RUN arm-linux-gnueabihf-gcc --version
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN rustup target add armv7-unknown-linux-gnueabihf
+
+RUN echo hello
+
+# Use bash for the shell
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Create a script file sourced by both interactive and non-interactive bash shells
+ENV BASH_ENV "${HOME}/.bash_env"
+RUN touch "${BASH_ENV}"
+RUN echo '. "${BASH_ENV}"' >> ~/.bashrc
+
+# Download and install nvm
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | PROFILE="${BASH_ENV}" bash
+RUN echo node > .nvmrc
+RUN nvm install 24
+RUN node --version
+
+WORKDIR /build
+COPY . .
+RUN cargo build --release --target=armv7-unknown-linux-gnueabihf
+RUN ls -lha
+RUN ls -lha target
+RUN ls -lha target/armv7-unknown-linux-gnueabihf
+RUN tree .
+RUN ls -lh target/armv7-unknown-linux-gnueabihf/release/mods
+RUN file target/armv7-unknown-linux-gnueabihf/release/mods
+
+RUN mkdir -p /out
+RUN cp target/armv7-unknown-linux-gnueabihf/release/mods /out
+RUN cp build_info.json /out
+RUN ls -lh /out
+RUN cat build_info.json
+RUN arm-linux-gnueabihf-gcc --version
+RUN ldd --version
+# RUN ldd /out/mods # not a dynamic executable
+RUN cargo test
+
+CMD ["cp", "-r", "/out/.", "/output"]

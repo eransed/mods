@@ -1,0 +1,33 @@
+FROM ubuntu:24.04
+
+# only copy what is needed from the builder image to keep the final runner image as small as possible
+
+# from frontend client docker image builder
+COPY --from=mods:latest /build/target/release/mods /mods
+
+# from backend server copy the binaries
+# COPY --from=ilg-server:latest /ilg/source/build-release-linux/prosqobe /ilg/build/prosqobe
+# COPY --from=ilg-server:latest /ilg/source/build-release-linux/*.so /ilg/build/.
+
+# from the backend server copy the certs (created by devInstall, could be refactored)
+# COPY --from=ilg-server:latest /ilg/source/build-release-linux/ilg.crt /ilg/build/ilg.crt
+# COPY --from=ilg-server:latest /ilg/source/build-release-linux/ilg.key /ilg/build/ilg.key
+# COPY --from=ilg-server:latest /ilg/source/build-release-linux/ilgCA.pem /ilg/build/ilgCA.pem
+
+# from the source copy config, workflows and start script
+# COPY source/config_installer.json /ilg/build/config.json
+# COPY source/workflows /ilg/build/workflows
+# COPY startILG.sh /ilg/build/startILG.sh
+
+# only install runtime deps
+# ENV DEBIAN_FRONTEND=noninteractive
+# RUN apt update && apt upgrade -y
+# RUN apt install -y libpoco-dev libmodbus-dev
+
+# make the needed ports accessible
+EXPOSE 8123
+EXPOSE 8124
+
+SHELL ["/bin/bash", "--login", "-c"]
+WORKDIR /
+CMD ["/bin/bash", "--login", "-c", "./mods"]

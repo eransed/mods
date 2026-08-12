@@ -61,10 +61,12 @@ async fn main() {
   info!("Version        : {} ({:.1?})", version(), main_start.elapsed());
   info!("Rust version   : {}", bi.rustc_version);
   info!("Node version   : {}", bi.node_version);
-  #[cfg(feature = "sensor")] {
+  #[cfg(feature = "sensor")]
+  {
     info!("OpenCV version : {}", bi.opencv_version);
   }
-  #[cfg(not(feature = "sensor"))] {
+  #[cfg(not(feature = "sensor"))]
+  {
     warn!("Compiled without sensor support");
   }
 
@@ -162,10 +164,18 @@ async fn main() {
     }
   });
 
-  #[cfg(feature = "sensor")] {
+  let cam_thread_handle: Option<std::thread::JoinHandle<()>>;
+
+  #[cfg(not(feature = "sensor"))]
+  {
+    cam_thread_handle = None;
+  }
+
+  #[cfg(feature = "sensor")]
+  {
     let cam_brdcast = broadcast_sender.clone();
     let sdrxcam = shutdown_rx.clone();
-    let cam_thread_handle = std::thread::spawn(move || {
+    cam_thread_handle = Some(std::thread::spawn(move || {
       if initial_config.enable_camera {
         info!("Starting camera thread");
         camera::camera_start(
@@ -184,7 +194,7 @@ async fn main() {
       } else {
         warn!("Camera skipped");
       }
-    });
+    }));
   }
 
   let ws_server = WsServer::new("ws_server", broadcast_sender.clone());
@@ -277,9 +287,14 @@ async fn main() {
   info!("Waiting for sys thread to stop...");
   sys_thread_handle.join().expect("Failed to join sys thread");
 
-  #[cfg(feature = "sensor")] {
-    info!("Waiting for camera thread to stop...");
-    cam_thread_handle.join().expect("Failed to join camera thread");
+  match cam_thread_handle {
+    Some(handle) => {
+      info!("Waiting for camera thread to stop...");
+      handle.join().expect("Failed to join camera thread");
+    }
+    None => {
+      info!("Camera thread was not started");
+    }
   }
 
   info!("shutting down after {:.1?}", main_start.elapsed());

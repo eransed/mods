@@ -19,6 +19,13 @@ cargo run --release --features sensor
 ```
 
 ```
+rustup component add llvm-tools
+cargo install cargo-llvm-cov
+cargo llvm-cov
+cargo llvm-cov --html
+```
+
+```
 npm install -g quicktype
 ```
 

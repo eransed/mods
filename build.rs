@@ -1,5 +1,6 @@
 #![allow(unused_mut)]
 use chrono::{DateTime, Local};
+#[cfg(feature = "sensor")]
 use semver::{Version, VersionReq};
 use std::env;
 use std::fs::File;
@@ -72,26 +73,37 @@ macro_rules! cross_command {
 
 fn main() {
   let simple_compile = false;
-  let opencv_version = cross_command!("opencv_version").expect("Failed to read opencv_version");
-  println!("cargo::rustc-check-cfg=cfg(opencv_pre_411)");
-  println!("cargo::rustc-check-cfg=cfg(opencv4)");
-  println!("cargo::rustc-check-cfg=cfg(opencv5)");
-  let opencv_req = VersionReq::parse("<=4.10.0").unwrap();
 
-  let ocv_ver_str = String::from_utf8(opencv_version.stdout)
-    .expect("Failed to convert bytes to string")
-    .trim()
-    .to_string();
+  let ocv_ver_str;
 
-  let opencv_ver = Version::parse(&ocv_ver_str).unwrap();
-  let opencv_pre_411 = opencv_req.matches(&opencv_ver);
-  if ocv_ver_str.starts_with("4.") {
-    println!("cargo::rustc-cfg=opencv4");
-    if opencv_pre_411 {
-      println!("cargo::rustc-cfg=opencv_pre_411");
+  #[cfg(not(feature = "sensor"))] {
+    ocv_ver_str = String::from("Compiled without opencv");
+  }
+
+  #[cfg(feature = "sensor")] {
+
+    let opencv_version = cross_command!("opencv_version").expect("Failed to read opencv_version");
+    println!("cargo::rustc-check-cfg=cfg(opencv_pre_411)");
+    println!("cargo::rustc-check-cfg=cfg(opencv4)");
+    println!("cargo::rustc-check-cfg=cfg(opencv5)");
+    let opencv_req = VersionReq::parse("<=4.10.0").unwrap();
+
+    ocv_ver_str = String::from_utf8(opencv_version.stdout)
+      .expect("Failed to convert bytes to string")
+      .trim()
+      .to_string();
+
+    let opencv_ver = Version::parse(&ocv_ver_str).unwrap();
+    let opencv_pre_411 = opencv_req.matches(&opencv_ver);
+    if ocv_ver_str.starts_with("4.") {
+      println!("cargo::rustc-cfg=opencv4");
+      if opencv_pre_411 {
+        println!("cargo::rustc-cfg=opencv_pre_411");
+      }
+    } else if ocv_ver_str.starts_with("5.") {
+      println!("cargo::rustc-cfg=opencv5");
     }
-  } else if ocv_ver_str.starts_with("5.") {
-    println!("cargo::rustc-cfg=opencv5");
+
   }
 
   println!("cargo::rustc-link-search=native=/usr/local/lib");
