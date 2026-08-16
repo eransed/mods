@@ -72,6 +72,17 @@ const MF_0002_REV6_CLIENT_ID: MidField = MidField {
     rng: 220..221,
 };
 
+/// 5.2.2 MID 0002 Application Communication start acknowledge
+/// 
+/// When accepting the communication start the controller sends as reply, a Communication start
+/// acknowledge.
+/// 
+/// This message contains some basic information about the controller, such as cell ID,
+/// channel ID, and name.
+/// 
+/// Message sent by: Controller
+/// 
+/// Answer: None
 #[derive(Debug, Default)]
 pub struct Mid0002 {
     pub header: MidHeader,
@@ -112,12 +123,7 @@ pub fn mid_parse_0002(data: &str) -> Result<Mid0002, String> {
     Ok(m2)
 }
 
-/// 5.2.2 MID 0002 Application Communication start acknowledge
-/// When accepting the communication start the controller sends as reply, a Communication start
-/// acknowledge. This message contains some basic information about the controller, such as cell ID,
-/// channel ID, and name.
-/// Message sent by: Controller
-/// Answer: None
+
 #[derive(Debug, Default)]
 pub struct Mid0002Rev1 {
     /// The cell ID is four bytes long specified by four ASCII digits. Range: 0000-9999.
