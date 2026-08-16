@@ -9,9 +9,11 @@ mod udp_discovery_server;
 mod util;
 mod ws_client;
 mod ws_server;
+mod openprotocol;
 
 use crate::logging::init_tracing;
 use crate::message::Message;
+use crate::openprotocol::mid_0002::Mid0002;
 use config::ConfigModule;
 use http::HttpModule;
 use std::net::IpAddr;
@@ -269,6 +271,16 @@ async fn main() {
   info!(ws_port, "websocket server listening at");
 
   info!("Current working directory: {}", std::env::current_dir().unwrap().display());
+
+
+  let mut mid2 = Mid0002::default();
+  mid2.rev1.controller_name = String::from("test");
+
+
+  println!("{:#?}", mid2);
+
+
+  // handle stop signals and shutdown
 
   tokio::select! {
       _ = tokio::signal::ctrl_c() => {

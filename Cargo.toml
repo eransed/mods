@@ -33,6 +33,9 @@ socket2 = "0.5"
 hostname = "0.3"
 base64 = "0.23.0"
 sysinfo = "0.39.6"
+num = "0.4"
+num-derive = "0.4"
+num-traits = "0.2"
 
 [features]
 sensor = ["dep:opencv", "dep:apriltag"]
