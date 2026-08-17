@@ -81,19 +81,6 @@ pub fn mid_parse_0004(data: &str) -> Result<Mid0004, String> {
     return Ok(m4);
 }
 
-// impl Mid<Mid0004> for Mid0004 {
-//     fn name(self) -> String {
-//         String::from("Application Negative Acknowledgment")
-//     }
-
-//     fn new() -> Mid0004 {
-//         Mid0004 {
-//             header: MidHeader::new(),
-//             error_code: Mid0004ErrorCode::NoError,
-//         }
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
 

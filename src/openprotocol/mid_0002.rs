@@ -1,4 +1,4 @@
-use crate::openprotocol::core::{MidField, MidHeader, field_parse, mid_parse_header};
+use crate::openprotocol::core::{MidField, MidHeader, field_parse, mid_header_str, mid_parse_header};
 
 // MID 0002
 
@@ -57,6 +57,16 @@ const MF_0002_REV5_SYSTEM_SUB_TYPE: MidField = MidField {
     rng: 170..173,
 };
 
+const MF_0002_REV6_SEQUENCE_NUMBER_SUPPORT: MidField = MidField {
+    name: "sequence_number_support",
+    rng: 175..176,
+};
+
+const MF_0002_REV6_LINKING_HANDLING_SUPPORT: MidField = MidField {
+    name: "linking_handling_support",
+    rng: 178..179,
+};
+
 const MF_0002_REV6_STATION_ID: MidField = MidField {
     name: "station_id",
     rng: 181..191,
@@ -71,6 +81,75 @@ const MF_0002_REV6_CLIENT_ID: MidField = MidField {
     name: "client_id",
     rng: 220..221,
 };
+
+pub fn mid_0002_string(m: Mid0002) -> String {
+    let rev = m.header.rev;
+    let len = if rev == 1 {
+        57
+    } else if rev == 2 {
+        62
+    } else if rev == 3 {
+        125
+    } else if rev == 4 {
+        163
+    } else if rev == 5 {
+        173
+    } else if rev == 6 {
+        221
+    } else {
+        m.header.len
+    };
+
+    let mut head = m.header.clone();
+    head.len = len;
+    let mut s = format!("{}", mid_header_str(head));
+
+    if rev == 1 {
+        let ciw = MF_0002_REV1_CELL_ID.rng.end - MF_0002_REV1_CELL_ID.rng.start;
+        let chi = MF_0002_REV1_CHANNEL_ID.rng.end - MF_0002_REV1_CHANNEL_ID.rng.start;
+        let cni = MF_0002_REV1_CONTROLLER_NAME.rng.end - MF_0002_REV1_CONTROLLER_NAME.rng.start;
+        s.push_str(format!("01{:0ciw$}", m.rev1.cell_id).as_str());
+        s.push_str(format!("02{:0chi$}", m.rev1.channel_id).as_str());
+        s.push_str(format!("03{:0cni$}", m.rev1.controller_name).as_str());
+    } else if rev == 2 {
+        let sci = MF_0002_REV2_SUPPLIER_CODE.rng.end - MF_0002_REV2_SUPPLIER_CODE.rng.start;
+        s.push_str(format!("04{:0sci$}", m.rev2.supplier_code).as_str());
+    } else if rev == 3 {
+        let opvi = MF_0002_REV3_OPEN_PROTOCOL_VERSION.rng.end - MF_0002_REV3_OPEN_PROTOCOL_VERSION.rng.start;
+        let csvi = MF_0002_REV3_CONTROLLER_SOFTWARE_VERSION.rng.end - MF_0002_REV3_CONTROLLER_SOFTWARE_VERSION.rng.start;
+        let tsvi = MF_0002_REV3_TOOL_SOFTWARE_VERSION.rng.end - MF_0002_REV3_TOOL_SOFTWARE_VERSION.rng.start;
+        s.push_str(format!("05{:0opvi$}", m.rev3.open_protocol_version).as_str());
+        s.push_str(format!("06{:0csvi$}", m.rev3.controller_software_version).as_str());
+        s.push_str(format!("07{:0tsvi$}", m.rev3.tool_software_version).as_str());
+    } else if rev == 4 {
+        let rbuti = MF_0002_REV4_RBU_TYPE.rng.end - MF_0002_REV4_RBU_TYPE.rng.start;
+        let csni = MF_0002_REV4_CONTROLLER_SERIAL_NUMBER.rng.end - MF_0002_REV4_CONTROLLER_SERIAL_NUMBER.rng.start;
+        s.push_str(format!("08{:0rbuti$}", m.rev4.rbu_type).as_str());
+        s.push_str(format!("09{:0csni$}", m.rev4.controller_serial_number).as_str());
+    } else if rev == 5 {
+        let sti = MF_0002_REV5_SYSTEM_TYPE.rng.end - MF_0002_REV5_SYSTEM_TYPE.rng.start;
+        let ssti = MF_0002_REV5_SYSTEM_SUB_TYPE.rng.end - MF_0002_REV5_SYSTEM_SUB_TYPE.rng.start;
+        s.push_str(format!("10{:sti$}", m.rev5.system_type).as_str());
+        s.push_str(format!("11{:ssti$}", m.rev5.system_sub_type).as_str());
+    } else if rev == 6 {
+        let snsi = MF_0002_REV6_SEQUENCE_NUMBER_SUPPORT.rng.end - MF_0002_REV6_SEQUENCE_NUMBER_SUPPORT.rng.start;
+        let lhsi = MF_0002_REV6_LINKING_HANDLING_SUPPORT.rng.end - MF_0002_REV6_LINKING_HANDLING_SUPPORT.rng.start;
+        let stai = MF_0002_REV6_STATION_ID.rng.end - MF_0002_REV6_STATION_ID.rng.start;
+        let stani = MF_0002_REV6_STATION_NAME.rng.end - MF_0002_REV6_STATION_NAME.rng.start;
+        let cii = MF_0002_REV6_CLIENT_ID.rng.end - MF_0002_REV6_CLIENT_ID.rng.start;
+        s.push_str(format!("12{:0snsi$}", m.rev6.sequence_number_support).as_str());
+        s.push_str(format!("13{:0lhsi$}", m.rev6.linking_handling_support).as_str());
+        s.push_str(format!("14{:0stai$}", m.rev6.station_id).as_str());
+        s.push_str(format!("15{:0stani$}", m.rev6.station_name).as_str());
+        s.push_str(format!("16{:0cii$}", m.rev6.client_id).as_str());
+    } else {
+        panic!(
+            "Unexpected mid revision {} when serializing mid {}",
+            m.header.rev, m.header.mid
+        );
+    }
+    s
+}
 
 /// 5.2.2 MID 0002 Application Communication start acknowledge
 /// 
@@ -96,15 +175,24 @@ pub struct Mid0002 {
 
 pub fn mid_parse_0002(data: &str) -> Result<Mid0002, String> {
 
-    let m2 = Mid0002 {
-        header: mid_parse_header(data)?,
-        rev1: mid_parse_0002_rev1(data)?,
-        rev2: mid_parse_0002_rev2(data)?,
-        rev3: mid_parse_0002_rev3(data)?,
-        rev4: mid_parse_0002_rev4(data)?,
-        rev5: mid_parse_0002_rev5(data)?,
-        rev6: mid_parse_0002_rev6(data)?,
-    };
+    let mut m2 = Mid0002::default();
+    m2.header = mid_parse_header(data)?;
+    m2.rev1 = mid_parse_0002_rev1(data)?;
+    if m2.header.rev >= 2 {
+        m2.rev2 = mid_parse_0002_rev2(data)?;
+    }
+    if m2.header.rev >= 3 {
+        m2.rev3 = mid_parse_0002_rev3(data)?;
+    }
+    if m2.header.rev >= 4 {
+        m2.rev4 = mid_parse_0002_rev4(data)?;
+    }
+    if m2.header.rev >= 5 {
+        m2.rev5 = mid_parse_0002_rev5(data)?;
+    }
+    if m2.header.rev >= 6 {
+        m2.rev6 = mid_parse_0002_rev6(data)?;
+    }
 
     if m2.header.mid != 2 {
         return Err(format!(
@@ -317,6 +405,10 @@ pub fn mid_parse_0002_rev5(data: &str) -> Result<Mid0002Rev5, String> {
 // MID 0002 REV 006
 #[derive(Debug, Default)]
 pub struct Mid0002Rev6 {
+    /// Flag sequence number handling supported if = 1
+    pub sequence_number_support: String,
+    /// Flag linking functionality handling supported if = 1.
+    pub linking_handling_support: String,
     /// The station id/Cell Id is a unique id for each station.
     /// 10 ASCII digits. Max 4294967295
     pub station_id: String,
@@ -331,10 +423,26 @@ pub struct Mid0002Rev6 {
 
 pub fn mid_parse_0002_rev6(data: &str) -> Result<Mid0002Rev6, String> {
     let mut m2r6 = Mid0002Rev6 {
+        sequence_number_support: String::new(),
+        linking_handling_support: String::new(),
         station_id: String::new(),
         station_name: String::new(),
         client_id: String::new(),
     };
+
+    match field_parse::<String>(MF_0002_REV6_SEQUENCE_NUMBER_SUPPORT, data) {
+        Ok(v) => {
+            m2r6.sequence_number_support = v;
+        }
+        Err(e) => return Err(format!("{}", e)),
+    }
+
+    match field_parse::<String>(MF_0002_REV6_LINKING_HANDLING_SUPPORT, data) {
+        Ok(v) => {
+            m2r6.linking_handling_support = v;
+        }
+        Err(e) => return Err(format!("{}", e)),
+    }
 
     match field_parse::<String>(MF_0002_REV6_STATION_ID, data) {
         Ok(v) => {
@@ -364,6 +472,27 @@ pub fn mid_parse_0002_rev6(data: &str) -> Result<Mid0002Rev6, String> {
 mod tests {
 
     use super::*;
+
+    #[test]
+    fn mid_0002_gen_parse_1() {
+        let mut m = Mid0002::default();
+        m.rev1.cell_id = "1234".to_string();
+        m.rev1.channel_id = "99".to_string();
+        m.rev1.controller_name = "CTRL_1234".to_string();
+        m.header.mid = 2;
+        m.header.rev = 1;
+
+        let s = mid_0002_string(m);
+        assert_eq!(s, "00570002001000000000011234029903CTRL_1234                ");
+
+        let m2 = mid_parse_0002(&s).unwrap();
+        assert_eq!(m2.header.mid, 2);
+        assert_eq!(m2.header.rev, 1);
+        assert_eq!(m2.rev1.cell_id, "1234");
+        assert_eq!(m2.rev1.channel_id, "99");
+        assert_eq!(m2.rev1.controller_name, "CTRL_1234                ");
+
+    }
 
     #[test]
     fn mid_0002_parse_valid_mid_0002_rev_1_1() {
