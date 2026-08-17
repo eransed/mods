@@ -5,16 +5,23 @@ use crate::openprotocol::core::field_parse;
 use crate::openprotocol::core::mid_parse_header;
 
 /// 5.2.4 MID 0004 Application Communication negative acknowledge
+/// 
 /// This message is used by the controller when a request, command or subscription for any reason has
 /// not been performed. The data field contains the message ID of the message request that failed as well
 /// as an error code.
+/// 
 /// It can also be used by the integrator to acknowledge received subscribed data/events then do all the special subscription data acknowledges obsolete.
 /// upload and will
+/// 
 /// When using the communication acknowledgement of MID 0007 and MID 0006 together with
 /// sequence numbering this is an application level message only.
+/// 
 /// For detailed description of use of this message, please look at each Request, Subscription or Command
+/// 
 /// MIDs description.
+/// 
 /// Message sent by: Controller:
+/// 
 /// Answer: None
 #[derive(Debug, Copy, Clone)]
 pub struct Mid0004 {

@@ -361,7 +361,7 @@ mod tests {
 
     #[test]
     fn mid_0002_parse_valid_mid_0002_rev_1_1() {
-        let m2 = mid_parse_0002("00200002001000000000as;ldfkja;lskdjf;laskjdf;laskjdf;ljaksd;lfja;lsdjkf;alskjdf;lakjsdf;lajsdf;lajd;fla").unwrap();
+        let m2 = mid_parse_0002("00200002001000000000as;ldfkja;lskdjfjfaslkjdf;lakjsd;lfja;lskjdf;laskjd;flkjas;ldkjf;alskjdf;laksjd;lfjka;sldkjf;laksjd;flkajs;ldfjka;lskdjf;laksjd;lfkjas;ldfj;laskjdf;laskjdf;as;ldkfj;alsjdf;lsd;fkja;slkdjf;laskjdf;jasfd;ljaksd;lfja;lsdjkf;alskjdf;lakjsdf;lajsdf;lajd;fla").unwrap();
         println!("{:#?}", m2);
         assert!(m2.header.mid == 2);
         assert!(m2.header.rev == 1);

@@ -1,5 +1,7 @@
 use std::{fmt::Debug, ops::Range, str::FromStr, u16};
 
+use tracing::{error, warn};
+
 pub trait Mid<T> {
     fn new() -> T;
     fn name(self) -> String;
@@ -176,11 +178,13 @@ pub fn mid_parse_header(raw_mid: &str) -> Result<MidHeader, String> {
 
     match field_parse::<u16>(MF_LEN, raw_mid) {
         Ok(v) => header.len = v,
-        Err(e) => println!("{}", e),
+        Err(e) => error!("{}", e),
     }
 
+    println!("Parsing mid len to {} from raw mid '{}'", header.len, raw_mid);
+
     if raw_mid.len() != header.len as usize {
-        println!(
+        warn!(
             "Reported len {} not equal to actual message len {}",
             header.len,
             raw_mid.len()
@@ -189,12 +193,12 @@ pub fn mid_parse_header(raw_mid: &str) -> Result<MidHeader, String> {
 
     match field_parse::<u16>(MF_MID, raw_mid) {
         Ok(v) => header.mid = v,
-        Err(e) => println!("{}", e),
+        Err(e) => error!("{}", e),
     }
 
     match field_parse::<u16>(MF_REV, raw_mid) {
         Ok(v) => header.rev = v,
-        Err(e) => println!("{}", e),
+        Err(e) => error!("{}", e),
     }
 
     if header.len < 20 {
@@ -220,32 +224,32 @@ pub fn mid_parse_header(raw_mid: &str) -> Result<MidHeader, String> {
 
     match field_parse::<u8>(MF_NO_ACK_FLAG, raw_mid) {
         Ok(v) => header.no_ack_flag = v,
-        Err(e) => println!("{}", e),
+        Err(e) => error!("{}", e),
     }
 
     match field_parse::<u8>(MF_STATION_ID, raw_mid) {
         Ok(v) => header.station_id = v,
-        Err(e) => println!("{}", e),
+        Err(e) => error!("{}", e),
     }
 
     match field_parse::<u8>(MF_SPINDLE_ID, raw_mid) {
         Ok(v) => header.spindle_id = v,
-        Err(e) => println!("{}", e),
+        Err(e) => error!("{}", e),
     }
 
     match field_parse::<u8>(MF_SEQUENCE_NUMBER, raw_mid) {
         Ok(v) => header.sequence_number = v,
-        Err(e) => println!("{}", e),
+        Err(e) => error!("{}", e),
     }
 
     match field_parse::<u8>(MF_NUMBER_OF_MESSAGE_PARTS, raw_mid) {
         Ok(v) => header.number_of_message_parts = v,
-        Err(e) => println!("{}", e),
+        Err(e) => error!("{}", e),
     }
 
     match field_parse::<u8>(MF_MESSAGE_PART_NUMBER, raw_mid) {
         Ok(v) => header.message_part_number = v,
-        Err(e) => println!("{}", e),
+        Err(e) => error!("{}", e),
     }
     Ok(header)
 }
