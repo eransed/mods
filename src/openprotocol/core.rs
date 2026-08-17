@@ -2,11 +2,6 @@ use std::{fmt::Debug, ops::Range, str::FromStr, u16};
 
 use tracing::{error, warn};
 
-pub trait Mid<T> {
-  fn new() -> T;
-  fn name(self) -> String;
-}
-
 pub struct MidField<'a> {
   pub name: &'a str,
   pub rng: Range<usize>,
@@ -74,21 +69,6 @@ pub struct MidHeader {
   pub number_of_message_parts: u8,
   pub message_part_number: u8,
 }
-
-// pub fn mid_header_str(h: MidHeader) -> String {
-//   format!(
-//     "{:04}{:04}{:03}{:01}{:02}{:02}{:02}{:01}{:01}",
-//     h.len,
-//     h.mid,
-//     h.rev,
-//     h.no_ack_flag,
-//     h.station_id,
-//     h.spindle_id,
-//     h.sequence_number,
-//     h.number_of_message_parts,
-//     h.message_part_number,
-//   )
-// }
 
 pub fn mid_header_str(h: MidHeader) -> String {
   let lw = MF_LEN.rng.end - MF_LEN.rng.start;
@@ -167,7 +147,7 @@ pub fn get_mid(data: &str) -> Result<u16, String> {
 }
 
 pub fn mid_parse_header(raw_mid: &str) -> Result<MidHeader, String> {
-  let mut header = MidHeader::new();
+  let mut header = MidHeader::default();
   let l = raw_mid.len();
   if l < 20 {
     println!("Mid '{}' to short, len = {}", raw_mid, l);
@@ -239,26 +219,6 @@ pub fn mid_parse_header(raw_mid: &str) -> Result<MidHeader, String> {
   Ok(header)
 }
 
-impl Mid<MidHeader> for MidHeader {
-  fn new() -> MidHeader {
-    MidHeader {
-      len: 0,
-      mid: 0,
-      rev: 0,
-      no_ack_flag: 0,
-      station_id: 0,
-      spindle_id: 0,
-      sequence_number: 0,
-      number_of_message_parts: 0,
-      message_part_number: 0,
-    }
-  }
-
-  fn name(self) -> String {
-    String::from("Raw MID header")
-  }
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -276,20 +236,20 @@ mod tests {
 
   #[test]
   fn mid_header_str_1() {
-    let h = MidHeader::new();
+    let h = MidHeader::default();
     assert_eq!(mid_header_str(h), "00000000000000000000");
   }
 
   #[test]
   fn mid_header_str_2() {
-    let mut h = MidHeader::new();
+    let mut h = MidHeader::default();
     h.len = 20;
     assert_eq!(mid_header_str(h), "00200000000000000000");
   }
 
   #[test]
   fn mid_header_str_3() {
-    let mut h = MidHeader::new();
+    let mut h = MidHeader::default();
     h.len = 20;
     h.mid = 1;
     assert_eq!(mid_header_str(h), "00200001000000000000");
@@ -297,7 +257,7 @@ mod tests {
 
   #[test]
   fn mid_header_str_4() {
-    let mut h = MidHeader::new();
+    let mut h = MidHeader::default();
     h.len = 1234;
     h.mid = 1;
     h.rev = 4;
@@ -307,7 +267,7 @@ mod tests {
 
   #[test]
   fn mid_header_str_5() {
-    let mut h = MidHeader::new();
+    let mut h = MidHeader::default();
     h.len = 1111;
     h.mid = 2222;
     h.rev = 333;
