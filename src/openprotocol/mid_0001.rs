@@ -1,4 +1,4 @@
-use crate::openprotocol::core::{Mid, MidField, MidHeader, mid_header_str};
+use crate::openprotocol::core::{MidField, MidHeader, mid_header_str};
 
 /// 5.2.1 MID 0001 Application Communication start
 /// 
