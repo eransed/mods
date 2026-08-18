@@ -36,6 +36,7 @@ sysinfo = "0.39.6"
 num = "0.4"
 num-derive = "0.4"
 num-traits = "0.2"
+strum = { version = "0.28", features = ["derive"] }
 
 [features]
 sensor = ["dep:opencv", "dep:apriltag"]

@@ -1,11 +1,70 @@
 use std::{fmt::Debug, ops::Range, str::FromStr, u16};
+use strum::{EnumString, FromRepr, IntoStaticStr};
 
 use tracing::{error, warn};
+
+pub trait Mid {
+  fn str(&self) -> String;
+}
 
 pub struct MidField<'a> {
   pub name: &'a str,
   pub rng: Range<usize>,
 }
+
+pub fn field_parse<T: std::str::FromStr>(field: MidField, data: &str) -> Result<T, String>
+where
+  <T as FromStr>::Err: std::fmt::Display,
+{
+  match data.get(field.rng.clone()) {
+    Some(v) => match v.parse::<T>() {
+      Ok(l) => return Ok(l),
+      Err(e) => {
+        let d = field.rng.end - field.rng.start;
+        if field.rng.start != field.rng.end && d > 1 {
+          return Err(format!(
+            "Could not parse field '{}' from slice '{}' of len {}: {}: parsing the message:\n\n   '{}'\n{}{}{}{}\n",
+            field.name,
+            v,
+            v.len(),
+            e,
+            data,
+            " ".repeat(field.rng.start + 3 + 1),
+            "^",
+            "^".repeat(d - 2),
+            "^"
+          ));
+        } else {
+          return Err(format!(
+            "Could not parse field '{}' from slice '{}' of len {}: {}: parsing the message:\n\n   '{}'\n{}{}\n",
+            field.name,
+            v,
+            v.len(),
+            e,
+            data,
+            " ".repeat(field.rng.start + 3 + 1),
+            "^"
+          ));
+        }
+      }
+    },
+    None => {
+      return Err(format!(
+        "Field '{}' at range {:?} not found in mid '{}' of length {}",
+        field.name,
+        field.rng,
+        data,
+        data.len()
+      ));
+    }
+  }
+}
+
+pub fn get_mid(data: &str) -> Result<u16, String> {
+  return field_parse::<u16>(MF_MID, data);
+}
+
+// Header
 
 const MF_LEN: MidField = MidField { name: "len", rng: 0..4 };
 
@@ -70,80 +129,30 @@ pub struct MidHeader {
   pub message_part_number: u8,
 }
 
-pub fn mid_header_str(h: MidHeader) -> String {
-  let lw = MF_LEN.rng.end - MF_LEN.rng.start;
-  let mw = MF_MID.rng.end - MF_MID.rng.start;
-  let rw = MF_REV.rng.end - MF_REV.rng.start;
-  let noaw = MF_NO_ACK_FLAG.rng.end - MF_NO_ACK_FLAG.rng.start;
-  let siw = MF_STATION_ID.rng.end - MF_STATION_ID.rng.start;
-  let spw = MF_SPINDLE_ID.rng.end - MF_SPINDLE_ID.rng.start;
-  let snw = MF_SEQUENCE_NUMBER.rng.end - MF_SEQUENCE_NUMBER.rng.start;
-  let nompw = MF_NUMBER_OF_MESSAGE_PARTS.rng.end - MF_NUMBER_OF_MESSAGE_PARTS.rng.start;
-  let mpnw = MF_MESSAGE_PART_NUMBER.rng.end - MF_MESSAGE_PART_NUMBER.rng.start;
-  format!(
-    "{:0lw$}{:0mw$}{:0rw$}{:0noaw$}{:0siw$}{:0spw$}{:0snw$}{:0nompw$}{:0mpnw$}",
-    h.len,
-    h.mid,
-    h.rev,
-    h.no_ack_flag,
-    h.station_id,
-    h.spindle_id,
-    h.sequence_number,
-    h.number_of_message_parts,
-    h.message_part_number
-  )
-}
-
-pub fn field_parse<T: std::str::FromStr>(field: MidField, data: &str) -> Result<T, String>
-where
-  <T as FromStr>::Err: std::fmt::Display,
-{
-  match data.get(field.rng.clone()) {
-    Some(v) => match v.parse::<T>() {
-      Ok(l) => return Ok(l),
-      Err(e) => {
-        let d = field.rng.end - field.rng.start;
-        if field.rng.start != field.rng.end && d > 1 {
-          return Err(format!(
-            "Could not parse field '{}' from slice '{}' of len {}: {}: parsing the message:\n\n   '{}'\n{}{}{}{}\n",
-            field.name,
-            v,
-            v.len(),
-            e,
-            data,
-            " ".repeat(field.rng.start + 3 + 1),
-            "^",
-            "^".repeat(d - 2),
-            "^"
-          ));
-        } else {
-          return Err(format!(
-            "Could not parse field '{}' from slice '{}' of len {}: {}: parsing the message:\n\n   '{}'\n{}{}\n",
-            field.name,
-            v,
-            v.len(),
-            e,
-            data,
-            " ".repeat(field.rng.start + 3 + 1),
-            "^"
-          ));
-        }
-      }
-    },
-    None => {
-      return Err(format!(
-        "Field '{}' at range {:?} not found in mid '{}' of length {}",
-        field.name,
-        field.rng,
-        data,
-        data.len()
-      ));
-    }
+impl Mid for MidHeader {
+  fn str(&self) -> String {
+    let lw = MF_LEN.rng.end - MF_LEN.rng.start;
+    let mw = MF_MID.rng.end - MF_MID.rng.start;
+    let rw = MF_REV.rng.end - MF_REV.rng.start;
+    let noaw = MF_NO_ACK_FLAG.rng.end - MF_NO_ACK_FLAG.rng.start;
+    let siw = MF_STATION_ID.rng.end - MF_STATION_ID.rng.start;
+    let spw = MF_SPINDLE_ID.rng.end - MF_SPINDLE_ID.rng.start;
+    let snw = MF_SEQUENCE_NUMBER.rng.end - MF_SEQUENCE_NUMBER.rng.start;
+    let nompw = MF_NUMBER_OF_MESSAGE_PARTS.rng.end - MF_NUMBER_OF_MESSAGE_PARTS.rng.start;
+    let mpnw = MF_MESSAGE_PART_NUMBER.rng.end - MF_MESSAGE_PART_NUMBER.rng.start;
+    format!(
+      "{:0lw$}{:0mw$}{:0rw$}{:0noaw$}{:0siw$}{:0spw$}{:0snw$}{:0nompw$}{:0mpnw$}",
+      self.len,
+      self.mid,
+      self.rev,
+      self.no_ack_flag,
+      self.station_id,
+      self.spindle_id,
+      self.sequence_number,
+      self.number_of_message_parts,
+      self.message_part_number
+    )
   }
-}
-
-pub fn get_mid(data: &str) -> Result<u16, String> {
-  return field_parse::<u16>(MF_MID, data);
 }
 
 pub fn mid_parse_header(raw_mid: &str) -> Result<MidHeader, String> {
@@ -219,10 +228,60 @@ pub fn mid_parse_header(raw_mid: &str) -> Result<MidHeader, String> {
   Ok(header)
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, IntoStaticStr, FromRepr, Default, EnumString)]
+pub enum MidName {
+  // Application Communication messages
+  #[default]
+  #[strum(serialize = "Application Communication start")]
+  ApplicationCommunicationStart = 1,
+  #[strum(serialize = "Application Communication start acknowledge")]
+  ApplicationCommunicationStartAcknowledge = 2,
+  #[strum(serialize = "Application Communication stop")]
+  ApplicationCommunicationStop = 3,
+  #[strum(serialize = "Application Communication negative acknowledge")]
+  ApplicationCommunicationNegativeAcknowledge = 4,
+  #[strum(serialize = "Application Communication positive acknowledge")]
+  ApplicationCommunicationPositiveAcknowledge = 5,
+  #[strum(serialize = "Application data message request")]
+  ApplicationDataMessageRequest = 6,
+  #[strum(serialize = "MID 0007 DOES NOT EXIST")]
+  Mid0007DoesNotExist = 7,
+  #[strum(serialize = "Application data message subscription")]
+  ApplicationDataMessageSubscription = 8,
+  #[strum(serialize = "Application Data Message unsubscribe")]
+  ApplicationDataMessageUnsubscribe = 9,
+
+  // Application Parameter Set Messages
+  #[strum(serialize = "Parameter set ID upload request")]
+  ParameterSetIdUploadRequest = 10,
+  #[strum(serialize = "Parameter set ID upload reply")]
+  ParameterSetIdUploadReply = 11,
+  #[strum(serialize = "Parameter set data upload request")]
+  ParameterSetDataUploadRequest = 12,
+  
+  // Application Keep alive message
+  #[strum(serialize = "Keep alive message")]
+  KeepAliveMessage = 9999,
+}
+
 #[cfg(test)]
 mod tests {
 
   use super::*;
+
+  #[test]
+  fn mid_1_name() {
+    let mn = MidName::ApplicationCommunicationStart;
+    assert_eq!(mn, MidName::from_str("Application Communication start").unwrap());
+    assert_eq!(mn, MidName::from_repr(1).unwrap());
+  }
+
+  #[test]
+  fn mid_2_name() {
+    let mn = MidName::ApplicationCommunicationStartAcknowledge;
+    assert_eq!(mn, MidName::from_str("Application Communication start acknowledge").unwrap());
+    assert_eq!(mn, MidName::from_repr(2).unwrap());
+  }
 
   #[test]
   fn mid_header_valid_mid42_rev1_zeros_ok() {
@@ -237,14 +296,14 @@ mod tests {
   #[test]
   fn mid_header_str_1() {
     let h = MidHeader::default();
-    assert_eq!(mid_header_str(h), "00000000000000000000");
+    assert_eq!(h.str(), "00000000000000000000");
   }
 
   #[test]
   fn mid_header_str_2() {
     let mut h = MidHeader::default();
     h.len = 20;
-    assert_eq!(mid_header_str(h), "00200000000000000000");
+    assert_eq!(h.str(), "00200000000000000000");
   }
 
   #[test]
@@ -252,7 +311,7 @@ mod tests {
     let mut h = MidHeader::default();
     h.len = 20;
     h.mid = 1;
-    assert_eq!(mid_header_str(h), "00200001000000000000");
+    assert_eq!(h.str(), "00200001000000000000");
   }
 
   #[test]
@@ -262,7 +321,7 @@ mod tests {
     h.mid = 1;
     h.rev = 4;
     h.no_ack_flag = 1;
-    assert_eq!(mid_header_str(h), "12340001004100000000");
+    assert_eq!(h.str(), "12340001004100000000");
   }
 
   #[test]
@@ -277,7 +336,7 @@ mod tests {
     h.sequence_number = 77;
     h.number_of_message_parts = 8;
     h.message_part_number = 9;
-    assert_eq!(mid_header_str(h), "11112222333455667789");
+    assert_eq!(h.str(), "11112222333455667789");
   }
 
   // Error tests

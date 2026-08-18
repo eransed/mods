@@ -1,9 +1,19 @@
 use num_derive::FromPrimitive;
+use crate::openprotocol::core::Mid;
 use crate::openprotocol::core::MidField;
 use crate::openprotocol::core::MidHeader;
 use crate::openprotocol::core::field_parse;
 use crate::openprotocol::core::mid_parse_header;
 
+const MF_0004_MID_NUMBER: MidField = MidField {
+    name: "mid_number",
+    rng: 20..24,
+};
+
+const MF_0004_ERROR_CODE: MidField = MidField {
+    name: "error_code",
+    rng: 24..26,
+};
 /// 5.2.4 MID 0004 Application Communication negative acknowledge
 /// 
 /// This message is used by the controller when a request, command or subscription for any reason has
@@ -23,7 +33,7 @@ use crate::openprotocol::core::mid_parse_header;
 /// Message sent by: Controller:
 /// 
 /// Answer: None
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct Mid0004 {
     pub header: MidHeader,
     /// MID number (rejected mid number)
@@ -32,19 +42,14 @@ pub struct Mid0004 {
     pub error_code: Mid0004ErrorCode,
 }
 
-pub fn print_header(m: Mid0004) {
-    println!("{:#?}", m.header);
+impl Mid for Mid0004 {
+    fn str(&self) -> String {
+        let mut s = self.header.str();
+        s.push_str(format!("{:04}", self.mid_number).as_str());
+        s.push_str(format!("{:02}", self.error_code as i32).as_str());
+        return s;
+    }
 }
-
-const MF_0004_MID_NUMBER: MidField = MidField {
-    name: "mid_number",
-    rng: 20..24,
-};
-
-const MF_0004_ERROR_CODE: MidField = MidField {
-    name: "error_code",
-    rng: 24..26,
-};
 
 pub fn mid_parse_0004(data: &str) -> Result<Mid0004, String> {
     let mut m4 = Mid0004 {
@@ -84,7 +89,16 @@ pub fn mid_parse_0004(data: &str) -> Result<Mid0004, String> {
 #[cfg(test)]
 mod tests {
 
-    use super::*;
+    use std::str::FromStr;
+
+use crate::openprotocol::core::MidName;
+
+use super::*;
+
+  #[test]
+    fn mid_0004_name() {
+        assert_eq!(MidName::from_repr(4).unwrap(), MidName::from_str("Application Communication negative acknowledge").unwrap());
+    }
 
     #[test]
     fn mid_0004_parse_valid_mid_0004_rev_1_1() {
@@ -191,9 +205,9 @@ mod tests {
     }
 }
 
-#[derive(FromPrimitive, Debug, Copy, Clone, PartialEq)]
+#[derive(FromPrimitive, Debug, Copy, Clone, PartialEq, Default)]
 pub enum Mid0004ErrorCode {
-    NoError = 0,
+    #[default] NoError = 0,
     InvalidData = 1,
     ParmeterSetIdNotPresent = 2,
     ParameterSetCanNotBeSet = 3,
