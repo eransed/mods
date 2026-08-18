@@ -76,12 +76,13 @@ fn main() {
 
   let ocv_ver_str;
 
-  #[cfg(not(feature = "sensor"))] {
+  #[cfg(not(feature = "sensor"))]
+  {
     ocv_ver_str = String::from("Compiled without opencv");
   }
 
-  #[cfg(feature = "sensor")] {
-
+  #[cfg(feature = "sensor")]
+  {
     let opencv_version = cross_command!("opencv_version").expect("Failed to read opencv_version");
     println!("cargo::rustc-check-cfg=cfg(opencv_pre_411)");
     println!("cargo::rustc-check-cfg=cfg(opencv4)");
@@ -103,7 +104,6 @@ fn main() {
     } else if ocv_ver_str.starts_with("5.") {
       println!("cargo::rustc-cfg=opencv5");
     }
-
   }
 
   println!("cargo::rustc-link-search=native=/usr/local/lib");

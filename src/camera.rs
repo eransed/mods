@@ -41,10 +41,7 @@ pub struct Frequency {
 
 impl Frequency {
   pub fn new() -> Self {
-    Self {
-      start: Instant::now(),
-      count: 0,
-    }
+    Self { start: Instant::now(), count: 0 }
   }
 
   pub fn update(&mut self) -> f32 {

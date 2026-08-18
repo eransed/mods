@@ -88,12 +88,8 @@ impl WsServer {
             let mut clients = clients.lock().await;
             clients.retain(|client| client.send(WsMessage::Text(text.clone())).is_ok());
           }
-          Message::SystemStatus {cpu_percent, ram_percent, pid_mem_bytes} => {
-            let m = Message::SystemStatus {
-              cpu_percent,
-              ram_percent,
-              pid_mem_bytes,
-            };
+          Message::SystemStatus { cpu_percent, ram_percent, pid_mem_bytes } => {
+            let m = Message::SystemStatus { cpu_percent, ram_percent, pid_mem_bytes };
             let j = serde_json::to_string(&m).unwrap();
             let mut clients = clients.lock().await;
             clients.retain(|client| client.send(WsMessage::Text(j.clone())).is_ok());

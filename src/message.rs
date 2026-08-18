@@ -8,7 +8,7 @@ pub enum Message {
   Ping { sender: &'static str },
   Pong { sender: &'static str },
   Discovery(DiscoveryEvent),
-  SystemStatus {cpu_percent: f32, ram_percent: f32, pid_mem_bytes: u64},
+  SystemStatus { cpu_percent: f32, ram_percent: f32, pid_mem_bytes: u64 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

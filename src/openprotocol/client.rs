@@ -4,6 +4,4 @@ pub struct Client {
   config: Config,
 }
 
-pub async fn client(config: &Config) {
-
-}
+pub async fn client(config: &Config) {}

@@ -5,20 +5,22 @@ mod config;
 mod http;
 mod logging;
 mod message;
+mod openprotocol;
 mod udp_discovery_server;
 mod util;
 mod ws_client;
 mod ws_server;
-mod openprotocol;
 
 use crate::logging::init_tracing;
 use crate::message::Message;
+use crate::openprotocol::core::MidName;
 use crate::openprotocol::mid_0002::Mid0002;
 use config::ConfigModule;
 use http::HttpModule;
 use std::net::IpAddr;
 use std::time::Duration;
 use std::time::Instant;
+use strum::IntoEnumIterator;
 use sysinfo::MemoryRefreshKind;
 use sysinfo::Pid;
 use sysinfo::System;
@@ -272,13 +274,15 @@ async fn main() {
 
   info!("Current working directory: {}", std::env::current_dir().unwrap().display());
 
-
   let mut mid2 = Mid0002::default();
   mid2.rev1.controller_name = String::from("test");
 
-
   println!("{:#?}", mid2);
 
+  println!("Available MIDs:");
+  for mid_name in MidName::iter() {
+    println!("MID {:04} {}", mid_name as u16, mid_name.as_ref());
+  }
 
   // handle stop signals and shutdown
 

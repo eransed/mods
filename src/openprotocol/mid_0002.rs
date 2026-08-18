@@ -1,3 +1,5 @@
+use tracing::error;
+
 use crate::openprotocol::core::{Mid, MidField, MidHeader, field_parse, mid_parse_header};
 
 // MID 0002
@@ -78,6 +80,7 @@ impl Mid for Mid0002 {
     } else if rev == 6 {
       221
     } else {
+      error!("Unvalid revision: {} for MID 0002", rev);
       self.header.len
     };
 
@@ -130,11 +133,13 @@ impl Mid for Mid0002 {
       s.push_str(format!("15{:0stani$}", self.rev6.station_name).as_str());
       s.push_str(format!("16{:0cii$}", self.rev6.client_id).as_str());
     } else {
-      panic!("Unexpected mid revision {} when serializing mid {}", self.header.rev, self.header.mid);
+      panic!(
+        "Unexpected mid revision {} when serializing mid {}",
+        self.header.rev, self.header.mid
+      );
     }
     s
   }
-
 }
 
 pub fn mid_parse_0002(data: &str) -> Result<Mid0002, String> {

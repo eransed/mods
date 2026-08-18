@@ -1,5 +1,5 @@
 use std::{fmt::Debug, ops::Range, str::FromStr, u16};
-use strum::{EnumString, FromRepr, IntoStaticStr};
+use strum::{AsRefStr, EnumIter, EnumString, FromRepr, IntoStaticStr};
 
 use tracing::{error, warn};
 
@@ -228,7 +228,18 @@ pub fn mid_parse_header(raw_mid: &str) -> Result<MidHeader, String> {
   Ok(header)
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, IntoStaticStr, FromRepr, Default, EnumString)]
+#[derive(
+  Debug,
+  Copy,
+  Clone,
+  PartialEq,
+  IntoStaticStr,
+  FromRepr,
+  Default,
+  EnumString,
+  EnumIter,
+  AsRefStr
+)]
 pub enum MidName {
   // Application Communication messages
   #[default]
@@ -258,7 +269,7 @@ pub enum MidName {
   ParameterSetIdUploadReply = 11,
   #[strum(serialize = "Parameter set data upload request")]
   ParameterSetDataUploadRequest = 12,
-  
+
   // Application Keep alive message
   #[strum(serialize = "Keep alive message")]
   KeepAliveMessage = 9999,
