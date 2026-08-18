@@ -1,12 +1,12 @@
 use crate::openprotocol::core::{Mid, MidHeader, mid_parse_header};
 
 /// 5.2.3 MID 0003 Application Communication stop
-/// 
+///
 /// This message disables the communication. The controller will stop to respond to any commands
 /// except for MID 0001 Communication start after receiving this command.
-/// 
+///
 /// Message sent by: Integrator
-/// 
+///
 /// Answer: MID 0005 Command accepted
 #[derive(Debug, Default)]
 pub struct Mid0003 {
