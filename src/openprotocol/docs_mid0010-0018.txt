@@ -1,0 +1,620 @@
+
+5.3 Application Parameter Set Messages
+5.3.1 MID 0010 Parameter set ID upload request
+A request to get the valid parameter set IDs from the controller.
+Message sent by:
+Answer:
+
+Integrator
+MID 0011 Parameter set ID upload reply
+
+For header description see section 2.2.2!
+
+5.3.2 MID 0011 Parameter set ID upload reply
+The transmission of all the valid parameter set IDs of the controller. In the revision 000-001 the data
+field contains the number of valid parameter sets currently present in the controller, and the ID of each
+parameter set present. In revision 2 is the number of stages on each Pset/Mset added.
+Message sent by:
+Answer:
+
+Controller
+None
+
+Example: parameter set 1 and 2 are present in the controller.
+00290011
+
+002001002NUL
+
+For header description see section 2.2.2!
+Table 25 MID 0011 Rev 1
+Parameter
+The number of
+parameter
+sets/multistage in the
+controller
+
+Byte
+
+Value
+
+21-23
+
+Three ASCII digits. Range: 000-999
+
+The ID of each
+parameter
+24-(23+Npset*3)
+set/multistage present
+
+Three ASCII digits for each parameter
+se/multistage
+
+Table 26 MID 0011 additions for revision 2
+Parameter
+
+Byte
+
+The number of cycles
+= stages for each
+Pset/Multistage ID
+
+(24+Npset*3)(23+Npset*5)
+
+Value
+Two ASCII digits. Range: 00-99
+For a single Pset: 1, 2 or more stages.
+For a Multistage:
+Numb. of Multistage stages (Psets) * (
+Number of Pset stages)
+Ex. 5 Multistage stages and 1 pset with 1
+stage and four Psets with two stages each,
+will be (1*1 + 4 *2) = 9 stages in total.
+
+2.15.0
+
+79 (302)
+
+All messages
+Table 27 MID 0011 additions for revision 3
+Parameter
+Type of Program
+
+Byte
+(24+Npset*5)(24+Npset*9)
+
+Value
+Four ASCII character for strings: “Mset” or
+“Pset” telling if Pset or Multistage
+
+Table 28 MID 0011 additions for revision 4
+Parameter
+Date of last change in
+parameter set setting
+
+Byte
+(24+Npset*9)(24+Npset*28)
+
+Value
+19 ASCII characters YYYY-MMDD:HH:MM:SS
+
+5.3.3 MID 0012 Parameter set data upload request
+Request to upload parameter set data from the controller.
+Message sent by: Integrator
+Answer:
+MID 0013 Parameter set data upload reply, or
+MID 0004 Command error, Parameter set not present
+
+Example: Request to upload parameter set data for parameter set 1.
+00230012
+
+001NUL
+
+For header description see section 2.2.2!
+
+Table 29 MID 0012 Rev 1, Rev 2 and Rev 5
+Parameter
+Parameter set ID
+
+Byte
+21-23
+
+Value
+Three ASCII digits. Range: 000-999
+
+Table 30 MID 0012 Rev 3 and Rev 4
+Parameter
+Pset file version
+
+Byte
+24-31
+
+Value
+00000000 (special usage see Toyota appendix)
+
+5.3.4 MID 0013 Parameter set data upload reply
+Upload of parameter set data reply.
+
+
+
+
+Message sent by: Controller
+
+Answer: None
+
+Example: Upload parameter set data for parameter set 1 called Airbag 1.
+01040013
+0100102Airbag1
+0600150007001400080036009007201000480NUL
+80 (302)
+
+2.15.0
+
+031040305001200
+
+All messages
+
+For header description see section 2.2.2!
+Table 31 MID 0013 Revision 1
+Parameter
+Parameter set ID
+Parameter set name
+
+Rotation direction
+Batch size
+Torque min
+
+Torque max
+
+Torque final target
+
+Angle min
+
+Angle max
+
+Final Angle Target
+
+Byte
+
+Value
+
+21-22
+
+01
+
+23-25
+
+Three ASCII digits, range 000-999
+
+26-27
+
+02
+
+28-52
+
+25 ASCII characters. Right padded with space if
+name is less than 25 characters.
+
+53-54
+
+03
+
+55
+
+1=CW, 2=CCW
+
+56-57
+
+04
+
+58-59
+
+2 ASCII digits, range 00-99
+
+60-61
+
+05
+
+62-67
+
+The torque min limit is multiplied by 100 and sent as
+an integer
+(2 decimals truncated). It is six bytes long and is
+specified by six ASCII digits.
+
+68-69
+
+06
+
+70-75
+
+The torque max limit is multiplied by 100 and sent as
+an integer
+(2 decimals truncated. It is six bytes long and is
+specified by six ASCII digits.
+
+76-77
+
+07
+
+78-83
+
+The torque final target is multiplied by 100 and sent
+as an integer (2 decimals truncated). It is six bytes
+long and is specified by six ASCII digits.
+
+84-85
+
+08
+
+86-90
+
+The angle min value is five bytes long and is
+specified by five ASCII digits. Range: 00000-99999.
+
+91-92
+
+09
+
+93-97
+
+The angle max value is five bytes long and is
+specified by five ASCII digits. Range: 00000-99999.
+
+98-99
+
+10
+
+100-104
+
+The target angle is specified in degrees. 5 ASCII
+digits. Range: 00000-99999.
+
+2.15.0
+
+81 (302)
+
+All messages
+Table 32 MID 0013 additions for revision 2
+Parameter
+First Target
+
+Start final angle
+
+Byte
+
+Value
+
+105-106
+
+11
+
+107-112
+
+The torque first target is multiplied by 100 and sent
+as an integer
+(2 decimals truncated). It is six bytes long and is
+specified by six ASCII digits.
+
+113-114
+
+12
+
+115-120
+
+The start final angle is the torque to reach the snug
+level. The start final angle is multiplied by 100 and
+sent as an integer
+(2 decimals truncated). It is six bytes long and is
+specified by six ASCII digits.
+
+Table 33 MID 0013 Revision 3 and 4
+Parameter
+
+Byte
+
+Value
+
+Pset file version
+
+21-28
+
+N/A
+
+Parameter set data
+
+29variable
+
+See Toyota appendix
+
+Important note: MID 0013 Revision 5 is continuation of MID 0013 revision 2.
+
+Table 34 MID 0013 Revision 5, Continuation of revision 2
+Parameter
+Date of last change in
+parameter set setting
+
+Byte
+
+Value
+
+121-122
+
+13
+
+123-141
+
+19 ASCII characters, YYYY-MM-DD:HH:MM:SS
+
+5.3.5 MID 0014 Parameter set selected subscribe
+A subscription for the parameter set selection. Each time a new parameter set is selected the MID 0015
+Parameter set selected is sent to the integrator. Note that the immediate response is MID 0005 Command
+accepted and MID 0015 Parameter set selected with the current parameter set number selected.
+Message sent by:
+Answer:
+
+Integrator
+MID 0005 Command accepted and MID 0015 Parameter set selected
+
+For header description see section 2.2.2!
+
+82 (302)
+
+2.15.0
+
+All messages
+
+5.3.6 MID 0015 Parameter set selected
+A new parameter set is selected in the controller. The message includes the ID of the parameter set
+selected as well as the date and time of the last change in the parameter set settings. This message is
+also sent as an immediate response to MID 0014 Parameter set selected subscribe.
+Message sent by:
+Answer:
+
+Controller
+MID 0016 New parameter set selected acknowledge
+
+For header description see section 2.2.2!
+
+Table 35 MID 0015 Revision 1
+Parameter
+
+Byte
+
+Value
+
+Parameter set ID
+
+21-23
+
+Three ASCII digits, range 000-999
+
+Date of last change in
+parameter set setting
+
+24-42
+
+19 ASCII characters. YYYY-MM-DD:HH:MM:SS
+
+Table 36 MID 0015 Revision 2
+Parameter
+Parameter set ID
+
+Byte
+
+Value
+
+21-22
+
+01
+
+23-25
+
+Three ASCII digits, range 000-999
+
+26-27
+
+02
+
+28-52
+
+25 ASCII characters. Right padded with space if
+name is less than 25 characters.
+
+53-54
+
+03
+
+Date of last change in
+parameter set setting
+
+55-73
+
+19 ASCII characters. YYYY-MM-DD:HH:MM:SS
+
+Rotation direction
+
+74-75
+
+04
+
+76
+
+1=CW, 2=CCW
+
+77-78
+
+05
+
+79-80
+
+2 ASCII digits, range 00-99
+
+81-82
+
+06
+
+83-88
+
+The torque min limit is multiplied by 100 and sent as
+an integer
+(2 decimals truncated). It is six bytes long and is
+specified by six ASCII digits.
+
+89-90
+
+07
+
+91-96
+
+The torque max limit is multiplied by 100 and sent as
+an integer
+(2 decimals truncated. It is six bytes long and is
+specified by six ASCII digits.
+
+97-98
+
+08
+
+99-104
+
+The torque final target is multiplied by 100 and sent
+as an integer (2 decimals truncated). It is six bytes
+long and is specified by six ASCII digits.
+
+Parameter set name
+
+Batch size
+Torque min
+
+Torque max
+
+Torque final target
+
+2.15.0
+
+83 (302)
+
+All messages
+Parameter
+Angle min
+
+Angle max
+
+Final Angle Target
+
+First Target
+
+Start final angle
+
+84 (302)
+
+Byte
+
+Value
+
+105-106
+
+09
+
+107-111
+
+The angle min value is five bytes long and is
+specified by five ASCII digits. Range: 00000-99999.
+
+111-112
+
+10
+
+113-117
+
+The angle max value is five bytes long and is
+specified by five ASCII digits. Range: 00000-99999.
+
+118-119
+
+11
+
+120-124
+
+The target angle is specified in degrees. 5 ASCII
+digits. Range: 00000-99999.
+
+125-126
+
+12
+
+127-132
+
+The torque first target is multiplied by 100 and sent
+as an integer
+(2 decimals truncated). It is six bytes long and is
+specified by six ASCII digits.
+
+133-134
+
+13
+
+135-141
+
+The start final angle is the torque to reach the snug
+level. The start final angle is multiplied by 100 and
+sent as an integer
+(2 decimals truncated). It is six bytes long and is
+specified by six ASCII digits.
+
+2.15.0
+
+All messages
+
+5.3.7 MID 0016 Parameter set selected acknowledge
+Acknowledgement for a new parameter set selected.
+Message sent by:
+Answer:
+
+Integrator
+None
+
+For header description see section 2.2.2!
+
+5.3.8 MID 0017 Parameter set selected unsubscribe
+Reset the subscription for the parameter set selection.
+Message sent by:
+Answer:
+
+Integrator
+MID 0005 Command accepted or
+MID 0004 Command error, Parameter set subscription does not exist
+
+For header description see section 2.2.2!
+
+5.3.9 MID 0018 Select Parameter set
+Select a parameter set.
+Message sent by:
+Answer:
+
+Integrator
+MID 0005 Command accepted or
+MID 0004 Command error, Parameter set can not be set
+
+Note!
+For an PF3000/4000 with Open protocol version 1.2.1 or later, configured with selector accessory configured with
+“confirm” or “confirm with Ack” the answer will be Command accepted if it is possible for the operator to select the
+Pset via choosing the correct socket on the selector.
+The Pset will then be automatically selected when the operator chooses the correct socket from the selector.
+Subscription of the currently selected Pset via MID 0014 will show when the operator has selected the correct
+Pset.
+
+For header description see section 2.2.2!
+Table 37 MID 0018 Revision 1
+Parameter
+Parameter set ID
+
+Byte
+21-23
+
+Value
+Three ASCII digits, range 000-999
+
+2.15.0
+
+85 (302)

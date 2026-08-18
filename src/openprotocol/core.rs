@@ -269,6 +269,18 @@ pub enum MidName {
   ParameterSetIdUploadReply = 11,
   #[strum(serialize = "Parameter set data upload request")]
   ParameterSetDataUploadRequest = 12,
+  #[strum(serialize = "Parameter set data upload reply")]
+  ParameterSetDataUploadReply = 13,
+  #[strum(serialize = "Parameter set selected subscribe")]
+  ParameterSetSelectedSubscribe = 14,
+  #[strum(serialize = "Parameter set selected")]
+  ParameterSetSelected = 15,
+  #[strum(serialize = "Parameter set selected acknowledge")]
+  ParameterSetSelectedAcknowledge = 16,
+  #[strum(serialize = "Parameter set selected unsubscribe")]
+  ParameterSetSelectedUnsubscribe = 17,
+  #[strum(serialize = "Select Parameter set")]
+  SelectParameterSet = 18,
 
   // Application Keep alive message
   #[strum(serialize = "Keep alive message")]
