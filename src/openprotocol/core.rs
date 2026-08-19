@@ -7,6 +7,20 @@ pub trait Mid {
   fn str(&self) -> String;
 }
 
+pub fn parse(data: &str, expected_mid: u16) -> Result<(MidHeader, String), String> {
+  let header = mid_parse_header(data)?;
+  if header.mid != expected_mid {
+    return Err(format!("Unexpected mid {} when parsing for mid {}", header.mid, expected_mid));
+  }
+  Ok((header, data.get(20..).unwrap_or_default().to_string()))
+}
+
+pub fn serialize(header: MidHeader, data: &str) -> String {
+  let mut header = header;
+  header.len = (20 + data.len()) as u16;
+  format!("{}{}", header.str(), data)
+}
+
 pub struct MidField<'a> {
   pub name: &'a str,
   pub rng: Range<usize>,
@@ -281,6 +295,108 @@ pub enum MidName {
   ParameterSetSelectedUnsubscribe = 17,
   #[strum(serialize = "Select Parameter set")]
   SelectParameterSet = 18,
+  #[strum(serialize = "Set Parameter set batch size")]
+  SetParameterSetBatchSize = 19,
+  #[strum(serialize = "Reset Parameter set batch counter")]
+  ResetParameterSetBatchCounter = 20,
+  #[strum(serialize = "Lock at batch done subscribe")]
+  LockAtBatchDoneSubscribe = 21,
+  #[strum(serialize = "Lock at batch done upload")]
+  LockAtBatchDoneUpload = 22,
+  #[strum(serialize = "Lock at batch done upload acknowledge")]
+  LockAtBatchDoneUploadAcknowledge = 23,
+  #[strum(serialize = "Lock at batch done unsubscribe")]
+  LockAtBatchDoneUnsubscribe = 24,
+  #[strum(serialize = "Parameter user set download request")]
+  ParameterUserSetDownloadRequest = 25,
+  #[strum(serialize = "Disable tool")]
+  DisableTool = 42,
+  #[strum(serialize = "Enable tool")]
+  EnableTool = 43,
+  #[strum(serialize = "Vehicle ID number download request")]
+  VehicleIdNumberDownloadRequest = 50,
+  #[strum(serialize = "Vehicle ID number subscribe")]
+  VehicleIdNumberSubscribe = 51,
+  #[strum(serialize = "Vehicle ID number")]
+  VehicleIdNumber = 52,
+  #[strum(serialize = "Vehicle ID number acknowledge")]
+  VehicleIdNumberAcknowledge = 53,
+  #[strum(serialize = "Vehicle ID number unsubscribe")]
+  VehicleIdNumberUnsubscribe = 54,
+  #[strum(serialize = "Last tightening result data subscribe")]
+  LastTighteningResultDataSubscribe = 60,
+  #[strum(serialize = "Last tightening result data")]
+  LastTighteningResultData = 61,
+  #[strum(serialize = "Last tightening result data acknowledge")]
+  LastTighteningResultDataAcknowledge = 62,
+  #[strum(serialize = "Last tightening result data unsubscribe")]
+  LastTighteningResultDataUnsubscribe = 63,
+  #[strum(serialize = "Old tightening result upload request")]
+  OldTighteningResultUploadRequest = 64,
+  #[strum(serialize = "Old tightening result upload reply")]
+  OldTighteningResultUploadReply = 65,
+  #[strum(serialize = "Number of offline results")]
+  NumberOfOfflineResults = 66,
+  #[strum(serialize = "Tightening Result List Upload")]
+  TighteningResultListUpload = 67,
+  #[strum(serialize = "Alarm subscribe")]
+  AlarmSubscribe = 70,
+  #[strum(serialize = "Alarm")]
+  Alarm = 71,
+  #[strum(serialize = "Alarm acknowledge")]
+  AlarmAcknowledge = 72,
+  #[strum(serialize = "Alarm unsubscribe")]
+  AlarmUnsubscribe = 73,
+  #[strum(serialize = "Read time upload request")]
+  ReadTimeUploadRequest = 80,
+  #[strum(serialize = "Read time upload reply")]
+  ReadTimeUploadReply = 81,
+  #[strum(serialize = "Set time")]
+  SetTime = 82,
+  #[strum(serialize = "Identifier download request")]
+  IdentifierDownloadRequest = 150,
+  #[strum(serialize = "Set externally controlled relays")]
+  SetExternallyControlledRelays = 200,
+  #[strum(serialize = "Status externally monitored inputs subscribe")]
+  StatusExternallyMonitoredInputsSubscribe = 210,
+  #[strum(serialize = "Status externally monitored inputs")]
+  StatusExternallyMonitoredInputs = 211,
+  #[strum(serialize = "Status externally monitored inputs acknowledge")]
+  StatusExternallyMonitoredInputsAcknowledge = 212,
+  #[strum(serialize = "Status externally monitored inputs unsubscribe")]
+  StatusExternallyMonitoredInputsUnsubscribe = 213,
+  #[strum(serialize = "IO device status request")]
+  IoDeviceStatusRequest = 214,
+  #[strum(serialize = "IO device status reply")]
+  IoDeviceStatusReply = 215,
+  #[strum(serialize = "Relay function subscribe")]
+  RelayFunctionSubscribe = 216,
+  #[strum(serialize = "Relay function")]
+  RelayFunction = 217,
+  #[strum(serialize = "Relay function acknowledge")]
+  RelayFunctionAcknowledge = 218,
+  #[strum(serialize = "Relay function unsubscribe")]
+  RelayFunctionUnsubscribe = 219,
+  #[strum(serialize = "Digital input function subscribe")]
+  DigitalInputFunctionSubscribe = 220,
+  #[strum(serialize = "Digital input function")]
+  DigitalInputFunction = 221,
+  #[strum(serialize = "Digital input function acknowledge")]
+  DigitalInputFunctionAcknowledge = 222,
+  #[strum(serialize = "Digital input function unsubscribe")]
+  DigitalInputFunctionUnsubscribe = 223,
+  #[strum(serialize = "Set digital input function")]
+  SetDigitalInputFunction = 224,
+  #[strum(serialize = "Reset digital input function")]
+  ResetDigitalInputFunction = 225,
+  #[strum(serialize = "Selector socket info subscribe")]
+  SelectorSocketInfoSubscribe = 250,
+  #[strum(serialize = "Selector socket info")]
+  SelectorSocketInfo = 251,
+  #[strum(serialize = "Selector socket info acknowledge")]
+  SelectorSocketInfoAcknowledge = 252,
+  #[strum(serialize = "Selector socket info unsubscribe")]
+  SelectorSocketInfoUnsubscribe = 253,
 
   // Application Keep alive message
   #[strum(serialize = "Keep alive message")]
