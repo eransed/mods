@@ -25,6 +25,7 @@ use sysinfo::MemoryRefreshKind;
 use sysinfo::Pid;
 use sysinfo::System;
 
+use clap::Parser;
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
@@ -34,18 +35,17 @@ use types::Config;
 use udp_discovery_server::DiscoveryServer;
 use ws_client::WsClient;
 use ws_server::WsServer;
-use clap::Parser;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Name of the person to greet
-    #[arg(short, long, default_value_t = String::from("Unknown"))]
-    name: String,
+  /// Name of the person to greet
+  #[arg(short, long, default_value_t = String::from("Unknown"))]
+  name: String,
 
-    /// Number of times to greet
-    #[arg(short, long, default_value_t = 1)]
-    count: u8,
+  /// Number of times to greet
+  #[arg(short, long, default_value_t = 1)]
+  count: u8,
 }
 
 fn init_tracing_guard(config: &Config) -> WorkerGuard {
@@ -256,6 +256,11 @@ async fn main() {
       std::process::exit(1);
     }
   };
+
+  tokio::spawn(async move {
+    let c = openprotocol::config::Config { mid_0001_revision: 6 };
+    openprotocol::client::client(&c).await.expect("Failed to run Open Protocol client");
+  });
 
   tokio::spawn(async move {
     config_module.run().await;

@@ -1,3 +1,3 @@
 pub struct Config {
-  pub mid_0002_revision: u8,
+  pub mid_0001_revision: u8,
 }

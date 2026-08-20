@@ -26,6 +26,16 @@ pub struct MidField<'a> {
   pub rng: Range<usize>,
 }
 
+pub fn field_parse_with_default<T: std::str::FromStr>(field: MidField, data: &str, default: T) -> T
+where
+  <T as FromStr>::Err: std::fmt::Display,
+{
+  match field_parse::<T>(field, data) {
+    Ok(v) => v,
+    Err(_) => default,
+  }
+}
+
 pub fn field_parse<T: std::str::FromStr>(field: MidField, data: &str) -> Result<T, String>
 where
   <T as FromStr>::Err: std::fmt::Display,
@@ -190,13 +200,12 @@ pub fn mid_parse_header(raw_mid: &str) -> Result<MidHeader, String> {
 
   match field_parse::<u16>(MF_MID, raw_mid) {
     Ok(v) => header.mid = v,
-    Err(e) => error!("{}", e),
+    Err(e) => {
+      error!("{}", e)
+    }
   }
 
-  match field_parse::<u16>(MF_REV, raw_mid) {
-    Ok(v) => header.rev = v,
-    Err(e) => error!("{}", e),
-  }
+  header.rev = field_parse_with_default(MF_REV, raw_mid, 0);
 
   if header.len < 20 {
     return Err(format!("Invalid length '{}' when parsing the mid header", header.len));
@@ -206,39 +215,16 @@ pub fn mid_parse_header(raw_mid: &str) -> Result<MidHeader, String> {
     return Err(format!("Invalid mid '{}' when parsing the mid header", header.mid));
   }
 
-  if header.rev < 1 || header.rev > 9999 {
+  if header.rev > 9999 {
     return Err(format!("Invalid revision '{}' when parsing the mid header", header.rev));
   }
 
-  match field_parse::<u8>(MF_NO_ACK_FLAG, raw_mid) {
-    Ok(v) => header.no_ack_flag = v,
-    Err(e) => error!("{}", e),
-  }
-
-  match field_parse::<u8>(MF_STATION_ID, raw_mid) {
-    Ok(v) => header.station_id = v,
-    Err(e) => error!("{}", e),
-  }
-
-  match field_parse::<u8>(MF_SPINDLE_ID, raw_mid) {
-    Ok(v) => header.spindle_id = v,
-    Err(e) => error!("{}", e),
-  }
-
-  match field_parse::<u8>(MF_SEQUENCE_NUMBER, raw_mid) {
-    Ok(v) => header.sequence_number = v,
-    Err(e) => error!("{}", e),
-  }
-
-  match field_parse::<u8>(MF_NUMBER_OF_MESSAGE_PARTS, raw_mid) {
-    Ok(v) => header.number_of_message_parts = v,
-    Err(e) => error!("{}", e),
-  }
-
-  match field_parse::<u8>(MF_MESSAGE_PART_NUMBER, raw_mid) {
-    Ok(v) => header.message_part_number = v,
-    Err(e) => error!("{}", e),
-  }
+  header.no_ack_flag = field_parse_with_default(MF_NO_ACK_FLAG, raw_mid, 0);
+  header.station_id = field_parse_with_default(MF_STATION_ID, raw_mid, 0);
+  header.spindle_id = field_parse_with_default(MF_SPINDLE_ID, raw_mid, 0);
+  header.sequence_number = field_parse_with_default(MF_SEQUENCE_NUMBER, raw_mid, 0);
+  header.number_of_message_parts = field_parse_with_default(MF_NUMBER_OF_MESSAGE_PARTS, raw_mid, 0);
+  header.message_part_number = field_parse_with_default(MF_MESSAGE_PART_NUMBER, raw_mid, 0);
   Ok(header)
 }
 
@@ -505,8 +491,7 @@ mod tests {
   }
 
   #[test]
-  #[should_panic]
-  fn mid_header_len_20_correct_43_zero_revision_then_spaces_error() {
+  fn mid_header_len_20_correct_43_then_spaces() {
     let _ = mid_parse_header("00200043000         ").unwrap();
   }
 
