@@ -297,11 +297,11 @@ async fn main() {
   let mut mid2 = Mid0002::default();
   mid2.rev1.controller_name = String::from("test");
 
-  println!("{:#?}", mid2);
+  info!("{:#?}", mid2);
 
-  println!("Available MIDs:");
+  info!("Available MIDs:");
   for mid_name in MidName::iter() {
-    println!("MID {:04} {}", mid_name as u16, mid_name.as_ref());
+    info!("MID {:04} {}", mid_name as u16, mid_name.as_ref());
   }
 
   // handle stop signals and shutdown

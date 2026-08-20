@@ -3,6 +3,7 @@ use std::io;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::{self, Duration, MissedTickBehavior};
+use tracing::info;
 
 use crate::openprotocol::config::Config;
 use crate::openprotocol::core::{Mid, MidHeader, mid_parse_header};
@@ -78,7 +79,7 @@ impl Client {
 
   async fn send<M: Mid>(&mut self, message: &M) -> io::Result<()> {
     let serialized = message.str();
-    println!("SEND: {}", serialized);
+    info!("SEND: {}", serialized);
     self.stream.write_all(serialized.as_bytes()).await?;
     self.stream.write_all(&[0]).await
   }
@@ -86,16 +87,16 @@ impl Client {
   fn handle_received(&self, message: &str) {
     match mid_parse_header(message) {
       Ok(header) => {
-        println!("RECV: {}", message);
+        info!("RECV: {}", message);
         match header.mid {
           5 => match mid_parse_0005(message) {
-            Ok(ack) => println!("RECV parsed MID 0005 acknowledging MID {:04}", ack.mid_number),
-            Err(error) => println!("RECV parse error: {}", error),
+            Ok(ack) => info!("RECV parsed MID 0005 acknowledging MID {:04}", ack.mid_number),
+            Err(error) => info!("RECV parse error: {}", error),
           },
-          _ => println!("RECV parsed MID {:04} revision {}", header.mid, header.rev),
+          _ => info!("RECV parsed MID {:04} revision {}", header.mid, header.rev),
         }
       }
-      Err(error) => println!("RECV parse error: {}", error),
+      Err(error) => info!("RECV parse error: {}", error),
     }
   }
 }
