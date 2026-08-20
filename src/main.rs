@@ -34,6 +34,19 @@ use types::Config;
 use udp_discovery_server::DiscoveryServer;
 use ws_client::WsClient;
 use ws_server::WsServer;
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Name of the person to greet
+    #[arg(short, long, default_value_t = String::from("Unknown"))]
+    name: String,
+
+    /// Number of times to greet
+    #[arg(short, long, default_value_t = 1)]
+    count: u8,
+}
 
 fn init_tracing_guard(config: &Config) -> WorkerGuard {
   init_tracing(config)
@@ -50,6 +63,7 @@ pub fn version() -> String {
 
 #[tokio::main]
 async fn main() {
+  let args = Args::parse();
   let main_start = Instant::now();
   let (broadcast_sender, _) = tokio::sync::broadcast::channel(16);
   let (shutdown_tx, mut shutdown_rx) = tokio::sync::watch::channel(false);
@@ -60,6 +74,7 @@ async fn main() {
   let initial_config = config_module.config().clone();
 
   let _guard = init_tracing_guard(&initial_config);
+  info!("Hello {}, count={}", args.name, args.count);
   let bi = build_info();
   debug!("Build info:\n{:#?}", bi);
   info!("Version        : {} ({:.1?})", version(), main_start.elapsed());
