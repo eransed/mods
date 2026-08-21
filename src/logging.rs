@@ -96,9 +96,9 @@ pub fn init_tracing(config: &Config) -> WorkerGuard {
   let stdout_layer = fmt::layer()
     .with_writer(std::io::stdout)
     .with_timer(fmt::time::ChronoLocal::new(time_fmt.clone()))
-    .with_thread_ids(true)
+    // .with_thread_ids(true)
     .with_thread_names(true)
-    .with_file(true)
+    // .with_file(true)
     .with_line_number(true)
     .with_ansi(true);
 
@@ -109,7 +109,8 @@ pub fn init_tracing(config: &Config) -> WorkerGuard {
     .with_writer(non_blocking)
     .with_timer(fmt::time::ChronoLocal::new(time_fmt))
     .with_thread_ids(true)
-    .with_file(true)
+    .with_thread_names(true)
+    // .with_file(true)
     .with_line_number(true)
     .with_ansi(false);
 

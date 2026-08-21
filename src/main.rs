@@ -19,6 +19,7 @@ use crate::openprotocol::mid_0002::Mid0002;
 use config::ConfigModule;
 use http::HttpModule;
 use std::net::IpAddr;
+use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 use strum::IntoEnumIterator;
@@ -138,7 +139,8 @@ async fn main() {
 
   let sdrxsys = shutdown_rx.clone();
   let sysbrd = broadcast_sender.clone();
-  let sys_thread_handle = std::thread::spawn(move || {
+  let sys_thread_handle = thread::Builder::new().name("SysInfo".to_string()).spawn(move || {
+
     loop {
       let query_start = Instant::now();
       if *sdrxsys.borrow() {
@@ -327,7 +329,7 @@ async fn main() {
   let _ = shutdown_tx.send(true);
 
   info!("Waiting for sys thread to stop...");
-  sys_thread_handle.join().expect("Failed to join sys thread");
+  sys_thread_handle.unwrap().join().expect("Failed to join sys thread");
 
   match cam_thread_handle {
     Some(handle) => {
