@@ -1,7 +1,7 @@
 use std::{fmt::Debug, ops::Range, str::FromStr, u16};
 use strum::{AsRefStr, EnumIter, EnumString, FromRepr, IntoStaticStr};
 
-use tracing::{error, info, warn};
+use tracing::{error, warn};
 
 pub trait Mid {
   fn str(&self) -> String;
@@ -192,7 +192,7 @@ pub fn mid_parse_header(raw_mid: &str) -> Result<MidHeader, String> {
     Err(e) => error!("{}", e),
   }
 
-  info!("Parsing mid len to {} from raw mid '{}'", header.len, raw_mid);
+  // info!("Parsing mid len to {} from raw mid '{}'", header.len, raw_mid);
 
   if raw_mid.len() != header.len as usize {
     warn!("Reported len {} not equal to actual message len {}", header.len, raw_mid.len());

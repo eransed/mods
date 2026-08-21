@@ -13,6 +13,7 @@ mod ws_server;
 
 use crate::logging::init_tracing;
 use crate::message::Message;
+use crate::openprotocol::config::MidConfig;
 use crate::openprotocol::core::MidName;
 use crate::openprotocol::mid_0002::Mid0002;
 use config::ConfigModule;
@@ -258,7 +259,12 @@ async fn main() {
   };
 
   tokio::spawn(async move {
-    let c = openprotocol::config::Config { mid_0001_revision: 6 };
+    let c = openprotocol::config::Config {
+      ip: String::from("192.168.0.47"),
+      port: 4545,
+      keep_alive_time_ms: 7500,
+      mid_0001_config: MidConfig { rev: 6, active: true },
+    };
     openprotocol::client::client(&c).await.expect("Failed to run Open Protocol client");
   });
 
