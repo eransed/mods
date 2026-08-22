@@ -87,7 +87,8 @@ fn main() {
     println!("cargo::rustc-check-cfg=cfg(opencv_pre_411)");
     println!("cargo::rustc-check-cfg=cfg(opencv4)");
     println!("cargo::rustc-check-cfg=cfg(opencv5)");
-    let opencv_req = VersionReq::parse("<=4.10.0").expect("Failed to parse opencv_version required version");
+    let opencv_req =
+      VersionReq::parse("<=4.10.0").expect("Failed to parse opencv_version required version");
 
     ocv_ver_str = String::from_utf8(opencv_version.stdout)
       .expect("Failed to convert bytes ocv_ver_str to string")
@@ -160,20 +161,22 @@ fn main() {
     }
   }
 
-  let git_commit_cmd =
-    cross_command!("git", "rev-parse", "--short", "HEAD").expect("Failed to execute git_commit_cmd process");
+  let git_commit_cmd = cross_command!("git", "rev-parse", "--short", "HEAD")
+    .expect("Failed to execute git_commit_cmd process");
 
-  let git_branch_cmd =
-    cross_command!("git", "rev-parse", "--abbrev-ref", "HEAD").expect("Failed to execute git_branch_cmd process");
+  let git_branch_cmd = cross_command!("git", "rev-parse", "--abbrev-ref", "HEAD")
+    .expect("Failed to execute git_branch_cmd process");
 
   let git_date_cmd = cross_command!("git", "show", "-s", "--format=%cd", "--date=short", "HEAD")
     .expect("Failed to execute git_date_cmd process");
 
   let build_uname_cmd = cross_command!("uname").expect("Failed to execute build_uname_cmd process");
 
-  let git_version_cmd = cross_command!("git", "--version").expect("Failed to execute git_version_cmd process");
+  let git_version_cmd =
+    cross_command!("git", "--version").expect("Failed to execute git_version_cmd process");
 
-  let rustc_version_cmd = cross_command!("rustc", "--version").expect("Failed to execute rustc_version_cmd process");
+  let rustc_version_cmd =
+    cross_command!("rustc", "--version").expect("Failed to execute rustc_version_cmd process");
 
   let docker_version_cmd = cross_command!("docker", "--version");
 
@@ -185,9 +188,10 @@ fn main() {
     cross_command!("quicktype", "--version").expect("Failed to read quicktype version");
 
   let docker_version = match docker_version_cmd {
-    Ok(v) => {
-      String::from_utf8(v.stdout).expect("Failed to convert docker_version bytes to string").trim().to_string()
-    }
+    Ok(v) => String::from_utf8(v.stdout)
+      .expect("Failed to convert docker_version bytes to string")
+      .trim()
+      .to_string(),
     Err(_) => String::from("-"),
   };
 
@@ -312,9 +316,13 @@ fn main() {
   }
 
   let config = Config::default();
-  let config_serialized = serde_json::to_string(&config).expect("Failed to serialize config to json");
-  let mut default_config_file = File::create("default_config.json").expect("Failed to create default_config file");
-  default_config_file.write_all(&config_serialized.into_bytes()).expect("Failed to write default_config file");
+  let config_serialized =
+    serde_json::to_string(&config).expect("Failed to serialize config to json");
+  let mut default_config_file =
+    File::create("default_config.json").expect("Failed to create default_config file");
+  default_config_file
+    .write_all(&config_serialized.into_bytes())
+    .expect("Failed to write default_config file");
 
   let quicktype_config_cmd = cross_command!(
     "quicktype",
@@ -324,9 +332,10 @@ fn main() {
     "default_config.json",
     "--out",
     "ui/src/types/Config.ts"
-  ).expect("Failed to convert default_config.json to Config.ts: Command creation failed");
+  )
+  .expect("Failed to convert default_config.json to Config.ts: Command creation failed");
 
-    if !quicktype_config_cmd.status.success() {
+  if !quicktype_config_cmd.status.success() {
     panic!("Failed to convert default_config.json to Config.ts: Command failed");
   }
 

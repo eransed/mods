@@ -21,9 +21,9 @@ export interface HTTPPort {
 }
 
 export interface LoggingConfig {
-    log_level:          string;
-    max_lines_per_file: number;
-    max_files:          number;
+    log_level:            string;
+    max_lines_per_file:   number;
+    max_log_file_to_keep: number;
 }
 
 export interface OpenProtocolConfig {

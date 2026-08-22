@@ -1,4 +1,3 @@
-
 #[derive(Clone, Debug)]
 pub struct MidConfig {
   pub rev: u16,

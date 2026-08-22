@@ -18,7 +18,6 @@ use crate::openprotocol::core::MidName;
 use crate::openprotocol::mid_0002::Mid0002;
 use config::ConfigModule;
 use http::HttpModule;
-use tracing::error;
 use std::net::IpAddr;
 use std::thread;
 use std::time::Duration;
@@ -27,6 +26,7 @@ use strum::IntoEnumIterator;
 use sysinfo::MemoryRefreshKind;
 use sysinfo::Pid;
 use sysinfo::System;
+use tracing::error;
 
 use clap::Parser;
 use tracing::debug;
@@ -75,8 +75,10 @@ async fn main() {
 
   let config_module = ConfigModule::new(broadcast_sender.clone(), config_request_rx);
   let initial_config = config_module.config().clone();
-
   let _guard = init_tracing_guard(&initial_config);
+
+  info!("Starting MODS server with configuration: {:#?}", initial_config);
+
   info!("Hello {}, count={}", args.name, args.count);
   let bi = build_info();
   debug!("Build info:\n{:#?}", bi);
@@ -276,7 +278,7 @@ async fn main() {
         Ok(_) => {
           info!("OpenProtocol client stopped successfully");
           break;
-        },
+        }
         Err(e) => {
           error!("OpenProtcol client error: {}", e);
           tokio::time::sleep(Duration::from_millis(c.reconnect_delay_ms)).await;

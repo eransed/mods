@@ -436,7 +436,7 @@ mod tests {
     let response = client
       .post(format!("http://{addr}/set_config"))
       .json(&Config {
-        http_port: ConfigProperty::<u16>{value: 8084, description: "Test".to_string()},
+        http_port: ConfigProperty::<u16> { value: 8084, description: "Test".to_string() },
         ws_port: 8085,
         allow_remote_connections: false,
         enable_camera: true,
@@ -459,7 +459,7 @@ mod tests {
     assert_eq!(
       config,
       Config {
-        http_port: ConfigProperty::<u16>{value: 8084, description: "Test".to_string()},
+        http_port: ConfigProperty::<u16> { value: 8084, description: "Test".to_string() },
         ws_port: 8085,
         allow_remote_connections: false,
         enable_camera: true,

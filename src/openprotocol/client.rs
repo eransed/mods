@@ -14,7 +14,6 @@ use crate::openprotocol::mid_0003::Mid0003;
 use crate::openprotocol::mid_0005::mid_parse_0005;
 use crate::openprotocol::mid_9999::Mid9999;
 
-
 pub struct Client {
   config: Config,
   stream: TcpStream,

@@ -35,12 +35,12 @@ pub struct BuildInfo {
 pub struct LoggingConfig {
   pub log_level: String,
   pub max_lines_per_file: usize,
-  pub max_files: usize,
+  pub max_log_file_to_keep: usize,
 }
 
 impl Default for LoggingConfig {
   fn default() -> Self {
-    Self { log_level: "info".to_string(), max_lines_per_file: 10_000, max_files: 100 }
+    Self { log_level: "info".to_string(), max_lines_per_file: 10_000, max_log_file_to_keep: 100 }
   }
 }
 

@@ -148,7 +148,7 @@ impl Drop for ConfigModule {
 mod tests {
   use types::ConfigProperty;
 
-use super::{Config, load_config_from_path, save_config_to_path};
+  use super::{Config, load_config_from_path, save_config_to_path};
   use std::{
     fs,
     path::PathBuf,

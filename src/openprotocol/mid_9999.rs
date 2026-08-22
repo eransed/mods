@@ -14,7 +14,6 @@ pub fn mid_parse_9999(data: &str) -> Result<Mid9999, String> {
   Ok(Mid9999 { header, data })
 }
 
-
 #[cfg(test)]
 mod tests {
   use super::*;
