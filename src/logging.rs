@@ -40,10 +40,10 @@ impl LineRotatingFile {
 
   fn rotate_if_needed(&mut self, additional_lines: usize) -> io::Result<()> {
     if self.line_count + additional_lines < self.logging_config.max_lines_per_file {
-      println!(
-        "Current line count: {}, additional lines: {}, max lines per file: {}. No rotation needed.",
-        self.line_count, additional_lines, self.logging_config.max_lines_per_file
-      );
+      // println!(
+      //   "Current line count: {}, additional lines: {}, max lines per file: {}. No rotation needed.",
+      //   self.line_count, additional_lines, self.logging_config.max_lines_per_file
+      // );
       return Ok(());
     }
 
@@ -55,18 +55,27 @@ impl LineRotatingFile {
       .expect("log file name missing")
       .to_str()
       .expect("Could not read the log file name");
+    let file_stem = self
+      .base_path
+      .file_stem()
+      .expect("log file stem missing")
+      .to_str()
+      .expect("Could not read the log file stem");
+    let file_extension = self.base_path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
     let date = Local::now().format("%Y%m%d_%H%M%S%.3f").to_string();
-    let new_file_name = self.base_path.with_file_name(format!("{file_name}.{date}"));
+    let new_file_name =
+      self.base_path.with_file_name(format!("{file_stem}.{date}.{file_extension}"));
 
     fs::rename(&self.base_path, &new_file_name).expect("Failed to rename log file");
 
     let log_files = fs::read_dir(self.base_path.parent().expect("log file parent missing"))?
       .filter_map(|entry| entry.ok())
       .filter(|entry| {
-        entry
-          .file_name()
-          .to_str()
-          .map_or(false, |name| name == file_name || name.starts_with(&format!("{file_name}.")))
+        entry.file_name().to_str().map_or(false, |name| {
+          name == file_name
+            || name.starts_with(&format!("{file_stem}."))
+              && name.ends_with(&format!(".{file_extension}"))
+        })
       })
       .collect::<Vec<_>>();
 
@@ -78,13 +87,13 @@ impl LineRotatingFile {
       .saturating_sub(self.logging_config.max_log_file_to_keep.saturating_sub(1));
     for oldest_file in archived_files.into_iter().take(files_to_remove) {
       fs::remove_file(oldest_file.path())?;
-      println!("Deleted oldest log file: {}", oldest_file.path().display());
+      // println!("Deleted oldest log file: {}", oldest_file.path().display());
     }
 
     self.file = OpenOptions::new().create(true).append(true).open(&self.base_path)?;
 
     // Log the rotation event using, making sure to use the standard logging format:
-    println!("Rotated log file: {} -> {}", self.base_path.display(), &new_file_name.display());
+    // println!("Rotated log file: {} -> {}", self.base_path.display(), &new_file_name.display());
 
     self.line_count = 1;
     Ok(())
@@ -184,7 +193,7 @@ mod tests {
 
     create_log_file(&base_path, "current\n");
     for index in 1..=2 {
-      create_log_file(&parent.join(format!("mods.log.20260101_00000{index}.000")), "archived\n");
+      create_log_file(&parent.join(format!("mods.20260101_00000{index}.000.log")), "archived\n");
     }
 
     let mut log = LineRotatingFile::new(base_path.clone(), test_logging_config(3))
@@ -227,16 +236,16 @@ mod tests {
     fs::create_dir_all(parent).expect("test log directory should be created");
 
     create_log_file(&base_path, "current\n");
-    create_log_file(&parent.join("mods.log.20200101_000000.000"), "oldest\n");
-    create_log_file(&parent.join("mods.log.20260101_000000.000"), "newer\n");
-    create_log_file(&parent.join("mods.log.20260101_000001.000"), "newest\n");
+    create_log_file(&parent.join("mods.20200101_000000.000.log"), "oldest\n");
+    create_log_file(&parent.join("mods.20260101_000000.000.log"), "newer\n");
+    create_log_file(&parent.join("mods.20260101_000001.000.log"), "newest\n");
 
     let mut log = LineRotatingFile::new(base_path.clone(), test_logging_config(3))
       .expect("rotating log should open");
     log.write_all(b"rotated\n").expect("rotation should succeed");
 
-    assert!(!parent.join("mods.log.20200101_000000.000").exists());
-    assert!(parent.join("mods.log.20260101_000001.000").exists());
+    assert!(!parent.join("mods.20200101_000000.000.log").exists());
+    assert!(parent.join("mods.20260101_000001.000.log").exists());
     assert_eq!(fs::read_dir(parent).expect("test log directory should be readable").count(), 3);
     let _ = fs::remove_dir_all(parent);
   }
