@@ -6,6 +6,7 @@ use std::{
 use tokio::sync::{
   broadcast::{Receiver, Sender},
   mpsc::UnboundedReceiver,
+  watch,
 };
 use tracing::{debug, error, info, trace, warn};
 use types::Config;
@@ -21,6 +22,7 @@ pub struct ConfigModule {
   sender: Sender<Message>,
   request_receiver: UnboundedReceiver<ConfigRequest>,
   config: Config,
+  config_sender: watch::Sender<Config>,
 }
 
 fn config_path() -> PathBuf {
@@ -70,10 +72,17 @@ impl ConfigModule {
     &self.config
   }
 
-  pub fn new(sender: Sender<Message>, request_receiver: UnboundedReceiver<ConfigRequest>) -> Self {
+  pub fn new(
+    sender: Sender<Message>,
+    request_receiver: UnboundedReceiver<ConfigRequest>,
+  ) -> (Self, watch::Receiver<Config>) {
     let receiver = sender.subscribe();
     let config = load_config_from_path(&config_path());
-    Self { receiver, sender: sender.clone(), request_receiver, config }
+    let (config_sender, config_receiver) = watch::channel(config.clone());
+    (
+      Self { receiver, sender: sender.clone(), request_receiver, config, config_sender },
+      config_receiver,
+    )
   }
 
   pub async fn run(mut self) {
@@ -88,6 +97,7 @@ impl ConfigModule {
                   ConfigRequest::Set { requester, config, response } => {
                       debug!(requester, "set config");
                       self.config = config.clone();
+                      let _ = self.config_sender.send(config.clone());
                       set_log_level(&self.config.logging_config.log_level);
                       if let Err(err) = save_config_to_path(&self.config, &config_path()) {
                           error!(error = ?err, "failed to persist config to config.json");
@@ -97,6 +107,7 @@ impl ConfigModule {
                   ConfigRequest::Reset { requester, response } => {
                       debug!(requester, "reset config");
                       self.config = Config::default();
+                      let _ = self.config_sender.send(self.config.clone());
                       set_log_level(&self.config.logging_config.log_level);
                       if let Err(err) = save_config_to_path(&self.config, &config_path()) {
                           error!(error = ?err, "failed to persist default config to config.json");

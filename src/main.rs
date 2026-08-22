@@ -54,6 +54,45 @@ fn init_tracing_guard(config: &Config) -> WorkerGuard {
   init_tracing(config)
 }
 
+async fn run_openprotocol(
+  mut config_rx: tokio::sync::watch::Receiver<Config>,
+  mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
+) {
+  loop {
+    let client_config = config_rx
+      .borrow()
+      .open_protocol_config
+      .open_protocol_clients
+      .first()
+      .cloned()
+      .unwrap_or_default();
+    info!("Starts OpenProtocol client...");
+    let client = openprotocol::client::client(&client_config);
+    tokio::pin!(client);
+
+    tokio::select! {
+      result = &mut client => match result {
+        Ok(()) => info!("OpenProtocol client stopped successfully"),
+        Err(error) => error!(%error, "OpenProtocol client error"),
+      },
+      result = config_rx.changed() => {
+        if result.is_err() { return; }
+        info!("Restarting OpenProtocol client after configuration change");
+        continue;
+      }
+      result = shutdown_rx.changed() => {
+        if result.is_err() || *shutdown_rx.borrow() { return; }
+      }
+    }
+
+    tokio::select! {
+      _ = tokio::time::sleep(Duration::from_millis(client_config.reconnect_delay_ms)) => {},
+      _ = shutdown_rx.changed() => return,
+      result = config_rx.changed() => if result.is_err() { return; },
+    }
+  }
+}
+
 pub fn build_info() -> BuildInfo {
   serde_json::from_str(include_str!("../build_info.json")).unwrap_or_default()
 }
@@ -72,7 +111,7 @@ async fn main() {
   let (config_request_tx, config_request_rx) = tokio::sync::mpsc::unbounded_channel();
   let (discovery_tx, discovery_rx) = tokio::sync::mpsc::unbounded_channel();
 
-  let config_module = ConfigModule::new(broadcast_sender.clone(), config_request_rx);
+  let (config_module, config_rx) = ConfigModule::new(broadcast_sender.clone(), config_request_rx);
   let initial_config = config_module.config().clone();
   let _guard = init_tracing_guard(&initial_config);
 
@@ -199,43 +238,37 @@ async fn main() {
   {
     let cam_brdcast = broadcast_sender.clone();
     let sdrxcam = shutdown_rx.clone();
+    let mut cam_config_rx = config_rx.clone();
     cam_thread_handle = Some(std::thread::spawn(move || {
-      if initial_config.enable_camera {
-        info!("Starting camera thread");
-        camera::camera_start(
-          cam_brdcast,
-          sdrxcam,
-          initial_config.device_index,
-          initial_config.device_width,
-          initial_config.opencv_display,
-          initial_config.angle_filter,
-          initial_config.min_decision_margin,
-          initial_config.camera_fetch_delay_ms,
-          initial_config.camera_send_image,
-          initial_config.camera_send_image_resize_factor,
-        );
-        warn!("Camera returned");
-      } else {
-        warn!("Camera skipped");
+      loop {
+        let config = cam_config_rx.borrow().clone();
+        if config.enable_camera {
+          info!("Starting camera thread");
+          camera::camera_start(cam_brdcast.clone(), sdrxcam.clone(), cam_config_rx.clone());
+          warn!("Camera returned");
+        } else {
+          warn!("Camera skipped");
+        }
+        if *sdrxcam.borrow() {
+          break;
+        }
+        while !cam_config_rx.has_changed().unwrap_or(false) {
+          std::thread::sleep(Duration::from_millis(100));
+          if *sdrxcam.borrow() {
+            return;
+          }
+        }
+        let _ = cam_config_rx.borrow_and_update();
       }
     }));
   }
 
-  let ws_server = WsServer::new("ws_server", broadcast_sender.clone());
-
-  let http_module = HttpModule::new(
-    "http",
-    broadcast_sender.clone(),
-    shutdown_tx.clone(),
-    config_request_tx.clone(),
-    discovery_tx.clone(),
-  );
-
   let ws_client = WsClient::new(format!("ws://127.0.0.1:{}", initial_config.ws_port));
+  let ws_client_config_rx = config_rx.clone();
+  let ws_client_shutdown_rx = shutdown_rx.clone();
 
   let ws_port = initial_config.ws_port;
   let http_port = initial_config.http_port;
-  let host = if initial_config.allow_remote_connections { [0, 0, 0, 0] } else { [127, 0, 0, 1] };
 
   // Initialize UDP Discovery Server
   let node_name = hostname::get()
@@ -262,49 +295,90 @@ async fn main() {
     }
   };
 
-  tokio::spawn(async move {
-    let c = initial_config.open_protocol_config.open_protocol_clients.get(0).cloned().unwrap_or_default();
-
-    loop {
-      info!("Starts OpenProtcol client...");
-      match openprotocol::client::client(&c).await {
-        Ok(_) => {
-          info!("OpenProtocol client stopped successfully");
-          break;
-        }
-        Err(e) => {
-          error!("OpenProtcol client error: {}", e);
-          tokio::time::sleep(Duration::from_millis(c.reconnect_delay_ms)).await;
-        }
-      }
-    }
-  });
+  tokio::spawn(run_openprotocol(config_rx.clone(), shutdown_rx.clone()));
 
   tokio::spawn(async move {
     config_module.run().await;
   });
 
+  let http_config_rx = config_rx.clone();
+  let http_shutdown_rx = shutdown_rx.clone();
+  let http_sender = broadcast_sender.clone();
+  let http_shutdown = shutdown_tx.clone();
+  let http_config_request = config_request_tx.clone();
+  let http_discovery_tx = discovery_tx.clone();
   tokio::spawn(async move {
-    let ws_addr = std::net::SocketAddr::from((host, ws_port));
-    if let Err(err) = ws_server.run(ws_addr).await {
-      tracing::error!(error = ?err, "failed to start websocket server");
+    let mut config_rx = http_config_rx;
+    let mut shutdown_rx = http_shutdown_rx;
+    loop {
+      let config = config_rx.borrow().clone();
+      let host = if config.allow_remote_connections { [0, 0, 0, 0] } else { [127, 0, 0, 1] };
+      let addr = std::net::SocketAddr::from((host, config.http_port.value));
+      let module = HttpModule::new(
+        "http",
+        http_sender.clone(),
+        http_shutdown.clone(),
+        http_config_request.clone(),
+        http_discovery_tx.clone(),
+      );
+      let mut task = tokio::spawn(module.run(addr));
+      tokio::select! {
+        result = &mut task => {
+          if let Ok(Err(err)) = result {
+            error!(error = ?err, "failed to start http server");
+          }
+        }
+        result = config_rx.changed() => {
+          task.abort();
+          if result.is_err() { break; }
+        }
+        result = shutdown_rx.changed() => {
+          task.abort();
+          if result.is_err() || *shutdown_rx.borrow() { break; }
+        }
+      }
     }
   });
 
+  let ws_config_rx = config_rx.clone();
+  let ws_shutdown_rx = shutdown_rx.clone();
+  let ws_sender = broadcast_sender.clone();
   tokio::spawn(async move {
-    let http_addr = std::net::SocketAddr::from((host, http_port.value));
-    if let Err(err) = http_module.run(http_addr).await {
-      tracing::error!(error = ?err, "failed to start http server");
+    let mut config_rx = ws_config_rx;
+    let mut shutdown_rx = ws_shutdown_rx;
+    loop {
+      let config = config_rx.borrow().clone();
+      let host = if config.allow_remote_connections { [0, 0, 0, 0] } else { [127, 0, 0, 1] };
+      let addr = std::net::SocketAddr::from((host, config.ws_port));
+      let module = WsServer::new("ws_server", ws_sender.clone());
+      let mut task = tokio::spawn(module.run(addr));
+      tokio::select! {
+        result = &mut task => {
+          if let Ok(Err(err)) = result {
+            error!(error = ?err, "failed to start websocket server");
+          }
+        }
+        result = config_rx.changed() => {
+          task.abort();
+          if result.is_err() { break; }
+        }
+        result = shutdown_rx.changed() => {
+          task.abort();
+          if result.is_err() || *shutdown_rx.borrow() { break; }
+        }
+      }
     }
   });
 
+  let discovery_config_rx = config_rx.clone();
+  let discovery_shutdown_rx = shutdown_rx.clone();
   tokio::spawn(async move {
-    discovery_server.run().await;
+    discovery_server.run(discovery_config_rx, discovery_shutdown_rx).await;
   });
 
   tokio::spawn(async move {
     tokio::time::sleep(Duration::from_millis(200)).await;
-    ws_client.run().await;
+    ws_client.run(ws_client_config_rx, ws_client_shutdown_rx).await;
   });
 
   info!("http server listening at: {}", http_port.value);
@@ -321,7 +395,6 @@ async fn main() {
   for mid_name in MidName::iter() {
     info!("MID {:04} {}", mid_name as u16, mid_name.as_ref());
   }
-
 
   // handle stop signals and shutdown
 

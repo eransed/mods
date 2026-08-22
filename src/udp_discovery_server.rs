@@ -4,8 +4,9 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
-use tokio::sync::{RwLock, broadcast, mpsc, oneshot};
+use tokio::sync::{RwLock, broadcast, mpsc, oneshot, watch};
 use tracing::{debug, error, info, warn};
+use types::Config;
 
 use crate::message::Message;
 
@@ -250,13 +251,31 @@ impl DiscoveryServer {
   // ========================================================================
 
   /// Main async event loop — select between socket receive and command handler
-  pub async fn run(mut self) {
+  pub async fn run(
+    mut self,
+    mut config_rx: watch::Receiver<Config>,
+    mut shutdown_rx: watch::Receiver<bool>,
+  ) {
     info!("Starting UDP Discovery Server");
 
     let mut buf = vec![0u8; Self::BUFFER_SIZE];
 
     loop {
       tokio::select! {
+          result = config_rx.changed() => {
+            if result.is_err() {
+              break;
+            }
+            self.local_peer_info.http_port = config_rx.borrow().http_port.value;
+            info!(http_port = self.local_peer_info.http_port, "Discovery configuration updated");
+          }
+
+          result = shutdown_rx.changed() => {
+            if result.is_err() || *shutdown_rx.borrow() {
+              break;
+            }
+          }
+
           // Handle incoming UDP packets
           result = self.socket.recv_from(&mut buf) => {
               match result {

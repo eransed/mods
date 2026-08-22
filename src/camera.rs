@@ -55,15 +55,17 @@ impl Frequency {
 pub fn camera_start(
   sender: Sender<Message>,
   shutdown_rx: Receiver<bool>,
-  device_index: i32,
-  device_width: f64,
-  display: bool,
-  angle_filter: usize,
-  min_decision_margin: f32,
-  camera_fetch_delay_ms: u64,
-  camera_send_image: bool,
-  camera_send_image_resize_factor: f64,
+  mut config_rx: Receiver<types::Config>,
 ) {
+  let config = config_rx.borrow().clone();
+  let device_index = config.device_index;
+  let device_width = config.device_width;
+  let display = config.opencv_display;
+  let angle_filter = config.angle_filter;
+  let min_decision_margin = config.min_decision_margin;
+  let camera_fetch_delay_ms = config.camera_fetch_delay_ms;
+  let camera_send_image = config.camera_send_image;
+  let camera_send_image_resize_factor = config.camera_send_image_resize_factor;
   let start = std::time::Instant::now();
 
   let window_title = "mods";
@@ -128,6 +130,10 @@ pub fn camera_start(
 
     if *shutdown_rx.borrow() {
       info!("shutdown requested");
+      break;
+    }
+    if config_rx.has_changed().unwrap_or(false) {
+      info!("camera configuration changed; restarting camera");
       break;
     }
 
