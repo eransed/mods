@@ -77,7 +77,7 @@ label i {
 }
 
 /* Style the artificial checkbox */
-label span {
+label span.checkbox {
   height: 20px;
   width: 20px;
   border: 1px solid var(--accent);
@@ -88,7 +88,7 @@ label span {
 }
 
 /* Style its checked state...with a ticked icon */
-label input[type=checkbox]:checked + span:before {
+label input[type=checkbox]:checked + span.checkbox:before {
   /* content: '\2713'; */
   content: '\2714';
   /* content: '\2715'; */

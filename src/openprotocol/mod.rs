@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 pub mod client;
-pub mod config;
 pub mod core;
 pub mod digital_input_function;
 pub mod mid_0001;

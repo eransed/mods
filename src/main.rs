@@ -13,7 +13,6 @@ mod ws_server;
 
 use crate::logging::init_tracing;
 use crate::message::Message;
-use crate::openprotocol::config::MidConfig;
 use crate::openprotocol::core::MidName;
 use crate::openprotocol::mid_0002::Mid0002;
 use config::ConfigModule;
@@ -264,13 +263,7 @@ async fn main() {
   };
 
   tokio::spawn(async move {
-    let c = openprotocol::config::Config {
-      ip: String::from("192.168.0.47"),
-      port: 4545,
-      keep_alive_time_ms: 7500,
-      reconnect_delay_ms: 5000,
-      mid_0001_config: MidConfig { rev: 6, active: true },
-    };
+    let c = initial_config.open_protocol_config.open_protocol_clients.get(0).cloned().unwrap_or_default();
 
     loop {
       info!("Starts OpenProtcol client...");
@@ -329,10 +322,6 @@ async fn main() {
     info!("MID {:04} {}", mid_name as u16, mid_name.as_ref());
   }
 
-  // for i in 0..100_000 {
-  //   info!("Testing the logging system with this average length log line: i = {}", i);
-  // }
-  // info!("Done");
 
   // handle stop signals and shutdown
 

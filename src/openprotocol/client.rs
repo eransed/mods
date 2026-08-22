@@ -5,8 +5,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::{self, Duration, MissedTickBehavior};
 use tracing::{error, info};
+use types::OpenProtocolClientConfig;
 
-use crate::openprotocol::config::Config;
 use crate::openprotocol::core::{Mid, MidHeader, mid_parse_header};
 use crate::openprotocol::mid_0001::{Mid0001, Mid0001Rev7};
 use crate::openprotocol::mid_0002;
@@ -15,13 +15,13 @@ use crate::openprotocol::mid_0005::mid_parse_0005;
 use crate::openprotocol::mid_9999::Mid9999;
 
 pub struct Client {
-  config: Config,
+  config: OpenProtocolClientConfig,
   stream: TcpStream,
   receive_buffer: Vec<u8>,
 }
 
 impl Client {
-  pub async fn connect(config: &Config) -> io::Result<Self> {
+  pub async fn connect(config: &OpenProtocolClientConfig) -> io::Result<Self> {
     info!("Connecting with config: {:#?}", config);
     let addr = format!("{}:{}", config.ip, config.port);
     let stream = TcpStream::connect(addr).await?;
@@ -118,11 +118,11 @@ impl Client {
   }
 }
 
-pub async fn client(config: &Config) -> io::Result<()> {
+pub async fn client(config: &OpenProtocolClientConfig) -> io::Result<()> {
   Client::connect(config).await?.run().await
 }
 
-fn mid_0001(config: &Config) -> Mid0001 {
+fn mid_0001(config: &OpenProtocolClientConfig) -> Mid0001 {
   let revision = config.mid_0001_config.rev as u16;
   Mid0001 {
     header: MidHeader {

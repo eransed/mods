@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Config, HTTPPort, LoggingConfig, OpenProtocolConfig } from "../types/Config";
+import type { Config } from "../types/Config";
 
 export interface SettingsProps {
     http_port: number
@@ -65,7 +65,7 @@ export function Settings({ http_port }: SettingsProps) {
                         oldValue={config ? config[key as keyof Config] : null}
                         onChange={(newValue) => {
                             if (configModified) {
-                                const updatedConfig = { ...configModified, [key]: newValue };
+                                const updatedConfig = { ...configModified, [key]: newValue } as Config;
                                 setConfigModified(updatedConfig);
                             }
                         }}
@@ -85,9 +85,9 @@ export function Settings({ http_port }: SettingsProps) {
 }
 
 interface ObjectConfigField {
-    value: object,
-    oldValue: object | null,
-    onChange: (newValue: object) => void;
+    value: Record<string, unknown> | unknown[],
+    oldValue: Record<string, unknown> | unknown[] | null,
+    onChange: (newValue: Record<string, unknown> | unknown[]) => void;
 }
 
 function objectConfigField(conf: ObjectConfigField) {
@@ -98,9 +98,19 @@ function objectConfigField(conf: ObjectConfigField) {
                     <ConfigField
                         label={key}
                         value={value}
-                        oldValue={null}
+                        oldValue={conf.oldValue === null
+                            ? null
+                            : Array.isArray(conf.oldValue)
+                                ? conf.oldValue[Number(key)] ?? null
+                                : conf.oldValue[key] ?? null}
                         onChange={(newValue) => {
-                            console.log(`new value for key ${key}: ${newValue}`)
+                            const updatedValue = Array.isArray(conf.value) ? [...conf.value] : { ...conf.value };
+                            if (Array.isArray(updatedValue)) {
+                                updatedValue[Number(key)] = newValue;
+                            } else {
+                                updatedValue[key] = newValue;
+                            }
+                            conf.onChange(updatedValue);
                         }}
                     />
                 </div>
@@ -111,9 +121,9 @@ function objectConfigField(conf: ObjectConfigField) {
 
 interface ConfigFieldProps {
     label: string;
-    value: boolean | number | string;
-    oldValue: number | boolean | LoggingConfig | OpenProtocolConfig | HTTPPort | null
-    onChange: (newValue: boolean | number | string | LoggingConfig | OpenProtocolConfig) => void;
+    value: unknown;
+    oldValue: unknown;
+    onChange: (newValue: unknown) => void;
 }
 
 function ConfigField({ label, value, oldValue, onChange }: ConfigFieldProps) {
@@ -145,13 +155,11 @@ function ConfigField({ label, value, oldValue, onChange }: ConfigFieldProps) {
             onChange={(e) => onChange(e.target.value)}
             id={id}
         />
-    } else if (typeof value === 'object') {
+    } else if (value !== null && typeof value === 'object') {
         inp = objectConfigField({
-            value: value,
-            oldValue: null,
-            onChange: function (newValue: object): void {
-                console.log(`new value: {${newValue}}`)
-            }
+            value: value as Record<string, unknown> | unknown[],
+            oldValue: oldValue as Record<string, unknown> | unknown[] | null,
+            onChange,
         })
     }
 
@@ -166,11 +174,13 @@ function ConfigField({ label, value, oldValue, onChange }: ConfigFieldProps) {
                         ({typeof value}):
                     </i>
                     {inp}
-                    {typeof value === 'boolean' && <span></span>}
+                    {typeof value === 'boolean' && <span className="checkbox"></span>}
                 </label>
-                <span className="config-field-old-value">
-                    {value !== oldValue ? `${oldValue}` : null}
-                </span>
+                {typeof value !== 'object' && (
+                    <span className="config-field-old-value">
+                        {value !== oldValue ? `${oldValue}` : null}
+                    </span>
+                )}
             </div>
         </div>
     );

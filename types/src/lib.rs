@@ -51,7 +51,6 @@ pub struct MidConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-
 pub struct OpenProtocolClientConfig {
   pub name: String,
   pub ip: String,
@@ -75,7 +74,6 @@ impl Default for OpenProtocolClientConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-
 pub struct OpenProtocolConfig {
   pub open_protocol_clients: Vec<OpenProtocolClientConfig>,
 }
