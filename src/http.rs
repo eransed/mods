@@ -352,7 +352,7 @@ mod tests {
   use super::*;
   use std::{net::SocketAddr, sync::Arc, time::Duration};
   use tokio::{net::TcpListener, sync::Mutex};
-  use types::Config;
+  use types::{Config, ConfigProperty};
 
   #[test]
   fn parse_max_response_time_micros_uses_query_value_or_default() {
@@ -436,7 +436,7 @@ mod tests {
     let response = client
       .post(format!("http://{addr}/set_config"))
       .json(&Config {
-        http_port: 8080,
+        http_port: ConfigProperty::<u16>{value: 8084, description: "Test".to_string()},
         ws_port: 8085,
         allow_remote_connections: false,
         enable_camera: true,
@@ -459,7 +459,7 @@ mod tests {
     assert_eq!(
       config,
       Config {
-        http_port: 8080,
+        http_port: ConfigProperty::<u16>{value: 8084, description: "Test".to_string()},
         ws_port: 8085,
         allow_remote_connections: false,
         enable_camera: true,

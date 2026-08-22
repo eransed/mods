@@ -1,5 +1,5 @@
 export interface Config {
-    http_port:                       number;
+    http_port:                       HTTPPort;
     ws_port:                         number;
     allow_remote_connections:        boolean;
     enable_camera:                   boolean;
@@ -15,6 +15,11 @@ export interface Config {
     open_protocol_config:            OpenProtocolConfig;
 }
 
+export interface HTTPPort {
+    value:       number;
+    description: string;
+}
+
 export interface LoggingConfig {
     log_level:          string;
     max_lines_per_file: number;
@@ -22,10 +27,10 @@ export interface LoggingConfig {
 }
 
 export interface OpenProtocolConfig {
-    open_protocol_clints: OpenProtocolClint[];
+    open_protocol_clients: OpenProtocolClient[];
 }
 
-export interface OpenProtocolClint {
+export interface OpenProtocolClient {
     name:               string;
     ip:                 string;
     port:               number;

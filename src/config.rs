@@ -146,7 +146,9 @@ impl Drop for ConfigModule {
 
 #[cfg(test)]
 mod tests {
-  use super::{Config, load_config_from_path, save_config_to_path};
+  use types::ConfigProperty;
+
+use super::{Config, load_config_from_path, save_config_to_path};
   use std::{
     fs,
     path::PathBuf,
@@ -181,7 +183,7 @@ mod tests {
   fn saves_and_loads_config_from_disk() {
     let path = temp_config_path();
     let config = Config {
-      http_port: 9000,
+      http_port: ConfigProperty::<u16> { value: 9000, description: "Test".to_string() },
       ws_port: 9001,
       allow_remote_connections: false,
       enable_camera: true,

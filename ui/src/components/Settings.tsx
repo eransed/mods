@@ -1,42 +1,19 @@
 import { useEffect, useState } from "react";
+import type { Config, HTTPPort, LoggingConfig, OpenProtocolConfig } from "../types/Config";
 
 export interface SettingsProps {
     http_port: number
 }
 
-export interface Config {
-    http_port: number;
-    ws_port: number;
-    log_level: string;
-    allow_remote_connections: boolean;
-    enable_camera: boolean;
-    camera_send_image: boolean;
-    camera_send_image_resize_factor: number;
-    camera_fetch_delay_ms: number;
-    opencv_display: boolean;
-    skip_april_pose_estimation: boolean;
-    angle_filter: number;
-    min_decision_margin: number;
-    device_index: number;
-    device_width: number;
-}
-
 function configEqual(a: Config, b: Config): boolean {
-    // return Object.is(a, b);
-    if (a.http_port !== b.http_port) return false;
-    if (a.ws_port !== b.ws_port) return false;
-    if (a.log_level !== b.log_level) return false;
-    if (a.allow_remote_connections !== b.allow_remote_connections) return false;
-    if (a.enable_camera !== b.enable_camera) return false;
-    if (a.camera_send_image !== b.camera_send_image) return false;
-    if (a.camera_send_image_resize_factor !== b.camera_send_image_resize_factor) return false;
-    if (a.camera_fetch_delay_ms !== b.camera_fetch_delay_ms) return false;
-    if (a.opencv_display !== b.opencv_display) return false;
-    if (a.skip_april_pose_estimation !== b.skip_april_pose_estimation) return false;
-    if (a.angle_filter !== b.angle_filter) return false;
-    if (a.min_decision_margin !== b.min_decision_margin) return false;
-    if (a.device_index !== b.device_index) return false;
-    if (a.device_width !== b.device_width) return false;
+    for (let key of Object.keys(a)) {
+        let av = a[key as keyof Config]
+        let bv = b[key as keyof Config]
+        if (av !== bv) {
+            // console.log(`${key} is different: a['${key}']: ${av} !== b['${key}']: ${bv}`)
+            return false;
+        }
+    }
     return true;
 }
 
@@ -107,15 +84,40 @@ export function Settings({ http_port }: SettingsProps) {
     );
 }
 
+interface ObjectConfigField {
+    value: object,
+    oldValue: object | null,
+    onChange: (newValue: object) => void;
+}
+
+function objectConfigField(conf: ObjectConfigField) {
+    return (
+        <div>
+            {Object.entries(conf.value).map(([key, value]) => (
+                <div key={key}>
+                    <ConfigField
+                        label={key}
+                        value={value}
+                        oldValue={null}
+                        onChange={(newValue) => {
+                            console.log(`new value for key ${key}: ${newValue}`)
+                        }}
+                    />
+                </div>
+            ))}
+        </div>
+    );
+}
+
 interface ConfigFieldProps {
     label: string;
     value: boolean | number | string;
-    oldValue: boolean | number | string | null;
-    onChange: (newValue: boolean | number | string) => void;
+    oldValue: number | boolean | LoggingConfig | OpenProtocolConfig | HTTPPort | null
+    onChange: (newValue: boolean | number | string | LoggingConfig | OpenProtocolConfig) => void;
 }
 
 function ConfigField({ label, value, oldValue, onChange }: ConfigFieldProps) {
-    let inp = <div>Unsupported config parameter type: {typeof value} ({label})</div>
+    let inp = <div style={{ color: '#e00' }}><b>Unsupported config parameter type: {typeof value} ({label})</b></div>
     let id = 'id-' + (1e9 * Math.random()).toFixed(0)
     if (typeof value === 'boolean') {
         inp = <input
@@ -143,6 +145,14 @@ function ConfigField({ label, value, oldValue, onChange }: ConfigFieldProps) {
             onChange={(e) => onChange(e.target.value)}
             id={id}
         />
+    } else if (typeof value === 'object') {
+        inp = objectConfigField({
+            value: value,
+            oldValue: null,
+            onChange: function (newValue: object): void {
+                console.log(`new value: {${newValue}}`)
+            }
+        })
     }
 
     return (

@@ -77,18 +77,24 @@ impl Default for OpenProtocolClientConfig {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 
 pub struct OpenProtocolConfig {
-  pub open_protocol_clints: Vec<OpenProtocolClientConfig>,
+  pub open_protocol_clients: Vec<OpenProtocolClientConfig>,
 }
 
 impl Default for OpenProtocolConfig {
   fn default() -> Self {
-    Self { open_protocol_clints: vec![OpenProtocolClientConfig::default()] }
+    Self { open_protocol_clients: vec![OpenProtocolClientConfig::default()] }
   }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ConfigProperty<T> {
+  pub value: T,
+  pub description: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Config {
-  pub http_port: u16,
+  pub http_port: ConfigProperty<u16>,
   pub ws_port: u16,
   pub allow_remote_connections: bool,
   pub enable_camera: bool,
@@ -107,7 +113,10 @@ pub struct Config {
 impl Default for Config {
   fn default() -> Self {
     Self {
-      http_port: 8123,
+      http_port: ConfigProperty {
+        value: 8123,
+        description: "Port that the http server shall listen on".to_string(),
+      },
       ws_port: 8124,
       allow_remote_connections: true,
       enable_camera: true,

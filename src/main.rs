@@ -247,7 +247,7 @@ async fn main() {
   let discovery_server = match DiscoveryServer::new(
     node_name,
     local_ip,
-    http_port,
+    http_port.value,
     system_type,
     broadcast_sender.clone(),
     discovery_rx,
@@ -297,7 +297,7 @@ async fn main() {
   });
 
   tokio::spawn(async move {
-    let http_addr = std::net::SocketAddr::from((host, http_port));
+    let http_addr = std::net::SocketAddr::from((host, http_port.value));
     if let Err(err) = http_module.run(http_addr).await {
       tracing::error!(error = ?err, "failed to start http server");
     }
@@ -312,8 +312,8 @@ async fn main() {
     ws_client.run().await;
   });
 
-  info!(http_port, "http server listening at");
-  info!(ws_port, "websocket server listening at");
+  info!("http server listening at: {}", http_port.value);
+  info!("websocket server listening at: {}", ws_port);
 
   info!("Current working directory: {}", std::env::current_dir().unwrap().display());
 
