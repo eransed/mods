@@ -438,7 +438,6 @@ mod tests {
       .json(&Config {
         http_port: 8080,
         ws_port: 8085,
-        log_level: "debug".to_string(),
         allow_remote_connections: false,
         enable_camera: true,
         opencv_display: true,
@@ -449,6 +448,7 @@ mod tests {
         camera_fetch_delay_ms: 0,
         camera_send_image: false,
         camera_send_image_resize_factor: 0.4,
+        ..Default::default()
       })
       .send()
       .await
@@ -461,7 +461,6 @@ mod tests {
       Config {
         http_port: 8080,
         ws_port: 8085,
-        log_level: "debug".to_string(),
         allow_remote_connections: false,
         enable_camera: true,
         opencv_display: true,
@@ -472,6 +471,7 @@ mod tests {
         camera_fetch_delay_ms: 0,
         camera_send_image: false,
         camera_send_image_resize_factor: 0.4,
+        ..Default::default()
       }
     );
 

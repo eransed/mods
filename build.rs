@@ -6,7 +6,7 @@ use std::env;
 use std::fs::File;
 use std::io::prelude::*;
 use std::process::Command;
-use types::BuildInfo;
+use types::{BuildInfo, Config};
 
 macro_rules! p {
     ($($tokens: tt)*) => {
@@ -87,14 +87,14 @@ fn main() {
     println!("cargo::rustc-check-cfg=cfg(opencv_pre_411)");
     println!("cargo::rustc-check-cfg=cfg(opencv4)");
     println!("cargo::rustc-check-cfg=cfg(opencv5)");
-    let opencv_req = VersionReq::parse("<=4.10.0").unwrap();
+    let opencv_req = VersionReq::parse("<=4.10.0").expect("Failed to parse opencv_version required version");
 
     ocv_ver_str = String::from_utf8(opencv_version.stdout)
-      .expect("Failed to convert bytes to string")
+      .expect("Failed to convert bytes ocv_ver_str to string")
       .trim()
       .to_string();
 
-    let opencv_ver = Version::parse(&ocv_ver_str).unwrap();
+    let opencv_ver = Version::parse(&ocv_ver_str).expect("Failed to parse opencv_version version");
     let opencv_pre_411 = opencv_req.matches(&opencv_ver);
     if ocv_ver_str.starts_with("4.") {
       println!("cargo::rustc-cfg=opencv4");
@@ -161,19 +161,19 @@ fn main() {
   }
 
   let git_commit_cmd =
-    cross_command!("git", "rev-parse", "--short", "HEAD").expect("failed to execute process");
+    cross_command!("git", "rev-parse", "--short", "HEAD").expect("Failed to execute git_commit_cmd process");
 
   let git_branch_cmd =
-    cross_command!("git", "rev-parse", "--abbrev-ref", "HEAD").expect("failed to execute process");
+    cross_command!("git", "rev-parse", "--abbrev-ref", "HEAD").expect("Failed to execute git_branch_cmd process");
 
   let git_date_cmd = cross_command!("git", "show", "-s", "--format=%cd", "--date=short", "HEAD")
-    .expect("failed to execute process");
+    .expect("Failed to execute git_date_cmd process");
 
-  let build_uname_cmd = cross_command!("uname").expect("failed to execute process");
+  let build_uname_cmd = cross_command!("uname").expect("Failed to execute build_uname_cmd process");
 
-  let git_version_cmd = cross_command!("git", "--version").expect("failed to execute process");
+  let git_version_cmd = cross_command!("git", "--version").expect("Failed to execute git_version_cmd process");
 
-  let rustc_version_cmd = cross_command!("rustc", "--version").expect("failed to execute process");
+  let rustc_version_cmd = cross_command!("rustc", "--version").expect("Failed to execute rustc_version_cmd process");
 
   let docker_version_cmd = cross_command!("docker", "--version");
 
@@ -186,7 +186,7 @@ fn main() {
 
   let docker_version = match docker_version_cmd {
     Ok(v) => {
-      String::from_utf8(v.stdout).expect("Failed to convert bytes to string").trim().to_string()
+      String::from_utf8(v.stdout).expect("Failed to convert docker_version bytes to string").trim().to_string()
     }
     Err(_) => String::from("-"),
   };
@@ -244,36 +244,36 @@ fn main() {
       .and_then(|s| s.parse::<u64>().ok())
       .unwrap_or_default(),
     git_hash: String::from_utf8(git_commit_cmd.stdout)
-      .expect("Failed to convert bytes to string")
+      .expect("Failed to convert git_hash bytes to string")
       .trim()
       .to_string(),
     git_branch: String::from_utf8(git_branch_cmd.stdout)
-      .expect("Failed to convert bytes to string")
+      .expect("Failed to convert git_branch bytes to string")
       .trim()
       .to_string(),
     git_date: String::from_utf8(git_date_cmd.stdout)
-      .expect("Failed to convert bytes to string")
+      .expect("Failed to convert git_date bytes to string")
       .trim()
       .to_string(),
     git_version: String::from_utf8(git_version_cmd.stdout)
-      .expect("Failed to convert bytes to string")
+      .expect("Failed to convert git_version bytes to string")
       .trim()
       .to_string(),
     rustc_version: String::from_utf8(rustc_version_cmd.stdout)
-      .expect("Failed to convert bytes to string")
+      .expect("Failed to convert rustc_version bytes to string")
       .trim()
       .to_string(),
     docker_version,
     node_version: String::from_utf8(node_version_cmd.stdout)
-      .expect("Failed to convert bytes to string")
+      .expect("Failed to convert node_version bytes to string")
       .trim()
       .to_string(),
     npm_version: String::from_utf8(npm_version_cmd.stdout)
-      .expect("Failed to convert bytes to string")
+      .expect("Failed to convert npm_version bytes to string")
       .trim()
       .to_string(),
     quicktype_version: String::from_utf8(quicktype_version_cmd.stdout)
-      .expect("Failed to convert bytes to string")
+      .expect("Failed to convert quicktype_version bytes to string")
       .trim()
       .to_string(),
     opencv_version: ocv_ver_str,
@@ -285,16 +285,16 @@ fn main() {
     target_neon,
     build_type: build_type.to_string(),
     build_uname: String::from_utf8(build_uname_cmd.stdout)
-      .expect("Failed to convert bytes to string")
+      .expect("Failed to convert build_uname bytes to string")
       .trim()
       .to_string(),
     windows: cfg!(windows),
   };
 
-  let bi_json = serde_json::to_string_pretty(&bi).expect("Failed to parse json");
+  let bi_json = serde_json::to_string_pretty(&bi).expect("Failed to parse build_info json");
 
-  let mut file = File::create("build_info.json").expect("Failed to create file");
-  file.write_all(&bi_json.into_bytes()).expect("Failed to write file");
+  let mut file = File::create("build_info.json").expect("Failed to create build_info file");
+  file.write_all(&bi_json.into_bytes()).expect("Failed to write build_info.json file");
 
   let quicktype_build_info_cmd = cross_command!(
     "quicktype",
@@ -305,10 +305,29 @@ fn main() {
     "--out",
     "ui/src/types/BuildInfo.ts"
   )
-  .expect("Failed convert build_info.json to BuildInfo.ts");
+  .expect("Failed to convert build_info.json to BuildInfo.ts: Command creation failed");
 
   if !quicktype_build_info_cmd.status.success() {
-    panic!("Failed to convert build_info.json to BuildInfo.ts");
+    panic!("Failed to convert build_info.json to BuildInfo.ts: Command failed");
+  }
+
+  let config = Config::default();
+  let config_serialized = serde_json::to_string(&config).expect("Failed to serialize config to json");
+  let mut default_config_file = File::create("default_config.json").expect("Failed to create default_config file");
+  default_config_file.write_all(&config_serialized.into_bytes()).expect("Failed to write default_config file");
+
+  let quicktype_config_cmd = cross_command!(
+    "quicktype",
+    "--lang",
+    "ts",
+    "--just-types",
+    "default_config.json",
+    "--out",
+    "ui/src/types/Config.ts"
+  ).expect("Failed to convert default_config.json to Config.ts: Command creation failed");
+
+    if !quicktype_config_cmd.status.success() {
+    panic!("Failed to convert default_config.json to Config.ts: Command failed");
   }
 
   if build_ui {
@@ -319,13 +338,13 @@ fn main() {
     assert!(env::set_current_dir(root).is_ok());
     println!("Successfully changed working directory to {}!", root.display());
 
-    let npmi = cross_command!("npm", "i").expect("failed to execute npm i");
+    let npmi = cross_command!("npm", "i").expect("Failed to execute npm i");
 
     if !npmi.status.success() {
       panic!("npm i failed");
     }
 
-    let npmbuild = cross_command!("npm", "run", "build").expect("failed to execute npm run build");
+    let npmbuild = cross_command!("npm", "run", "build").expect("Failed to execute npm run build");
 
     if !npmbuild.status.success() {
       panic!("npm run build failed");

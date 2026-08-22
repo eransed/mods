@@ -18,6 +18,7 @@ use crate::openprotocol::core::MidName;
 use crate::openprotocol::mid_0002::Mid0002;
 use config::ConfigModule;
 use http::HttpModule;
+use tracing::error;
 use std::net::IpAddr;
 use std::thread;
 use std::time::Duration;
@@ -265,9 +266,23 @@ async fn main() {
       ip: String::from("192.168.0.47"),
       port: 4545,
       keep_alive_time_ms: 7500,
+      reconnect_delay_ms: 5000,
       mid_0001_config: MidConfig { rev: 6, active: true },
     };
-    openprotocol::client::client(&c).await.expect("Failed to run Open Protocol client");
+
+    loop {
+      info!("Starts OpenProtcol client...");
+      match openprotocol::client::client(&c).await {
+        Ok(_) => {
+          info!("OpenProtocol client stopped successfully");
+          break;
+        },
+        Err(e) => {
+          error!("OpenProtcol client error: {}", e);
+          tokio::time::sleep(Duration::from_millis(c.reconnect_delay_ms)).await;
+        }
+      }
+    }
   });
 
   tokio::spawn(async move {
@@ -311,6 +326,11 @@ async fn main() {
   for mid_name in MidName::iter() {
     info!("MID {:04} {}", mid_name as u16, mid_name.as_ref());
   }
+
+  // for i in 0..100_000 {
+  //   info!("Testing the logging system with this average length log line: i = {}", i);
+  // }
+  // info!("Done");
 
   // handle stop signals and shutdown
 

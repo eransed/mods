@@ -1,4 +1,4 @@
-use std::io;
+use std::io::{self, Error, ErrorKind};
 use std::time::Instant;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -43,7 +43,7 @@ impl Client {
         result = self.stream.read(&mut read_buffer) => {
           let bytes_read = result?;
           if bytes_read == 0 {
-            return Ok(());
+            return Err(Error::new(ErrorKind::ConnectionReset, "Zero bytes read: Peer closed?"))
           }
           self.receive_buffer.extend_from_slice(&read_buffer[..bytes_read]);
           while let Some(message) = take_message(&mut self.receive_buffer)? {

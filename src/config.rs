@@ -88,7 +88,7 @@ impl ConfigModule {
                   ConfigRequest::Set { requester, config, response } => {
                       debug!(requester, "set config");
                       self.config = config.clone();
-                      set_log_level(&self.config.log_level);
+                      set_log_level(&self.config.logging_config.log_level);
                       if let Err(err) = save_config_to_path(&self.config, &config_path()) {
                           error!(error = ?err, "failed to persist config to config.json");
                       }
@@ -97,7 +97,7 @@ impl ConfigModule {
                   ConfigRequest::Reset { requester, response } => {
                       debug!(requester, "reset config");
                       self.config = Config::default();
-                      set_log_level(&self.config.log_level);
+                      set_log_level(&self.config.logging_config.log_level);
                       if let Err(err) = save_config_to_path(&self.config, &config_path()) {
                           error!(error = ?err, "failed to persist default config to config.json");
                       }
@@ -174,7 +174,7 @@ mod tests {
   #[test]
   fn defaults_to_info_log_level() {
     let config = Config::default();
-    assert_eq!(config.log_level, "info");
+    assert_eq!(config.logging_config.log_level, "info");
   }
 
   #[test]
@@ -183,7 +183,6 @@ mod tests {
     let config = Config {
       http_port: 9000,
       ws_port: 9001,
-      log_level: "debug".to_string(),
       allow_remote_connections: false,
       enable_camera: true,
       opencv_display: true,
@@ -194,6 +193,7 @@ mod tests {
       camera_fetch_delay_ms: 0,
       camera_send_image: false,
       camera_send_image_resize_factor: 0.4,
+      ..Default::default()
     };
 
     save_config_to_path(&config, &path).unwrap();

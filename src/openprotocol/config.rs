@@ -10,5 +10,6 @@ pub struct Config {
   pub ip: String,
   pub port: u16,
   pub keep_alive_time_ms: u64,
+  pub reconnect_delay_ms: u64,
   pub mid_0001_config: MidConfig,
 }

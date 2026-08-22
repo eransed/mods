@@ -2,23 +2,23 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::sync::OnceLock;
+use chrono::Local;
 use tracing_appender::{non_blocking, non_blocking::WorkerGuard};
 use tracing_subscriber::{EnvFilter, fmt, prelude::*, reload};
-use types::Config;
+use types::{Config, LoggingConfig};
 
 static FILTER_HANDLE: OnceLock<reload::Handle<EnvFilter, tracing_subscriber::Registry>> =
   OnceLock::new();
 
 pub struct LineRotatingFile {
   base_path: PathBuf,
-  max_lines: usize,
-  max_files: usize,
   file: File,
   line_count: usize,
+  logging_config: LoggingConfig
 }
 
 impl LineRotatingFile {
-  pub fn new(base_path: PathBuf, max_lines: usize, max_files: usize) -> io::Result<Self> {
+  pub fn new(base_path: PathBuf, config: LoggingConfig) -> io::Result<Self> {
     if let Some(parent) = base_path.parent() {
       fs::create_dir_all(parent)?;
     }
@@ -31,40 +31,26 @@ impl LineRotatingFile {
     };
 
     let file = OpenOptions::new().create(true).append(true).open(&base_path)?;
-    Ok(Self { base_path, max_lines, max_files, file, line_count })
-  }
 
-  fn rotated_path(&self, index: usize) -> PathBuf {
-    let file_name = self.base_path.file_name().expect("log file name missing").to_string_lossy();
-    self.base_path.with_file_name(format!("{file_name}.{index}"))
+    println!("Logging base_path: {:#?}", base_path);
+
+    Ok(Self { base_path, file, line_count, logging_config: config })
   }
 
   fn rotate_if_needed(&mut self, additional_lines: usize) -> io::Result<()> {
-    if self.line_count + additional_lines < self.max_lines {
+    if self.line_count + additional_lines < self.logging_config.max_lines_per_file {
       return Ok(());
     }
 
     self.file.flush()?;
 
-    if self.max_files > 0 {
-      let oldest = self.rotated_path(self.max_files);
-      if oldest.exists() {
-        fs::remove_file(&oldest)?;
-      }
+    let file_name = self.base_path.file_name().expect("log file name missing").to_str().expect("Could not read the log file name");
+    let date = Local::now().format("%Y%m%d_%H%M%S%.3f").to_string();
+    let new_file_name = self.base_path.with_file_name(format!("{file_name}.{date}"));
 
-      for i in (1..self.max_files).rev() {
-        let from = self.rotated_path(i);
-        let to = self.rotated_path(i + 1);
-        if from.exists() {
-          fs::rename(from, to)?;
-        }
-      }
-    }
+    fs::rename(file_name, new_file_name)?;
 
-    if self.base_path.exists() {
-      let rotated = self.rotated_path(1);
-      fs::rename(&self.base_path, rotated)?;
-    }
+    // todo delete the oldest file
 
     self.file = OpenOptions::new().create(true).append(true).open(&self.base_path)?;
     self.line_count = 0;
@@ -92,7 +78,7 @@ fn build_filter(log_level: &str) -> EnvFilter {
 
 pub fn init_tracing(config: &Config) -> WorkerGuard {
   let time_fmt = String::from("%Y-%m-%d %H:%M:%S%.6f");
-  let (filter_layer, reload_handle) = reload::Layer::new(build_filter(&config.log_level));
+  let (filter_layer, reload_handle) = reload::Layer::new(build_filter(&config.logging_config.log_level));
   let stdout_layer = fmt::layer()
     .with_writer(std::io::stdout)
     .with_timer(fmt::time::ChronoLocal::new(time_fmt.clone()))
@@ -102,7 +88,7 @@ pub fn init_tracing(config: &Config) -> WorkerGuard {
     .with_line_number(true)
     .with_ansi(true);
 
-  let file_appender = LineRotatingFile::new(PathBuf::from("logs/mods.log"), 20_000, 50)
+  let file_appender = LineRotatingFile::new(PathBuf::from("logs/mods.log"), config.logging_config.clone())
     .expect("failed to initialize rotating log file");
   let (non_blocking, guard) = non_blocking(file_appender);
   let file_layer = fmt::layer()
