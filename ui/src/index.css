@@ -19,12 +19,12 @@
 html,
 body,
 #root {
-  min-height: 100%;
+  height: 100%;
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
+  overflow: hidden;
 }
 
 button,
@@ -143,13 +143,15 @@ ul {
 }
 
 #root {
-  min-height: 100vh;
+  height: 100%;
 }
 
 .app-shell {
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
   display: grid;
   grid-template-columns: 14rem 1fr;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -157,6 +159,7 @@ ul {
   border-right: 1px solid var(--accent);
   background: var(--bg);
   color: var(--fg);
+  overflow: hidden;
 }
 
 /* Desktop: hide sidebar when not sidebar-open and adjust grid */
@@ -239,9 +242,14 @@ ul {
 
 .content {
   min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .page-body {
+  min-height: 0;
+  overflow: auto;
   padding: 1rem;
 }
 

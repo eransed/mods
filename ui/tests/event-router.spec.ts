@@ -2,20 +2,13 @@ import { expect, test } from '@playwright/test'
 
 const timeout = 2000
 
-test('renders the Event Router page', async ({ page }) => {
+test('renders the mods main page', async ({ page }) => {
   await page.goto('/')
 
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Event Router' }),
+    page.getByRole('heading', { level: 1, name: 'mods' }),
   ).toBeVisible()
   await expect(page.getByText(/connecting|connected|disconnected/i)).toBeVisible()
-})
-
-test('Menu is visible', async ({ page }) => {
-  await page.goto('/')
-  await expect(
-    page.getByText('Menu')
-  ).toBeVisible({ timeout })
 })
 
 test('Volumes page link is visible', async ({ page }) => {

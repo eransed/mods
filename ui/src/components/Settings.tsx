@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { Config, OpenProtocolClient } from "../types/Config";
 import { Button } from "./Button";
 
@@ -46,7 +46,7 @@ export function Settings({ http_port }: SettingsProps) {
         };
 
         fetchConfig();
-    }, [http_port]);
+    }, [url]);
 
     if (errState) {
         return <>
@@ -166,7 +166,7 @@ interface ConfigFieldProps {
 
 function ConfigField({ label, value, oldValue, onChange, onRemove }: ConfigFieldProps) {
     let inp = <div style={{ color: '#e00' }}><b>Unsupported config parameter type: {typeof value} ({label})</b></div>
-    let id = 'id-' + (1e9 * Math.random()).toFixed(0)
+    const id = useId()
     if (typeof value === 'boolean') {
         inp = <input
             type="checkbox"
