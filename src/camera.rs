@@ -55,7 +55,7 @@ impl Frequency {
 pub fn camera_start(
   sender: Sender<Message>,
   shutdown_rx: Receiver<bool>,
-  mut config_rx: Receiver<types::Config>,
+  config_rx: Receiver<types::Config>,
 ) {
   let config = config_rx.borrow().clone();
   let device_index = config.device_index;
