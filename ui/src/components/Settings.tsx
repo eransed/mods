@@ -243,17 +243,23 @@ function ConfigField({ label, property, oldProperty, onChange }: ConfigFieldProp
 
     return (
         <div className="config-field">
-            <div className="config-field-name"><b>{label}</b></div>
-            <div className="config-field-value">
-                {input}
-                {typeof value === 'boolean' && <span className="checkbox"></span>}
-                {oldProperty && value !== oldProperty.value && (
-                    <span className="config-field-old-value">Previous: {`${oldProperty.value}`}</span>
-                )}
+            {/* Keep the editable setting identity together in the row's top section. */}
+            <div className="config-field-top">
+                <div className="config-field-name"><b>{label}</b></div>
+                <div className="config-field-value">
+                    {input}
+                    {typeof value === 'boolean' && <span className="checkbox"></span>}
+                    {oldProperty && value !== oldProperty.value && (
+                        <span className="config-field-old-value">Previous: {`${oldProperty.value}`}</span>
+                    )}
+                </div>
             </div>
-            <div className="config-field-type">{typeof value}</div>
-            <div className="config-field-description">{property.description}</div>
-            <div className="config-field-version">Added {property.added_version}</div>
+            {/* Keep descriptive metadata together below the editable controls. */}
+            <div className="config-field-bottom">
+                <div className="config-field-type">Type: {typeof value}</div>
+                <div className="config-field-description">{property.description}</div>
+                <div className="config-field-version">Added {property.added_version}</div>
+            </div>
         </div>
     );
 }

@@ -63,7 +63,8 @@ select {
   width: 7rem;
 }
 
-label input[type=checkbox] {
+/* Hide the native control so the adjacent custom checkbox is visible. */
+.config-field-value input[type=checkbox] {
   display: none; /* Hide the default checkbox */
 }
 
@@ -77,7 +78,8 @@ label i {
 }
 
 /* Style the artificial checkbox */
-label span.checkbox {
+/* Render the replacement checkbox beside the hidden native control. */
+.config-field-value span.checkbox {
   height: 20px;
   width: 20px;
   border: 1px solid var(--accent);
@@ -88,7 +90,8 @@ label span.checkbox {
 }
 
 /* Style its checked state...with a ticked icon */
-label input[type=checkbox]:checked + span.checkbox:before {
+/* Show the check mark when the hidden native control is checked. */
+.config-field-value input[type=checkbox]:checked + span.checkbox:before {
   /* content: '\2713'; */
   content: '\2714';
   /* content: '\2715'; */
@@ -121,29 +124,55 @@ button:disabled {
 }
 
 .config-field {
-  display: grid;
-  grid-template-columns: minmax(10rem, 1fr) minmax(12rem, 1.2fr) 6rem minmax(14rem, 2fr) 8rem;
-  align-items: center;
-  gap: 1rem;
+  /* Stack editable controls above their descriptive metadata. */
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
   width: calc(100% - 2rem);
   padding: 0.6rem 0;
   border-bottom: 1px solid #333;
   margin-bottom: 0.4rem;
 }
 
+.config-field-top,
+.config-field-bottom {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.config-field-top {
+  min-height: 2rem;
+}
+
+.config-field-name {
+  flex: 1 1 30%;
+}
+
 .config-field-value {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex: 1 1 70%;
 }
 
-.config-field-type,
-.config-field-version {
+.config-field-bottom {
+  align-items: baseline;
   color: #aaa;
   font-size: 0.85rem;
 }
 
+.config-field-type {
+  flex: 0 0 8rem;
+}
+
+.config-field-version {
+  flex: 0 0 8rem;
+}
+
 .config-field-description {
+  flex: 1;
   color: #ccc;
 }
 
@@ -166,13 +195,23 @@ button:disabled {
 }
 
 @media (max-width: 900px) {
-  .config-field {
-    grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.5fr) 5rem;
+  .config-field-top,
+  .config-field-bottom {
+    align-items: flex-start;
   }
 
-  .config-field-description,
-  .config-field-version {
-    grid-column: 2 / -1;
+  .config-field-top {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .config-field-value {
+    width: 100%;
+  }
+
+  .config-field-bottom {
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
   }
 }
 

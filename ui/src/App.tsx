@@ -7,13 +7,10 @@ import { Camera } from './components/Camera'
 import { Settings } from './components/Settings'
 import { About } from './components/About'
 import { Button } from './components/Button'
+import type { Config } from './types/Config'
 // import mermaid from 'mermaid'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
-
-type ConfigResponse = {
-  ws_port?: number
-}
 
 const pages = [
   {
@@ -170,10 +167,11 @@ function App() {
         console.log('Fetching config...')
         const response = await fetch(`${host}/config`)
         if (response.ok) {
-          const config = (await response.json()) as ConfigResponse
-          if (typeof config.ws_port === 'number') {
+          // Read the websocket port from the generated ConfigProperty shape.
+          const config = (await response.json()) as Config
+          if (typeof config.general_config?.ws_port?.value === 'number') {
             console.log('Config received:', config)
-            resolvedWsPort = config.ws_port
+            resolvedWsPort = config.general_config.ws_port.value
             gotConfig = true
             setReconnectAttempts(0)
             disconnectStart.current = null
