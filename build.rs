@@ -302,9 +302,11 @@ fn main() {
 
   let quicktype_build_info_cmd = cross_command!(
     "quicktype",
+    "--no-enums",
     "--lang",
     "ts",
     "--just-types",
+    "--prefer-const-values",
     "build_info.json",
     "--out",
     "ui/src/types/BuildInfo.ts"
@@ -326,9 +328,11 @@ fn main() {
 
   let quicktype_config_cmd = cross_command!(
     "quicktype",
+    "--no-enums",
     "--lang",
     "ts",
     "--just-types",
+    "--prefer-const-values",
     "default_config.json",
     "--out",
     "ui/src/types/Config.ts"

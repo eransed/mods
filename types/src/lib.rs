@@ -32,15 +32,50 @@ pub struct BuildInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ConfigProperty<T> {
+  pub value: T,
+  pub default_value: T,
+  pub added_version: String,
+  pub description: String,
+  pub hide: bool,
+  pub deprecated_version: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LoggingConfig {
-  pub log_level: String,
-  pub max_lines_per_file: usize,
-  pub max_log_file_to_keep: usize,
+  pub log_level: ConfigProperty<String>,
+  pub max_lines_per_file: ConfigProperty<usize>,
+  pub max_log_file_to_keep: ConfigProperty<usize>,
 }
 
 impl Default for LoggingConfig {
   fn default() -> Self {
-    Self { log_level: "info".to_string(), max_lines_per_file: 10_000, max_log_file_to_keep: 100 }
+    Self {
+      log_level: ConfigProperty {
+        value: "info".to_string(),
+        default_value: "info".to_string(),
+        added_version: "1.0.0".to_string(),
+        description: "The log level".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      max_lines_per_file: ConfigProperty {
+        value: 10_000,
+        default_value: 10_000,
+        added_version: "1.0.0".to_string(),
+        description: "The maximum number of lines per log file".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      max_log_file_to_keep: ConfigProperty {
+        value: 100,
+        default_value: 100,
+        added_version: "1.0.0".to_string(),
+        description: "The maximum number of log files to keep".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+    }
   }
 }
 
@@ -52,84 +87,243 @@ pub struct MidConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OpenProtocolClientConfig {
-  pub activated: bool,
-  pub name: String,
-  pub ip: String,
-  pub port: u16,
-  pub keep_alive_time_ms: u64,
-  pub reconnect_delay_ms: u64,
+  pub activated: ConfigProperty<bool>,
+  pub name: ConfigProperty<String>,
+  pub ip: ConfigProperty<String>,
+  pub port: ConfigProperty<u16>,
+  pub keep_alive_time_ms: ConfigProperty<u64>,
+  pub reconnect_delay_ms: ConfigProperty<u64>,
   pub mid_0001_config: MidConfig,
 }
 
 impl Default for OpenProtocolClientConfig {
   fn default() -> Self {
     Self {
-      activated: false,
-      name: "default".to_string(),
-      ip: "127.0.0.1".to_string(),
-      port: 4545,
-      keep_alive_time_ms: 7500,
-      reconnect_delay_ms: 5000,
+      activated: ConfigProperty {
+        value: false,
+        default_value: false,
+        added_version: "1.0.0".to_string(),
+        description: "Whether the client is activated".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      name: ConfigProperty {
+        value: "default".to_string(),
+        default_value: "default".to_string(),
+        added_version: "1.0.0".to_string(),
+        description: "The name of the client".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      ip: ConfigProperty {
+        value: "127.0.0.1".to_string(),
+        default_value: "127.0.0.1".to_string(),
+        added_version: "1.0.0".to_string(),
+        description: "The IP address of the client".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      port: ConfigProperty {
+        value: 4545,
+        default_value: 4545,
+        added_version: "1.0.0".to_string(),
+        description: "The port of the client".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      keep_alive_time_ms: ConfigProperty {
+        value: 7500,
+        default_value: 7500,
+        added_version: "1.0.0".to_string(),
+        description: "The keep-alive time in milliseconds".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      reconnect_delay_ms: ConfigProperty {
+        value: 5000,
+        default_value: 5000,
+        added_version: "1.0.0".to_string(),
+        description: "The reconnect delay in milliseconds".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
       mid_0001_config: MidConfig { rev: 6, active: true },
     }
   }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct OpenProtocolConfig {
-  pub open_protocol_clients: Vec<OpenProtocolClientConfig>,
+pub struct CameraConfig {
+  pub enable_camera: ConfigProperty<bool>,
+  pub opencv_display: ConfigProperty<bool>,
+  pub angle_filter: ConfigProperty<usize>,
+  pub min_decision_margin: ConfigProperty<f32>,
+  pub device_index: ConfigProperty<usize>,
+  pub device_width: ConfigProperty<f64>,
+  pub camera_fetch_delay_ms: ConfigProperty<u64>,
+  pub camera_send_image: ConfigProperty<bool>,
+  pub camera_send_image_resize_factor: ConfigProperty<f64>,
 }
 
-impl Default for OpenProtocolConfig {
+impl Default for CameraConfig {
   fn default() -> Self {
-    Self { open_protocol_clients: vec![OpenProtocolClientConfig::default()] }
+    Self {
+      enable_camera: ConfigProperty {
+        value: true,
+        default_value: true,
+        added_version: "1.0.0".to_string(),
+        description: "Whether to enable the camera".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      opencv_display: ConfigProperty {
+        value: false,
+        default_value: false,
+        added_version: "1.0.0".to_string(),
+        description: "Whether to display the OpenCV window".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      angle_filter: ConfigProperty {
+        value: 3,
+        default_value: 3,
+        added_version: "1.0.0".to_string(),
+        description: "The number of angles to filter".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      min_decision_margin: ConfigProperty {
+        value: 20.0,
+        default_value: 20.0,
+        added_version: "1.0.0".to_string(),
+        description: "The minimum decision margin".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      device_index: ConfigProperty {
+        value: 0,
+        default_value: 0,
+        added_version: "1.0.0".to_string(),
+        description: "The index of the camera device to use".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      device_width: ConfigProperty {
+        value: 1920 as f64,
+        default_value: 1920 as f64,
+        added_version: "1.0.0".to_string(),
+        description: "The width of the camera device".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      camera_fetch_delay_ms: ConfigProperty {
+        value: 0,
+        default_value: 0,
+        added_version: "1.0.0".to_string(),
+        description: "The delay for fetching camera images".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      camera_send_image: ConfigProperty {
+        value: true,
+        default_value: true,
+        added_version: "1.0.0".to_string(),
+        description: "Whether to send the camera image".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      camera_send_image_resize_factor: ConfigProperty {
+        value: 0.4,
+        default_value: 0.4,
+        added_version: "1.0.0".to_string(),
+        description: "The resize factor for the camera image".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+    }
   }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ConfigProperty<T> {
-  pub value: T,
-  pub description: String,
+pub struct GeneralConfig {
+  pub _bool_property: ConfigProperty<bool>,
+  pub _string_property: ConfigProperty<String>,
+  pub _number_property: ConfigProperty<u32>,
+  pub http_port: ConfigProperty<u16>,
+  pub ws_port: ConfigProperty<u16>,
+  pub allow_remote_connections: ConfigProperty<bool>,
+}
+
+impl Default for GeneralConfig {
+  fn default() -> Self {
+    Self {
+      _bool_property: ConfigProperty {
+        value: true,
+        default_value: true,
+        added_version: "0.0.0".to_string(),
+        description: "An example boolean property".to_string(),
+        hide: true,
+        deprecated_version: String::new(),
+      },
+      _string_property: ConfigProperty {
+        value: "default".to_string(),
+        default_value: "default".to_string(),
+        added_version: "0.0.0".to_string(),
+        description: "An example string property".to_string(),
+        hide: true,
+        deprecated_version: String::new(),
+      },
+      _number_property: ConfigProperty {
+        value: 42,
+        default_value: 42,
+        added_version: "0.0.0".to_string(),
+        description: "An example number property".to_string(),
+        hide: true,
+        deprecated_version: String::new(),
+      },
+      http_port: ConfigProperty {
+        value: 8123,
+        default_value: 8123,
+        added_version: "1.0.0".to_string(),
+        description: "Port that the http server shall listen on".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      ws_port: ConfigProperty {
+        value: 8124,
+        default_value: 8124,
+        added_version: "1.0.0".to_string(),
+        description: "Port that the websocket server shall listen on".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      allow_remote_connections: ConfigProperty {
+        value: true,
+        default_value: true,
+        added_version: "1.0.0".to_string(),
+        description: "Whether to allow remote connections".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+    }
+  }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Config {
-  pub http_port: ConfigProperty<u16>,
-  pub ws_port: u16,
-  pub allow_remote_connections: bool,
-  pub enable_camera: bool,
-  pub opencv_display: bool,
-  pub angle_filter: usize,
-  pub min_decision_margin: f32,
-  pub device_index: i32,
-  pub device_width: f64,
-  pub camera_fetch_delay_ms: u64,
-  pub camera_send_image: bool,
-  pub camera_send_image_resize_factor: f64,
+  pub general_config: GeneralConfig,
   pub logging_config: LoggingConfig,
-  pub open_protocol_config: OpenProtocolConfig,
+  pub camera_configs: Vec<CameraConfig>,
+  pub open_protocol_configs: Vec<OpenProtocolClientConfig>,
 }
 
 impl Default for Config {
   fn default() -> Self {
     Self {
-      http_port: ConfigProperty {
-        value: 8123,
-        description: "Port that the http server shall listen on".to_string(),
-      },
-      ws_port: 8124,
-      allow_remote_connections: true,
-      enable_camera: true,
-      opencv_display: false,
-      angle_filter: 3,
-      min_decision_margin: 20.0,
-      device_index: 0,
-      device_width: 1920 as f64,
-      camera_fetch_delay_ms: 0,
-      camera_send_image: true,
-      camera_send_image_resize_factor: 0.4,
+      general_config: GeneralConfig::default(),
       logging_config: LoggingConfig::default(),
-      open_protocol_config: OpenProtocolConfig::default(),
+      camera_configs: vec![CameraConfig::default()],
+      open_protocol_configs: vec![OpenProtocolClientConfig::default()],
     }
   }
 }

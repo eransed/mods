@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import type { Config, OpenProtocolClient } from "../types/Config";
+import type { Config, OpenProtocolConfig } from "../types/Config";
 import { Button } from "./Button";
 
 export interface SettingsProps {
@@ -126,7 +126,7 @@ function objectConfigField(conf: ObjectConfigField) {
     );
 }
 
-function createDefaultArrayEntry(label: string, entries: unknown[]): OpenProtocolClient | unknown {
+function createDefaultArrayEntry(label: string, entries: unknown[]): OpenProtocolConfig | unknown {
     if (label === 'open_protocol_clients') {
         return {
             activated: true,

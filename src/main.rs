@@ -58,16 +58,15 @@ async fn run_openprotocol(
   loop {
     let activated_clients: Vec<_> = config_rx
       .borrow()
-      .open_protocol_config
-      .open_protocol_clients
+      .open_protocol_configs
       .iter()
-      .filter(|c| c.activated)
+      .filter(|c| c.activated.value)
       .cloned()
       .collect();
 
     let mut clients = tokio::task::JoinSet::new();
     for client_config in activated_clients {
-      info!("Starting OpenProtocol client for: {}", client_config.name);
+      info!("Starting OpenProtocol client for: {}", client_config.name.value);
       clients.spawn(run_openprotocol_client(client_config));
     }
 
@@ -96,11 +95,11 @@ async fn run_openprotocol(
 async fn run_openprotocol_client(client_config: types::OpenProtocolClientConfig) {
   loop {
     match openprotocol::client::client(&client_config).await {
-      Ok(()) => info!("OpenProtocol client '{}' stopped successfully", client_config.name),
-      Err(error) => error!(%error, "OpenProtocol client '{}' error", client_config.name),
+      Ok(()) => info!("OpenProtocol client '{}' stopped successfully", client_config.name.value),
+      Err(error) => error!(%error, "OpenProtocol client '{}' error", client_config.name.value),
     }
 
-    tokio::time::sleep(Duration::from_millis(client_config.reconnect_delay_ms)).await;
+    tokio::time::sleep(Duration::from_millis(client_config.reconnect_delay_ms.value)).await;
   }
 }
 
@@ -274,12 +273,9 @@ async fn main() {
     }));
   }
 
-  let ws_client = WsClient::new(format!("ws://127.0.0.1:{}", initial_config.ws_port));
+  let ws_client = WsClient::new(format!("ws://127.0.0.1:{}", initial_config.general_config.ws_port.value));
   let ws_client_config_rx = config_rx.clone();
   let ws_client_shutdown_rx = shutdown_rx.clone();
-
-  let ws_port = initial_config.ws_port;
-  let http_port = initial_config.http_port;
 
   // Initialize UDP Discovery Server
   let node_name = hostname::get()
@@ -292,7 +288,7 @@ async fn main() {
   let discovery_server = match DiscoveryServer::new(
     node_name,
     local_ip,
-    http_port.value,
+    http_port,
     system_type,
     broadcast_sender.clone(),
     discovery_rx,
@@ -323,8 +319,8 @@ async fn main() {
     let mut shutdown_rx = http_shutdown_rx;
     loop {
       let config = config_rx.borrow().clone();
-      let host = if config.allow_remote_connections { [0, 0, 0, 0] } else { [127, 0, 0, 1] };
-      let addr = std::net::SocketAddr::from((host, config.http_port.value));
+      let host = if config.general_config.allow_remote_connections.value { [0, 0, 0, 0] } else { [127, 0, 0, 1] };
+      let addr = std::net::SocketAddr::from((host, config.general_config.http_port.value));
       let module = HttpModule::new(
         "http",
         http_sender.clone(),
@@ -359,8 +355,8 @@ async fn main() {
     let mut shutdown_rx = ws_shutdown_rx;
     loop {
       let config = config_rx.borrow().clone();
-      let host = if config.allow_remote_connections { [0, 0, 0, 0] } else { [127, 0, 0, 1] };
-      let addr = std::net::SocketAddr::from((host, config.ws_port));
+      let host = if config.general_config.allow_remote_connections.value { [0, 0, 0, 0] } else { [127, 0, 0, 1] };
+      let addr = std::net::SocketAddr::from((host, config.general_config.ws_port.value));
       let module = WsServer::new("ws_server", ws_sender.clone());
       let mut task = tokio::spawn(module.run(addr));
       tokio::select! {
@@ -392,7 +388,7 @@ async fn main() {
     ws_client.run(ws_client_config_rx, ws_client_shutdown_rx).await;
   });
 
-  info!("http server listening at: {}", http_port.value);
+  info!("http server listening at: {}", http_port);
   info!("websocket server listening at: {}", ws_port);
 
   info!("Current working directory: {}", std::env::current_dir().unwrap().display());

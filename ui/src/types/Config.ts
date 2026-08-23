@@ -1,42 +1,71 @@
 export interface Config {
-    http_port:                       HTTPPort;
-    ws_port:                         number;
-    allow_remote_connections:        boolean;
-    enable_camera:                   boolean;
-    opencv_display:                  boolean;
-    angle_filter:                    number;
-    min_decision_margin:             number;
-    device_index:                    number;
-    device_width:                    number;
-    camera_fetch_delay_ms:           number;
-    camera_send_image:               boolean;
-    camera_send_image_resize_factor: number;
-    logging_config:                  LoggingConfig;
-    open_protocol_config:            OpenProtocolConfig;
+    general_config:        GeneralConfig;
+    logging_config:        LoggingConfig;
+    camera_configs:        CameraConfig[];
+    open_protocol_configs: OpenProtocolConfig[];
 }
 
-export interface HTTPPort {
-    value:       number;
-    description: string;
+export interface CameraConfig {
+    enable_camera:                   BoolProperty;
+    opencv_display:                  BoolProperty;
+    angle_filter:                    NumberProperty;
+    min_decision_margin:             NumberProperty;
+    device_index:                    NumberProperty;
+    device_width:                    NumberProperty;
+    camera_fetch_delay_ms:           NumberProperty;
+    camera_send_image:               BoolProperty;
+    camera_send_image_resize_factor: NumberProperty;
+}
+
+export interface NumberProperty {
+    value:              number;
+    default_value:      number;
+    added_version:      string;
+    description:        string;
+    hide:               boolean;
+    deprecated_version: string;
+}
+
+export interface BoolProperty {
+    value:              boolean;
+    default_value:      boolean;
+    added_version:      string;
+    description:        string;
+    hide:               boolean;
+    deprecated_version: string;
+}
+
+export interface GeneralConfig {
+    _bool_property:           BoolProperty;
+    _string_property:         StringProperty;
+    _number_property:         NumberProperty;
+    http_port:                NumberProperty;
+    ws_port:                  NumberProperty;
+    allow_remote_connections: BoolProperty;
+}
+
+export interface StringProperty {
+    value:              string;
+    default_value:      string;
+    added_version:      string;
+    description:        string;
+    hide:               boolean;
+    deprecated_version: string;
 }
 
 export interface LoggingConfig {
-    log_level:            string;
-    max_lines_per_file:   number;
-    max_log_file_to_keep: number;
+    log_level:            StringProperty;
+    max_lines_per_file:   NumberProperty;
+    max_log_file_to_keep: NumberProperty;
 }
 
 export interface OpenProtocolConfig {
-    open_protocol_clients: OpenProtocolClient[];
-}
-
-export interface OpenProtocolClient {
-    activated:          boolean;
-    name:               string;
-    ip:                 string;
-    port:               number;
-    keep_alive_time_ms: number;
-    reconnect_delay_ms: number;
+    activated:          BoolProperty;
+    name:               StringProperty;
+    ip:                 StringProperty;
+    port:               NumberProperty;
+    keep_alive_time_ms: NumberProperty;
+    reconnect_delay_ms: NumberProperty;
     mid_0001_config:    Mid0001_Config;
 }
 
