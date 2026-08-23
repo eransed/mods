@@ -49,7 +49,18 @@ export function Settings({ http_port }: SettingsProps) {
 
     return (
         <div className="settings-page">
-            <h1>Settings</h1>
+            {/* Keep the page identity and save action visible while settings scroll. */}
+            <div className="settings-sub-top-bar">
+                <h1>Settings</h1>
+                {config && configModified &&
+                    <Button className="config-save" disabled={configEqual(config, configModified)} onClick={() => {
+                        if (configModified) {
+                            setConfig(configModified)
+                            updateConfig(url, configModified)
+                        }
+                    }}>Save</Button>
+                }
+            </div>
             {configModified && Object.entries(configModified).map(([key, value]) => (
                 <ConfigSection
                     key={key}
@@ -64,14 +75,6 @@ export function Settings({ http_port }: SettingsProps) {
                     }}
                 />
             ))}
-            {config && configModified &&
-                <Button className="config-save" disabled={configEqual(config, configModified)} onClick={() => {
-                    if (configModified) {
-                        setConfig(configModified)
-                        updateConfig(url, configModified)
-                    }
-                }}>Save</Button>
-            }
         </div>
     );
 }
@@ -137,10 +140,23 @@ function ConfigSection({ label, value, oldValue, onChange, onRemove }: ConfigSec
                 />
             ))}
             {Array.isArray(value) && (
-                <Button type="button" onClick={() => onChange([...value, createDefaultArrayEntry(label, value)])}>Add</Button>
+                <Button type="button" onClick={() => onChange([...value, createDefaultArrayEntry(label, value)])}>
+                    Add {configTypeLabel(label)}
+                </Button>
             )}
         </section>
     );
+}
+
+function configTypeLabel(label: string): string {
+    // Name each configurable device type explicitly in its add action.
+    if (label === 'open_protocol_configs') return 'OpenProtocol Device';
+    if (label === 'camera_configs') return 'Camera Device';
+
+    // Turn any future collection names into readable labels by default.
+    return label
+        .replace(/_configs$/, '')
+        .replace(/(^|_)\w/g, (match) => match.replace('_', '').toUpperCase());
 }
 
 function ConfigEntry({ label, value, oldValue, onChange, onRemove }: ConfigSectionProps) {
@@ -247,8 +263,13 @@ function ConfigField({ label, property, oldProperty, onChange }: ConfigFieldProp
             <div className="config-field-top">
                 <div className="config-field-name"><b>{label}</b></div>
                 <div className="config-field-value">
-                    {input}
-                    {typeof value === 'boolean' && <span className="checkbox"></span>}
+                    {typeof value === 'boolean' ? (
+                        /* Associate the visible custom control with its hidden input. */
+                        <label className="config-checkbox" htmlFor={id}>
+                            {input}
+                            <span className="checkbox"></span>
+                        </label>
+                    ) : input}
                     {oldProperty && value !== oldProperty.value && (
                         <span className="config-field-old-value">Previous: {`${oldProperty.value}`}</span>
                     )}

@@ -39,3 +39,28 @@ test('About page link is visible', async ({ page }) => {
   ).toBeVisible({ timeout })
 })
 
+test('settings checkbox changes when the custom checkbox is clicked', async ({ page }) => {
+  // Provide the smallest Config-shaped response needed to render a checkbox.
+  await page.route('**/config', async (route) => {
+    await route.fulfill({
+      json: {
+        general_config: {
+          ws_port: { value: 8124, default_value: 8124, added_version: '1.0.0', description: 'Websocket port', hide: false, deprecated_version: '' },
+          allow_remote_connections: { value: false, default_value: false, added_version: '1.0.0', description: 'Allow remote connections', hide: false, deprecated_version: '' },
+        },
+        logging_config: {},
+        camera_configs: [],
+        open_protocol_configs: [],
+      },
+    })
+  })
+
+  await page.goto('/settings')
+  const row = page.locator('.config-field').filter({ hasText: 'allow_remote_connections' })
+  const checkbox = row.locator('input[type="checkbox"]')
+
+  await expect(checkbox).not.toBeChecked()
+  await row.locator('.checkbox').click()
+  await expect(checkbox).toBeChecked()
+})
+

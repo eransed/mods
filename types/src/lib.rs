@@ -154,6 +154,7 @@ impl Default for OpenProtocolClientConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CameraConfig {
+  pub name: ConfigProperty<String>,
   pub enable_camera: ConfigProperty<bool>,
   pub opencv_display: ConfigProperty<bool>,
   pub angle_filter: ConfigProperty<usize>,
@@ -168,6 +169,14 @@ pub struct CameraConfig {
 impl Default for CameraConfig {
   fn default() -> Self {
     Self {
+      name: ConfigProperty {
+        value: "default".to_string(),
+        default_value: "default".to_string(),
+        added_version: "1.0.0".to_string(),
+        description: "The name of the camera".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
       enable_camera: ConfigProperty {
         value: true,
         default_value: true,

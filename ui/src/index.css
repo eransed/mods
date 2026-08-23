@@ -186,6 +186,29 @@ button:disabled {
   margin-top: 1.5rem;
 }
 
+.settings-sub-top-bar {
+  /* Keep the settings context and primary action pinned within page scrolling. */
+  position: sticky;
+  top: -1rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.5rem 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--accent);
+}
+
+.settings-sub-top-bar h1 {
+  flex: 0 1 auto;
+}
+
+.settings-sub-top-bar .config-save {
+  margin: 0;
+}
+
 .settings-section h2 {
   margin-bottom: 0.5rem;
 }

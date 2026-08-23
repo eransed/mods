@@ -6,6 +6,7 @@ export interface Config {
 }
 
 export interface CameraConfig {
+    name:                            StringProperty;
     enable_camera:                   BoolProperty;
     opencv_display:                  BoolProperty;
     angle_filter:                    NumberProperty;
@@ -35,15 +36,6 @@ export interface BoolProperty {
     deprecated_version: string;
 }
 
-export interface GeneralConfig {
-    _bool_property:           BoolProperty;
-    _string_property:         StringProperty;
-    _number_property:         NumberProperty;
-    http_port:                NumberProperty;
-    ws_port:                  NumberProperty;
-    allow_remote_connections: BoolProperty;
-}
-
 export interface StringProperty {
     value:              string;
     default_value:      string;
@@ -51,6 +43,15 @@ export interface StringProperty {
     description:        string;
     hide:               boolean;
     deprecated_version: string;
+}
+
+export interface GeneralConfig {
+    _bool_property:           BoolProperty;
+    _string_property:         StringProperty;
+    _number_property:         NumberProperty;
+    http_port:                NumberProperty;
+    ws_port:                  NumberProperty;
+    allow_remote_connections: BoolProperty;
 }
 
 export interface LoggingConfig {
