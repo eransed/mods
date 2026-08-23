@@ -121,13 +121,59 @@ button:disabled {
 }
 
 .config-field {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(12rem, 1.2fr) 6rem minmax(14rem, 2fr) 8rem;
+  align-items: center;
+  gap: 1rem;
+  width: calc(100% - 2rem);
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #333;
   margin-bottom: 0.4rem;
 }
 
+.config-field-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.config-field-type,
+.config-field-version {
+  color: #aaa;
+  font-size: 0.85rem;
+}
+
+.config-field-description {
+  color: #ccc;
+}
+
 .config-field-old-value {
-  margin-left: 0.5rem;
-  color: #888;
+  color: #e8c44a;
   font-size: 0.8rem;
+}
+
+.settings-section {
+  width: 100%;
+  margin-top: 1.5rem;
+}
+
+.settings-section h2 {
+  margin-bottom: 0.5rem;
+}
+
+.settings-subsection {
+  margin-left: 1rem;
+}
+
+@media (max-width: 900px) {
+  .config-field {
+    grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.5fr) 5rem;
+  }
+
+  .config-field-description,
+  .config-field-version {
+    grid-column: 2 / -1;
+  }
 }
 
 h1,

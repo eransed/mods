@@ -7,15 +7,7 @@ export interface SettingsProps {
 }
 
 function configEqual(a: Config, b: Config): boolean {
-    for (let key of Object.keys(a)) {
-        let av = a[key as keyof Config]
-        let bv = b[key as keyof Config]
-        if (av !== bv) {
-            // console.log(`${key} is different: a['${key}']: ${av} !== b['${key}']: ${bv}`)
-            return false;
-        }
-    }
-    return true;
+    return JSON.stringify(a) === JSON.stringify(b);
 }
 
 export function Settings({ http_port }: SettingsProps) {
@@ -56,22 +48,21 @@ export function Settings({ http_port }: SettingsProps) {
     }
 
     return (
-        <div>
+        <div className="settings-page">
             <h1>Settings</h1>
             {configModified && Object.entries(configModified).map(([key, value]) => (
-                <div key={key} style={{ outline: 'none' }}>
-                    <ConfigField
-                        label={key}
-                        value={value}
-                        oldValue={config ? config[key as keyof Config] : null}
-                        onChange={(newValue) => {
-                            if (configModified) {
-                                const updatedConfig = { ...configModified, [key]: newValue } as Config;
-                                setConfigModified(updatedConfig);
-                            }
-                        }}
-                    />
-                </div>
+                <ConfigSection
+                    key={key}
+                    label={key}
+                    value={value}
+                    oldValue={config ? config[key as keyof Config] : null}
+                    onChange={(newValue) => {
+                        if (configModified) {
+                            const updatedConfig = { ...configModified, [key]: newValue } as Config;
+                            setConfigModified(updatedConfig);
+                        }
+                    }}
+                />
             ))}
             {config && configModified &&
                 <Button className="config-save" disabled={configEqual(config, configModified)} onClick={() => {
@@ -85,56 +76,107 @@ export function Settings({ http_port }: SettingsProps) {
     );
 }
 
-interface ObjectConfigField {
-    value: Record<string, unknown> | unknown[],
-    oldValue: Record<string, unknown> | unknown[] | null,
-    onChange: (newValue: Record<string, unknown> | unknown[]) => void;
+type ConfigObject = Record<string, unknown>;
+type ConfigProperty = {
+    value: boolean | number | string;
+    default_value: boolean | number | string;
+    added_version: string;
+    description: string;
+    hide: boolean;
+    deprecated_version: string;
+};
+
+function isConfigProperty(value: unknown): value is ConfigProperty {
+    return value !== null && typeof value === 'object' && 'value' in value
+        && 'default_value' in value && 'added_version' in value
+        && 'description' in value && 'hide' in value;
 }
 
-function objectConfigField(conf: ObjectConfigField) {
-    const isArray = Array.isArray(conf.value);
+interface ConfigSectionProps {
+    label: string;
+    value: unknown;
+    oldValue: unknown;
+    onChange: (newValue: unknown) => void;
+    onRemove?: () => void;
+}
+
+function ConfigSection({ label, value, oldValue, onChange, onRemove }: ConfigSectionProps) {
+    const entries = Array.isArray(value)
+        ? value.map((entry, index) => [String(index), entry] as const)
+        : value !== null && typeof value === 'object'
+            ? Object.entries(value)
+            : [];
+
     return (
-        <div>
-            {Object.entries(conf.value).map(([key, value]) => (
-                <div key={key}>
-                    <ConfigField
-                        label={key}
-                        value={value}
-                        oldValue={conf.oldValue === null
-                            ? null
-                            : Array.isArray(conf.oldValue)
-                                ? conf.oldValue[Number(key)] ?? null
-                                : conf.oldValue[key] ?? null}
-                        onChange={(newValue) => {
-                            const updatedValue = Array.isArray(conf.value) ? [...conf.value] : { ...conf.value };
-                            if (Array.isArray(updatedValue)) {
-                                updatedValue[Number(key)] = newValue;
-                            } else {
-                                updatedValue[key] = newValue;
-                            }
-                            conf.onChange(updatedValue);
-                        }}
-                        onRemove={isArray ? () => {
-                            const updatedValue = [...conf.value as unknown[]];
-                            updatedValue.splice(Number(key), 1);
-                            conf.onChange(updatedValue);
-                        } : undefined}
-                    />
-                </div>
+        <section className="settings-section">
+            <h2>{label} {onRemove && <Button type="button" onClick={onRemove}>Remove</Button>}</h2>
+            {entries.map(([key, entry]) => (
+                <ConfigEntry
+                    key={key}
+                    label={Array.isArray(value) ? `${label} ${Number(key) + 1}` : key}
+                    value={entry}
+                    oldValue={Array.isArray(oldValue)
+                        ? oldValue[Number(key)]
+                        : oldValue !== null && typeof oldValue === 'object'
+                            ? (oldValue as ConfigObject)[key]
+                            : null}
+                    onChange={(newValue) => {
+                        if (Array.isArray(value)) {
+                            const updatedValue = [...value];
+                            updatedValue[Number(key)] = newValue;
+                            onChange(updatedValue);
+                        } else {
+                            onChange({ ...(value as ConfigObject), [key]: newValue });
+                        }
+                    }}
+                    onRemove={Array.isArray(value) ? () => {
+                        const updatedValue = [...value];
+                        updatedValue.splice(Number(key), 1);
+                        onChange(updatedValue);
+                    } : undefined}
+                />
             ))}
-        </div>
+            {Array.isArray(value) && (
+                <Button type="button" onClick={() => onChange([...value, createDefaultArrayEntry(label, value)])}>Add</Button>
+            )}
+        </section>
     );
 }
 
+function ConfigEntry({ label, value, oldValue, onChange, onRemove }: ConfigSectionProps) {
+    if (isConfigProperty(value)) {
+        return value.hide ? null : (
+            <ConfigField
+                label={label}
+                property={value}
+                oldProperty={isConfigProperty(oldValue) ? oldValue : null}
+                onChange={(newValue) => onChange({ ...value, value: newValue })}
+            />
+        );
+    }
+
+    if (Array.isArray(value) || (value !== null && typeof value === 'object')) {
+        return (
+            <div className="settings-subsection">
+                {Array.isArray(value) && value.length === 0
+                    ? <p>No entries</p>
+                    : <ConfigSection label={label} value={value} oldValue={oldValue} onChange={onChange} onRemove={onRemove} />}
+            </div>
+        );
+    }
+
+    return null;
+}
+
 function createDefaultArrayEntry(label: string, entries: unknown[]): OpenProtocolConfig | unknown {
-    if (label === 'open_protocol_clients') {
+    if (label === 'open_protocol_configs') {
         return {
-            activated: true,
-            name: 'default',
-            ip: '127.0.0.1',
-            port: 4545,
-            keep_alive_time_ms: 7500,
-            reconnect_delay_ms: 5000,
+            activated: { value: true, default_value: true, added_version: '1.0.0', description: 'Whether the client is activated', hide: false, deprecated_version: '' },
+            name: { value: 'default', default_value: 'default', added_version: '1.0.0', description: 'The name of the client', hide: false, deprecated_version: '' },
+            ip: { value: '127.0.0.1', default_value: '127.0.0.1', added_version: '1.0.0', description: 'The IP address of the client', hide: false, deprecated_version: '' },
+            port: { value: 4545, default_value: 4545, added_version: '1.0.0', description: 'The port of the client', hide: false, deprecated_version: '' },
+            keep_alive_time_ms: { value: 7500, default_value: 7500, added_version: '1.0.0', description: 'The keep-alive time in milliseconds', hide: false, deprecated_version: '' },
+            reconnect_delay_ms: { value: 5000, default_value: 5000, added_version: '1.0.0', description: 'The reconnect delay in milliseconds', hide: false, deprecated_version: '' },
             mid_0001_config: {
                 rev: 6,
                 active: true,
@@ -146,6 +188,10 @@ function createDefaultArrayEntry(label: string, entries: unknown[]): OpenProtoco
 }
 
 function createDefaultValue(value: unknown): unknown {
+    // Preserve property metadata when creating a new array entry.
+    if (isConfigProperty(value)) {
+        return { ...value, value: createDefaultValue(value.value) };
+    }
     if (typeof value === 'boolean') return false;
     if (typeof value === 'number') return 0;
     if (typeof value === 'string') return '';
@@ -158,17 +204,17 @@ function createDefaultValue(value: unknown): unknown {
 
 interface ConfigFieldProps {
     label: string;
-    value: unknown;
-    oldValue: unknown;
+    property: ConfigProperty;
+    oldProperty: ConfigProperty | null;
     onChange: (newValue: unknown) => void;
-    onRemove?: () => void;
 }
 
-function ConfigField({ label, value, oldValue, onChange, onRemove }: ConfigFieldProps) {
-    let inp = <div style={{ color: '#e00' }}><b>Unsupported config parameter type: {typeof value} ({label})</b></div>
+function ConfigField({ label, property, oldProperty, onChange }: ConfigFieldProps) {
+    const { value } = property;
     const id = useId()
+    let input = <div style={{ color: '#e00' }}><b>Unsupported config parameter type: {typeof value} ({label})</b></div>
     if (typeof value === 'boolean') {
-        inp = <input
+        input = <input
             type="checkbox"
             checked={value}
             onChange={(e) => onChange(e.target.checked)}
@@ -179,7 +225,7 @@ function ConfigField({ label, value, oldValue, onChange, onRemove }: ConfigField
         if (value % 1 != 0) {
             step = "0.1"
         }
-        inp = <input
+        input = <input
             type="number"
             value={value}
             onChange={(e) => onChange(Number(e.target.value))}
@@ -187,44 +233,27 @@ function ConfigField({ label, value, oldValue, onChange, onRemove }: ConfigField
             step={step}
         />
     } else if (typeof value === 'string') {
-        inp = <input
+        input = <input
             type="text"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             id={id}
         />
-    } else if (value !== null && typeof value === 'object') {
-        inp = objectConfigField({
-            value: value as Record<string, unknown> | unknown[],
-            oldValue: oldValue as Record<string, unknown> | unknown[] | null,
-            onChange,
-        })
     }
 
     return (
-        <div style={{}}>
-            <div className="config-field">
-                <label>
-                    <b>
-                        {label}
-                    </b>
-                    {onRemove && <Button type="button" onClick={onRemove}>-</Button>}
-                    {value instanceof Array && <Button type="button" onClick={() => {
-                        const entries = value as unknown[];
-                        onChange([...entries, createDefaultArrayEntry(label, entries)]);
-                    }}>+</Button>}
-                    <i>
-                        ({typeof value}):
-                    </i>
-                    {inp}
-                    {typeof value === 'boolean' && <span className="checkbox"></span>}
-                </label>
-                {typeof value !== 'object' && (
-                    <span className="config-field-old-value">
-                        {value !== oldValue ? `${oldValue}` : null}
-                    </span>
+        <div className="config-field">
+            <div className="config-field-name"><b>{label}</b></div>
+            <div className="config-field-value">
+                {input}
+                {typeof value === 'boolean' && <span className="checkbox"></span>}
+                {oldProperty && value !== oldProperty.value && (
+                    <span className="config-field-old-value">Previous: {`${oldProperty.value}`}</span>
                 )}
             </div>
+            <div className="config-field-type">{typeof value}</div>
+            <div className="config-field-description">{property.description}</div>
+            <div className="config-field-version">Added {property.added_version}</div>
         </div>
     );
 }
