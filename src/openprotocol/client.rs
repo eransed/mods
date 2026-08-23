@@ -23,7 +23,8 @@ pub struct Client {
 impl Client {
   pub async fn connect(config: &OpenProtocolClientConfig) -> io::Result<Self> {
     info!("Connecting with config: {:#?}", config);
-    let addr = format!("{}:{}", config.ip, config.port);
+    // Build the controller address from the scalar configuration values.
+    let addr = format!("{}:{}", config.ip.value, config.port.value);
     let stream = TcpStream::connect(addr).await?;
     Ok(Self { config: config.clone(), stream, receive_buffer: Vec::new() })
   }
@@ -31,7 +32,9 @@ impl Client {
   pub async fn run(mut self) -> io::Result<()> {
     self.send(&mid_0001(&self.config)).await?;
 
-    let mut keep_alive = time::interval(Duration::from_millis(self.config.keep_alive_time_ms));
+    // Schedule keep-alive messages using the configured interval.
+    let mut keep_alive =
+      time::interval(Duration::from_millis(self.config.keep_alive_time_ms.value));
     keep_alive.set_missed_tick_behavior(MissedTickBehavior::Delay);
     keep_alive.tick().await;
     let mut send_instant = Instant::now();

@@ -266,7 +266,8 @@ impl DiscoveryServer {
             if result.is_err() {
               break;
             }
-            self.local_peer_info.http_port = config_rx.borrow().http_port.value;
+            // Advertise the HTTP port from the nested general configuration.
+            self.local_peer_info.http_port = config_rx.borrow().general_config.http_port.value;
             info!(http_port = self.local_peer_info.http_port, "Discovery configuration updated");
           }
 

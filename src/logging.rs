@@ -39,7 +39,8 @@ impl LineRotatingFile {
   }
 
   fn rotate_if_needed(&mut self, additional_lines: usize) -> io::Result<()> {
-    if self.line_count + additional_lines < self.logging_config.max_lines_per_file {
+    // Compare log usage with the configured scalar limit before rotating.
+    if self.line_count + additional_lines < self.logging_config.max_lines_per_file.value {
       // println!(
       //   "Current line count: {}, additional lines: {}, max lines per file: {}. No rotation needed.",
       //   self.line_count, additional_lines, self.logging_config.max_lines_per_file
@@ -84,7 +85,8 @@ impl LineRotatingFile {
     archived_files.sort_by_key(|entry| entry.file_name());
     let files_to_remove = archived_files
       .len()
-      .saturating_sub(self.logging_config.max_log_file_to_keep.saturating_sub(1));
+      // Keep the configured number of archived files after rotation.
+      .saturating_sub(self.logging_config.max_log_file_to_keep.value.saturating_sub(1));
     for oldest_file in archived_files.into_iter().take(files_to_remove) {
       fs::remove_file(oldest_file.path())?;
       // println!("Deleted oldest log file: {}", oldest_file.path().display());
@@ -120,8 +122,9 @@ fn build_filter(log_level: &str) -> EnvFilter {
 
 pub fn init_tracing(config: &Config) -> WorkerGuard {
   let time_fmt = String::from("%Y-%m-%d %H:%M:%S%.6f");
+  // Build the logging filter from the configured log-level value.
   let (filter_layer, reload_handle) =
-    reload::Layer::new(build_filter(&config.logging_config.log_level));
+    reload::Layer::new(build_filter(&config.logging_config.log_level.value));
   let stdout_layer = fmt::layer()
     .with_writer(std::io::stdout)
     .with_timer(fmt::time::ChronoLocal::new(time_fmt.clone()))
@@ -172,7 +175,11 @@ mod tests {
   }
 
   fn test_logging_config(max_log_file_to_keep: usize) -> LoggingConfig {
-    LoggingConfig { log_level: "info".to_string(), max_lines_per_file: 1, max_log_file_to_keep }
+    // Override only the scalar values under test and retain property metadata.
+    let mut config = LoggingConfig::default();
+    config.max_lines_per_file.value = 1;
+    config.max_log_file_to_keep.value = max_log_file_to_keep;
+    config
   }
 
   fn create_log_file(path: &PathBuf, contents: &str) {
@@ -214,7 +221,8 @@ mod tests {
 
     create_log_file(&base_path, "first\nsecond\n");
     let mut config = test_logging_config(3);
-    config.max_lines_per_file = 2;
+    // Lower the line threshold to force a rotation in this test.
+    config.max_lines_per_file.value = 2;
     let mut log =
       LineRotatingFile::new(base_path.clone(), config).expect("rotating log should open");
     log.write_all(b"third\n").expect("rotation should succeed");

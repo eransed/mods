@@ -252,7 +252,8 @@ async fn main() {
     cam_thread_handle = Some(std::thread::spawn(move || {
       loop {
         let config = cam_config_rx.borrow().clone();
-        if config.enable_camera {
+        // Start the first configured camera only when it is enabled.
+        if config.camera_configs.first().map(|camera| camera.enable_camera.value).unwrap_or(false) {
           info!("Starting camera thread");
           camera::camera_start(cam_brdcast.clone(), sdrxcam.clone(), cam_config_rx.clone());
           warn!("Camera returned");
@@ -273,7 +274,10 @@ async fn main() {
     }));
   }
 
-  let ws_client = WsClient::new(format!("ws://127.0.0.1:{}", initial_config.general_config.ws_port.value));
+  // Capture the configured server ports for startup and discovery registration.
+  let http_port = initial_config.general_config.http_port.value;
+  let ws_port = initial_config.general_config.ws_port.value;
+  let ws_client = WsClient::new(format!("ws://127.0.0.1:{}", ws_port));
   let ws_client_config_rx = config_rx.clone();
   let ws_client_shutdown_rx = shutdown_rx.clone();
 
@@ -319,7 +323,11 @@ async fn main() {
     let mut shutdown_rx = http_shutdown_rx;
     loop {
       let config = config_rx.borrow().clone();
-      let host = if config.general_config.allow_remote_connections.value { [0, 0, 0, 0] } else { [127, 0, 0, 1] };
+      let host = if config.general_config.allow_remote_connections.value {
+        [0, 0, 0, 0]
+      } else {
+        [127, 0, 0, 1]
+      };
       let addr = std::net::SocketAddr::from((host, config.general_config.http_port.value));
       let module = HttpModule::new(
         "http",
@@ -355,7 +363,11 @@ async fn main() {
     let mut shutdown_rx = ws_shutdown_rx;
     loop {
       let config = config_rx.borrow().clone();
-      let host = if config.general_config.allow_remote_connections.value { [0, 0, 0, 0] } else { [127, 0, 0, 1] };
+      let host = if config.general_config.allow_remote_connections.value {
+        [0, 0, 0, 0]
+      } else {
+        [127, 0, 0, 1]
+      };
       let addr = std::net::SocketAddr::from((host, config.general_config.ws_port.value));
       let module = WsServer::new("ws_server", ws_sender.clone());
       let mut task = tokio::spawn(module.run(addr));

@@ -57,20 +57,34 @@ pub fn camera_start(
   shutdown_rx: Receiver<bool>,
   config_rx: Receiver<types::Config>,
 ) {
+  // Use the first configured camera as the active camera instance.
   let config = config_rx.borrow().clone();
-  let device_index = config.device_index;
-  let device_width = config.device_width;
-  let display = config.opencv_display;
-  let angle_filter = config.angle_filter;
-  let min_decision_margin = config.min_decision_margin;
-  let camera_fetch_delay_ms = config.camera_fetch_delay_ms;
-  let camera_send_image = config.camera_send_image;
-  let camera_send_image_resize_factor = config.camera_send_image_resize_factor;
+  let Some(camera_config) = config.camera_configs.first() else {
+    error!("No camera configuration is available");
+    return;
+  };
+  let device_index = camera_config.device_index.value;
+  let device_width = camera_config.device_width.value;
+  let display = camera_config.opencv_display.value;
+  let angle_filter = camera_config.angle_filter.value;
+  let min_decision_margin = camera_config.min_decision_margin.value;
+  let camera_fetch_delay_ms = camera_config.camera_fetch_delay_ms.value;
+  let camera_send_image = camera_config.camera_send_image.value;
+  let camera_send_image_resize_factor = camera_config.camera_send_image_resize_factor.value;
   let start = std::time::Instant::now();
 
   let window_title = "mods";
 
   info!("Trying to start camera: {} with frame width: {}", device_index, device_width);
+
+  // Convert the configured camera index to the OpenCV integer type safely.
+  let device_index = match i32::try_from(device_index) {
+    Ok(index) => index,
+    Err(_) => {
+      error!("Camera device index is too large for OpenCV: {}", device_index);
+      return;
+    }
+  };
 
   let mut camera = match videoio::VideoCapture::new(device_index, videoio::CAP_ANY) {
     Ok(c) => c,

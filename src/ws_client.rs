@@ -31,7 +31,8 @@ impl WsClient {
             _ = shutdown_rx.changed() => return,
             result = config_rx.changed() => {
               if result.is_err() { return; }
-              url = format!("ws://127.0.0.1:{}", config_rx.borrow().ws_port);
+              // Reconnect to the websocket server at the configured port.
+              url = format!("ws://127.0.0.1:{}", config_rx.borrow().general_config.ws_port.value);
               continue;
             }
             _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => continue,
@@ -46,7 +47,8 @@ impl WsClient {
             _ = shutdown_rx.changed() => return,
             result = config_rx.changed() => {
               if result.is_err() { return; }
-              url = format!("ws://127.0.0.1:{}", config_rx.borrow().ws_port);
+              // Reconnect after a websocket port configuration change.
+              url = format!("ws://127.0.0.1:{}", config_rx.borrow().general_config.ws_port.value);
               break;
             }
             message_result = socket.next() => {

@@ -352,7 +352,7 @@ mod tests {
   use super::*;
   use std::{net::SocketAddr, sync::Arc, time::Duration};
   use tokio::{net::TcpListener, sync::Mutex};
-  use types::{Config, ConfigProperty};
+  use types::Config;
 
   #[test]
   fn parse_max_response_time_micros_uses_query_value_or_default() {
@@ -433,47 +433,21 @@ mod tests {
   async fn set_config_endpoint_returns_updated_config() {
     let (addr, handle) = spawn_http_module().await;
     let client = reqwest::Client::new();
-    let response = client
-      .post(format!("http://{addr}/set_config"))
-      .json(&Config {
-        http_port: ConfigProperty::<u16> { value: 8084, description: "Test".to_string() },
-        ws_port: 8085,
-        allow_remote_connections: false,
-        enable_camera: true,
-        opencv_display: true,
-        angle_filter: 3,
-        min_decision_margin: 20.0,
-        device_index: 0,
-        device_width: 1920 as f64,
-        camera_fetch_delay_ms: 0,
-        camera_send_image: false,
-        camera_send_image_resize_factor: 0.4,
-        ..Default::default()
-      })
-      .send()
-      .await
-      .unwrap();
+    // Build the request from the new nested configuration shape.
+    let mut expected_config = Config::default();
+    expected_config.general_config.http_port.value = 8084;
+    expected_config.general_config.ws_port.value = 8085;
+    expected_config.general_config.allow_remote_connections.value = false;
+    assert!(!expected_config.camera_configs.is_empty());
+    let camera = &mut expected_config.camera_configs[0];
+    camera.opencv_display.value = true;
+    camera.camera_send_image.value = false;
+    let response =
+      client.post(format!("http://{addr}/set_config")).json(&expected_config).send().await.unwrap();
 
     assert!(response.status().is_success());
     let config: Config = response.json().await.unwrap();
-    assert_eq!(
-      config,
-      Config {
-        http_port: ConfigProperty::<u16> { value: 8084, description: "Test".to_string() },
-        ws_port: 8085,
-        allow_remote_connections: false,
-        enable_camera: true,
-        opencv_display: true,
-        angle_filter: 3,
-        min_decision_margin: 20.0,
-        device_index: 0,
-        device_width: 1920 as f64,
-        camera_fetch_delay_ms: 0,
-        camera_send_image: false,
-        camera_send_image_resize_factor: 0.4,
-        ..Default::default()
-      }
-    );
+    assert_eq!(config, expected_config);
 
     handle.abort();
   }

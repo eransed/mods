@@ -98,7 +98,8 @@ impl ConfigModule {
                       debug!(requester, "set config");
                       self.config = config.clone();
                       let _ = self.config_sender.send(config.clone());
-                      set_log_level(&self.config.logging_config.log_level);
+                      // Apply the configured log level after accepting a new configuration.
+                      set_log_level(&self.config.logging_config.log_level.value);
                       if let Err(err) = save_config_to_path(&self.config, &config_path()) {
                           error!(error = ?err, "failed to persist config to config.json");
                       }
@@ -108,7 +109,8 @@ impl ConfigModule {
                       debug!(requester, "reset config");
                       self.config = Config::default();
                       let _ = self.config_sender.send(self.config.clone());
-                      set_log_level(&self.config.logging_config.log_level);
+                      // Apply the default log level after resetting the configuration.
+                      set_log_level(&self.config.logging_config.log_level.value);
                       if let Err(err) = save_config_to_path(&self.config, &config_path()) {
                           error!(error = ?err, "failed to persist default config to config.json");
                       }
@@ -157,8 +159,6 @@ impl Drop for ConfigModule {
 
 #[cfg(test)]
 mod tests {
-  use types::ConfigProperty;
-
   use super::{Config, load_config_from_path, save_config_to_path};
   use std::{
     fs,
@@ -187,27 +187,24 @@ mod tests {
   #[test]
   fn defaults_to_info_log_level() {
     let config = Config::default();
-    assert_eq!(config.logging_config.log_level, "info");
+    assert_eq!(config.logging_config.log_level.value, "info");
   }
 
   #[test]
   fn saves_and_loads_config_from_disk() {
     let path = temp_config_path();
-    let config = Config {
-      http_port: ConfigProperty::<u16> { value: 9000, description: "Test".to_string() },
-      ws_port: 9001,
-      allow_remote_connections: false,
-      enable_camera: true,
-      opencv_display: true,
-      angle_filter: 5,
-      min_decision_margin: 25.0,
-      device_index: 1,
-      device_width: 1920 as f64,
-      camera_fetch_delay_ms: 0,
-      camera_send_image: false,
-      camera_send_image_resize_factor: 0.4,
-      ..Default::default()
-    };
+    // Change representative nested values while preserving their metadata.
+    let mut config = Config::default();
+    config.general_config.http_port.value = 9000;
+    config.general_config.ws_port.value = 9001;
+    config.general_config.allow_remote_connections.value = false;
+    assert!(!config.camera_configs.is_empty());
+    let camera = &mut config.camera_configs[0];
+    camera.opencv_display.value = true;
+    camera.angle_filter.value = 5;
+    camera.min_decision_margin.value = 25.0;
+    camera.device_index.value = 1;
+    camera.camera_send_image.value = false;
 
     save_config_to_path(&config, &path).unwrap();
     let loaded = load_config_from_path(&path);
