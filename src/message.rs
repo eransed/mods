@@ -9,6 +9,17 @@ pub enum Message {
   Pong { sender: &'static str },
   Discovery(DiscoveryEvent),
   SystemStatus { cpu_percent: f32, ram_percent: f32, pid_mem_bytes: u64 },
+  OpenProtocolState(OpenProtocolState),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OpenProtocolState {
+  pub name: String,
+  pub ip: String,
+  pub port: u16,
+  pub connected: bool,
+  pub ping_ms: Option<u64>,
+  pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

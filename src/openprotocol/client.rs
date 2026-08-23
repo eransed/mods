@@ -7,29 +7,62 @@ use tokio::time::{self, Duration, MissedTickBehavior};
 use tracing::{error, info};
 use types::OpenProtocolClientConfig;
 
+use crate::message::{Message, OpenProtocolState};
 use crate::openprotocol::core::{Mid, MidHeader, mid_parse_header};
 use crate::openprotocol::mid_0001::{Mid0001, Mid0001Rev7};
 use crate::openprotocol::mid_0002;
 use crate::openprotocol::mid_0003::Mid0003;
 use crate::openprotocol::mid_0005::mid_parse_0005;
 use crate::openprotocol::mid_9999::Mid9999;
+use tokio::sync::broadcast::Sender;
 
 pub struct Client {
   config: OpenProtocolClientConfig,
   stream: TcpStream,
   receive_buffer: Vec<u8>,
+  state: OpenProtocolState,
+  state_sender: Sender<Message>,
 }
 
 impl Client {
-  pub async fn connect(config: &OpenProtocolClientConfig) -> io::Result<Self> {
+  pub async fn connect(
+    config: &OpenProtocolClientConfig,
+    state_sender: Sender<Message>,
+  ) -> io::Result<Self> {
     info!("Connecting with config: {:#?}", config);
     // Build the controller address from the scalar configuration values.
     let addr = format!("{}:{}", config.ip.value, config.port.value);
     let stream = TcpStream::connect(addr).await?;
-    Ok(Self { config: config.clone(), stream, receive_buffer: Vec::new() })
+    let client = Self {
+      config: config.clone(),
+      stream,
+      receive_buffer: Vec::new(),
+      state: OpenProtocolState {
+        name: config.name.value.clone(),
+        ip: config.ip.value.clone(),
+        port: config.port.value,
+        connected: true,
+        ping_ms: None,
+        error: None,
+      },
+      state_sender,
+    };
+    client.publish_state();
+    Ok(client)
   }
 
-  pub async fn run(mut self) -> io::Result<()> {
+  pub async fn run(self) -> io::Result<()> {
+    let mut client = self;
+    let result = client.run_inner().await;
+    if let Err(error) = &result {
+      client.update_state(false, None, Some(error.to_string()));
+    } else {
+      client.update_state(false, None, None);
+    }
+    result
+  }
+
+  async fn run_inner(&mut self) -> io::Result<()> {
     self.send(&mid_0001(&self.config)).await?;
 
     // Schedule keep-alive messages using the configured interval.
@@ -91,7 +124,7 @@ impl Client {
     self.stream.write_all(&[0]).await
   }
 
-  fn handle_received(&self, message: &str, send_instant: Instant) {
+  fn handle_received(&mut self, message: &str, send_instant: Instant) {
     match mid_parse_header(message) {
       Ok(header) => {
         info!("RECV: '{}'", message);
@@ -102,27 +135,72 @@ impl Client {
             }
             Err(e) => {
               error!("Failed to parse MID 0002: {}", e);
+              self.update_state(false, None, Some(e.to_string()));
             }
           },
           5 => match mid_parse_0005(message) {
             Ok(ack) => info!("RECV parsed MID 0005 acknowledging MID {:04}", ack.mid_number),
-            Err(error) => info!("RECV MID 0005 parse error: {}", error),
+            Err(error) => {
+              info!("RECV MID 0005 parse error: {}", error);
+              self.update_state(false, None, Some(error.to_string()));
+            }
           },
           9999 => {
-            info!("Keep alive RTT: {:.2?}", send_instant.elapsed())
+            let ping_ms = send_instant.elapsed().as_millis() as u64;
+            info!("Keep alive RTT: {}ms", ping_ms);
+            self.update_state(true, Some(ping_ms), None);
           }
           _ => {
             info!("RECV parsed MID {:04} REV {} LEN {}", header.mid, header.rev, header.len)
           }
         }
       }
-      Err(error) => info!("RECV parse error: {}", error),
+      Err(error) => {
+        info!("RECV parse error: {}", error);
+        self.update_state(false, None, Some(error.to_string()));
+      }
+    }
+  }
+
+  fn update_state(&mut self, connected: bool, ping_ms: Option<u64>, error: Option<String>) {
+    self.state.connected = connected;
+    self.state.ping_ms = ping_ms;
+    self.state.error = error;
+    self.publish_state();
+  }
+
+  fn publish_state(&self) {
+    let _ = self.state_sender.send(Message::OpenProtocolState(self.state.clone()));
+  }
+}
+
+pub async fn client(
+  config: &OpenProtocolClientConfig,
+  state_sender: Sender<Message>,
+) -> io::Result<()> {
+  match Client::connect(config, state_sender.clone()).await {
+    Ok(client) => client.run().await,
+    Err(error) => {
+      publish_connection_error(config, &state_sender, &error);
+      Err(error)
     }
   }
 }
 
-pub async fn client(config: &OpenProtocolClientConfig) -> io::Result<()> {
-  Client::connect(config).await?.run().await
+fn publish_connection_error(
+  config: &OpenProtocolClientConfig,
+  state_sender: &Sender<Message>,
+  error: &io::Error,
+) {
+  let state = OpenProtocolState {
+    name: config.name.value.clone(),
+    ip: config.ip.value.clone(),
+    port: config.port.value,
+    connected: false,
+    ping_ms: None,
+    error: Some(error.to_string()),
+  };
+  let _ = state_sender.send(Message::OpenProtocolState(state));
 }
 
 fn mid_0001(config: &OpenProtocolClientConfig) -> Mid0001 {

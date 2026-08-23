@@ -4,18 +4,29 @@ import { Button } from "./Button";
 
 export interface SettingsProps {
     http_port: number
+    webSocket: WebSocket | null
 }
 
 function configEqual(a: Config, b: Config): boolean {
     return JSON.stringify(a) === JSON.stringify(b);
 }
 
-export function Settings({ http_port }: SettingsProps) {
+type OpenProtocolState = {
+    name: string;
+    ip: string;
+    port: number;
+    connected: boolean;
+    ping_ms: number | null;
+    error: string | null;
+};
+
+export function Settings({ http_port, webSocket }: SettingsProps) {
     let protocol = 'http'
     let url = `${protocol}://${window.location.hostname}:${http_port}`
     const [config, setConfig] = useState<Config | null>(null);
     const [configModified, setConfigModified] = useState<Config | null>(null);
     const [defaultConfig, setDefaultConfig] = useState<Config | null>(null);
+    const [openProtocolStates, setOpenProtocolStates] = useState<Record<string, OpenProtocolState>>({});
     const [errState, setErrState] = useState<any>(null);
 
     // fetch the current configuration from the server
@@ -48,6 +59,25 @@ export function Settings({ http_port }: SettingsProps) {
         fetchConfig();
     }, [url]);
 
+    useEffect(() => {
+        if (!webSocket) return;
+
+        const handleMessage = (event: MessageEvent) => {
+            try {
+                const message = JSON.parse(event.data) as { OpenProtocolState?: OpenProtocolState };
+                const state = message.OpenProtocolState;
+                if (state) {
+                    setOpenProtocolStates((current) => ({ ...current, [state.name]: state }));
+                }
+            } catch {
+                // Ignore non-JSON messages intended for other UI features.
+            }
+        };
+
+        webSocket.addEventListener('message', handleMessage);
+        return () => webSocket.removeEventListener('message', handleMessage);
+    }, [webSocket]);
+
     if (errState) {
         return <>
             <h1>Settings</h1>
@@ -76,6 +106,7 @@ export function Settings({ http_port }: SettingsProps) {
                     value={value}
                     oldValue={config ? config[key as keyof Config] : null}
                     defaultValue={defaultConfig ? defaultConfig[key as keyof Config] : null}
+                    openProtocolStates={openProtocolStates}
                     onChange={(newValue) => {
                         if (configModified) {
                             const updatedConfig = { ...configModified, [key]: newValue } as Config;
@@ -109,11 +140,12 @@ interface ConfigSectionProps {
     value: unknown;
     oldValue: unknown;
     defaultValue?: unknown;
+    openProtocolStates?: Record<string, OpenProtocolState>;
     onChange: (newValue: unknown) => void;
     onRemove?: () => void;
 }
 
-function ConfigSection({ label, value, oldValue, defaultValue, onChange, onRemove }: ConfigSectionProps) {
+function ConfigSection({ label, value, oldValue, defaultValue, openProtocolStates = {}, onChange, onRemove }: ConfigSectionProps) {
     const entries = Array.isArray(value)
         ? value.map((entry, index) => [String(index), entry] as const)
         : value !== null && typeof value === 'object'
@@ -122,11 +154,15 @@ function ConfigSection({ label, value, oldValue, defaultValue, onChange, onRemov
 
     return (
         <section className="settings-section">
-            <h2>{label} {onRemove && <Button type="button" onClick={onRemove}>Remove</Button>}</h2>
+            <h2>
+                {configModuleLabel(label)}
+                {Array.isArray(value) && <span className="settings-section-count">({value.length})</span>}
+                {onRemove && <Button type="button" onClick={onRemove}>Remove</Button>}
+            </h2>
             {entries.map(([key, entry]) => (
                 <ConfigEntry
                     key={key}
-                    label={Array.isArray(value) ? `${label} ${Number(key) + 1}` : key}
+                    label={Array.isArray(value) ? arrayEntryLabel(label, entry, Number(key), openProtocolStates) : key}
                     value={entry}
                     oldValue={Array.isArray(oldValue)
                         ? oldValue[Number(key)]
@@ -138,6 +174,7 @@ function ConfigSection({ label, value, oldValue, defaultValue, onChange, onRemov
                         : defaultValue !== null && typeof defaultValue === 'object'
                             ? (defaultValue as ConfigObject)[key]
                             : null}
+                            openProtocolStates={openProtocolStates}
                     onChange={(newValue) => {
                         if (Array.isArray(value)) {
                             const updatedValue = [...value];
@@ -163,6 +200,52 @@ function ConfigSection({ label, value, oldValue, defaultValue, onChange, onRemov
     );
 }
 
+function configModuleLabel(label: string): string {
+    // Keep server keys for unknown modules while presenting friendly known names.
+    if (label === 'general_config') return 'General';
+    if (label === 'logging_config') return 'Logging';
+    if (label === 'camera_configs') return 'Camera Devices';
+    if (label === 'open_protocol_configs') return 'OpenProtocol Devices';
+    return label;
+}
+
+function arrayEntryLabel(
+    sectionLabel: string,
+    entry: unknown,
+    index: number,
+    openProtocolStates: Record<string, OpenProtocolState>,
+): string {
+    // Use device names as collection entry labels when the server provides them.
+    if (sectionLabel === 'camera_configs' || sectionLabel === 'open_protocol_configs') {
+        if (entry !== null && typeof entry === 'object' && 'name' in entry) {
+            const name = (entry as ConfigObject).name;
+            if (isConfigProperty(name) && typeof name.value === 'string') {
+                const state = sectionLabel === 'open_protocol_configs' ? openProtocolStates[name.value] : undefined;
+                if (sectionLabel === 'open_protocol_configs') {
+                    const ip = configPropertyString((entry as ConfigObject).ip) ?? 'unknown';
+                    const port = configPropertyNumber((entry as ConfigObject).port) ?? 0;
+                    const address = state ? `${state.ip}:${state.port}` : `${ip}:${port}`;
+                    const status = state?.connected
+                        ? `Connected: ${state.ping_ms ?? '-'} ms`
+                        : `Disconnected: '${state?.error ?? 'not connected'}'`;
+                    return `${name.value} - ${address} - ${status}`;
+                }
+                return name.value;
+            }
+        }
+    }
+
+    return `${index + 1}. ${sectionLabel}`;
+}
+
+function configPropertyString(value: unknown): string | undefined {
+    return isConfigProperty(value) && typeof value.value === 'string' ? value.value : undefined;
+}
+
+function configPropertyNumber(value: unknown): number | undefined {
+    return isConfigProperty(value) && typeof value.value === 'number' ? value.value : undefined;
+}
+
 function configTypeLabel(label: string): string {
     // Name each configurable device type explicitly in its add action.
     if (label === 'open_protocol_configs') return 'OpenProtocol Device';
@@ -174,7 +257,7 @@ function configTypeLabel(label: string): string {
         .replace(/(^|_)\w/g, (match) => match.replace('_', '').toUpperCase());
 }
 
-function ConfigEntry({ label, value, oldValue, defaultValue, onChange, onRemove }: ConfigSectionProps) {
+function ConfigEntry({ label, value, oldValue, defaultValue, openProtocolStates = {}, onChange, onRemove }: ConfigSectionProps) {
     if (isConfigProperty(value)) {
         return value.hide ? null : (
             <ConfigField
@@ -191,7 +274,7 @@ function ConfigEntry({ label, value, oldValue, defaultValue, onChange, onRemove 
             <div className="settings-subsection">
                 {Array.isArray(value) && value.length === 0
                     ? <p>No entries</p>
-                    : <ConfigSection label={label} value={value} oldValue={oldValue} defaultValue={defaultValue} onChange={onChange} onRemove={onRemove} />}
+                    : <ConfigSection label={label} value={value} oldValue={oldValue} defaultValue={defaultValue} openProtocolStates={openProtocolStates} onChange={onChange} onRemove={onRemove} />}
             </div>
         );
     }
@@ -256,7 +339,7 @@ function ConfigField({ label, property, oldProperty, onChange }: ConfigFieldProp
         <div className="config-field">
             {/* Keep the editable setting identity together in the row's top section. */}
             <div className="config-field-top">
-                <div className="config-field-name"><b>{label}</b></div>
+                <div className="config-field-name">{configFieldLabel(label)}</div>
                 <div className="config-field-value">
                     {typeof value === 'boolean' ? (
                         /* Associate the visible custom control with its hidden input. */
@@ -278,6 +361,13 @@ function ConfigField({ label, property, oldProperty, onChange }: ConfigFieldProp
             </div>
         </div>
     );
+}
+
+function configFieldLabel(label: string) {
+    const separator = label.indexOf(' - ');
+    if (separator < 0) return <b>{label}</b>;
+
+    return <><b>{label.slice(0, separator)}</b><span className="config-field-state">{label.slice(separator)}</span></>;
 }
 
 function updateConfig(url: string, newConfig: Config) {

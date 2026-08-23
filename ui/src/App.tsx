@@ -346,7 +346,7 @@ function App() {
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<Overview />} />
             <Route path="/docs" element={<Docs />} />
-            <Route path="/settings" element={<Settings http_port={rootPort} />} />
+            <Route path="/settings" element={<Settings http_port={rootPort} webSocket={websocket} />} />
             <Route path="/camera" element={websocket ? <Camera webSocket={websocket} /> : <div>Camera waiting for websocket connection...</div>} />
             <Route path="/api" element={<Api port={rootPort} />} />
             <Route path="/about" element={<About port={rootPort} />} />

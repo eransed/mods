@@ -54,6 +54,7 @@ fn init_tracing_guard(config: &Config) -> WorkerGuard {
 async fn run_openprotocol(
   mut config_rx: tokio::sync::watch::Receiver<Config>,
   mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
+  state_sender: tokio::sync::broadcast::Sender<Message>,
 ) {
   loop {
     let activated_clients: Vec<_> = config_rx
@@ -65,13 +66,14 @@ async fn run_openprotocol(
       .collect();
 
     let mut clients = tokio::task::JoinSet::new();
-    for client_config in activated_clients {
+    for client_config in &activated_clients {
       info!("Starting OpenProtocol client for: {}", client_config.name.value);
-      clients.spawn(run_openprotocol_client(client_config));
+      clients.spawn(run_openprotocol_client(client_config.clone(), state_sender.clone()));
     }
 
     tokio::select! {
       result = config_rx.changed() => {
+        publish_openprotocol_disconnects(&activated_clients, &state_sender, "configuration changed");
         clients.abort_all();
         while clients.join_next().await.is_some() {}
         if result.is_err() {
@@ -79,6 +81,7 @@ async fn run_openprotocol(
         }
       }
       _result = shutdown_rx.changed() => {
+        publish_openprotocol_disconnects(&activated_clients, &state_sender, "shutdown requested");
         clients.abort_all();
         while clients.join_next().await.is_some() {}
         return;
@@ -92,9 +95,29 @@ async fn run_openprotocol(
   }
 }
 
-async fn run_openprotocol_client(client_config: types::OpenProtocolClientConfig) {
+fn publish_openprotocol_disconnects(
+  configs: &[types::OpenProtocolClientConfig],
+  state_sender: &tokio::sync::broadcast::Sender<Message>,
+  error: &str,
+) {
+  for config in configs {
+    let _ = state_sender.send(Message::OpenProtocolState(crate::message::OpenProtocolState {
+      name: config.name.value.clone(),
+      ip: config.ip.value.clone(),
+      port: config.port.value,
+      connected: false,
+      ping_ms: None,
+      error: Some(error.to_string()),
+    }));
+  }
+}
+
+async fn run_openprotocol_client(
+  client_config: types::OpenProtocolClientConfig,
+  state_sender: tokio::sync::broadcast::Sender<Message>,
+) {
   loop {
-    match openprotocol::client::client(&client_config).await {
+    match openprotocol::client::client(&client_config, state_sender.clone()).await {
       Ok(()) => info!("OpenProtocol client '{}' stopped successfully", client_config.name.value),
       Err(error) => error!(%error, "OpenProtocol client '{}' error", client_config.name.value),
     }
@@ -306,7 +329,9 @@ async fn main() {
     }
   };
 
-  tokio::spawn(run_openprotocol(config_rx.clone(), shutdown_rx.clone()));
+  tokio::spawn(openprotocol::mock_server::run(shutdown_rx.clone()));
+
+  tokio::spawn(run_openprotocol(config_rx.clone(), shutdown_rx.clone(), broadcast_sender.clone()));
 
   tokio::spawn(async move {
     config_module.run().await;

@@ -150,6 +150,13 @@ button:disabled {
   flex: 1 1 30%;
 }
 
+.config-field-state {
+  color: #888;
+  font-size: 0.85em;
+  font-style: italic;
+  font-weight: 400;
+}
+
 .config-field-value {
   display: flex;
   align-items: center;
@@ -183,7 +190,7 @@ button:disabled {
 
 .settings-section {
   width: 100%;
-  margin-top: 1.5rem;
+  margin-top: 2.25rem;
 }
 
 .settings-sub-top-bar {
@@ -210,11 +217,25 @@ button:disabled {
 }
 
 .settings-section h2 {
+  color: color-mix(in srgb, var(--accent) 70%, var(--fg));
+  font-size: 1.35rem;
   margin-bottom: 0.5rem;
+}
+
+.settings-section-count {
+  margin-left: 0.5rem;
+  color: #888;
+  font-size: 0.75em;
+  font-style: italic;
+  font-weight: 400;
 }
 
 .settings-subsection {
   margin-left: 1rem;
+}
+
+.config-field-type {
+  font-style: italic;
 }
 
 @media (max-width: 900px) {

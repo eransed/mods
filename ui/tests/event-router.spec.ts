@@ -74,7 +74,7 @@ test('adding a camera device uses the server default configuration', async ({ pa
   })
 
   await page.goto('/settings')
-  const cameraSection = page.locator('section.settings-section').filter({ hasText: 'camera_configs' }).first()
+  const cameraSection = page.locator('section.settings-section').filter({ hasText: 'Camera Devices' }).first()
   await cameraSection.getByRole('button', { name: 'Add Camera Device' }).click()
 
   const cameraEntry = cameraSection.locator('section.settings-section').last()
@@ -85,5 +85,27 @@ test('adding a camera device uses the server default configuration', async ({ pa
     String(defaultConfig.camera_configs[0].device_width.value),
   )
   await expect(cameraEntry.locator('.config-field').filter({ hasText: 'enable_camera' }).locator('input')).toBeChecked()
+})
+
+test('OpenProtocol state updates the device label from a mock server', async ({ page, request }) => {
+  const configResponse = await request.get('http://127.0.0.1:8123/config')
+  const originalConfig = await configResponse.json()
+  const testConfig = structuredClone(originalConfig)
+  const openProtocolConfig = testConfig.open_protocol_configs[0]
+  openProtocolConfig.activated.value = true
+  openProtocolConfig.name.value = 'e2e-open-protocol'
+  openProtocolConfig.ip.value = '127.0.0.1'
+  openProtocolConfig.port.value = 5555
+  openProtocolConfig.keep_alive_time_ms.value = 100
+
+  try {
+    await request.post('http://127.0.0.1:8123/set_config', { data: testConfig })
+    await page.goto('/settings')
+
+    const deviceLabel = page.locator('section.settings-section h2').filter({ hasText: 'e2e-open-protocol' }).first()
+    await expect(deviceLabel).toContainText(/e2e-open-protocol - 127\.0\.0\.1:5555 - Connected: \d+ ms/)
+  } finally {
+    await request.post('http://127.0.0.1:8123/set_config', { data: originalConfig })
+  }
 })
 

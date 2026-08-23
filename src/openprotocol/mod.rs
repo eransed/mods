@@ -69,3 +69,4 @@ pub mod mid_0251;
 pub mod mid_0252;
 pub mod mid_0253;
 pub mod mid_9999;
+pub mod mock_server;

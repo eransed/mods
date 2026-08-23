@@ -1,7 +1,7 @@
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
-use std::net::SocketAddr;
 use std::sync::Arc;
+use std::{collections::HashMap, net::SocketAddr};
 use tokio::net::TcpListener;
 use tokio::sync::{
   Mutex,
@@ -47,11 +47,17 @@ pub struct WsServer {
   name: &'static str,
   sender: Sender<Message>,
   clients: Arc<Mutex<Vec<UnboundedSender<WsMessage>>>>,
+  open_protocol_states: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl WsServer {
   pub fn new(name: &'static str, sender: Sender<Message>) -> Self {
-    Self { name, sender, clients: Arc::new(Mutex::new(Vec::new())) }
+    Self {
+      name,
+      sender,
+      clients: Arc::new(Mutex::new(Vec::new())),
+      open_protocol_states: Arc::new(Mutex::new(HashMap::new())),
+    }
   }
 
   pub async fn run(self, addr: SocketAddr) -> std::io::Result<()> {
@@ -59,6 +65,7 @@ impl WsServer {
     info!(%addr, "ws_server websocket server listening on");
 
     let clients = self.clients.clone();
+    let open_protocol_states = self.open_protocol_states.clone();
     let mut receiver = self.sender.subscribe();
     let broadcast_sender = self.sender.clone();
 
@@ -94,6 +101,14 @@ impl WsServer {
             let mut clients = clients.lock().await;
             clients.retain(|client| client.send(WsMessage::Text(j.clone())).is_ok());
           }
+          Message::OpenProtocolState(state) => {
+            let state_name = state.name.clone();
+            if let Ok(text) = serde_json::to_string(&Message::OpenProtocolState(state)) {
+              open_protocol_states.lock().await.insert(state_name, text.clone());
+              let mut clients = clients.lock().await;
+              clients.retain(|client| client.send(WsMessage::Text(text.clone())).is_ok());
+            }
+          }
         }
       }
     });
@@ -102,6 +117,7 @@ impl WsServer {
       let clients = self.clients.clone();
       let sender = self.sender.clone();
       let name = self.name;
+      let open_protocol_states = self.open_protocol_states.clone();
 
       tokio::spawn(async move {
         let websocket = match accept_async(stream).await {
@@ -117,7 +133,13 @@ impl WsServer {
         let (mut write, mut read) = websocket.split();
         let (tx, mut rx): (UnboundedSender<WsMessage>, UnboundedReceiver<WsMessage>) =
           unbounded_channel();
+        let client_sender = tx.clone();
         clients.lock().await.push(tx);
+
+        let state_messages: Vec<_> = open_protocol_states.lock().await.values().cloned().collect();
+        for state_message in state_messages {
+          let _ = client_sender.send(WsMessage::Text(state_message));
+        }
 
         let write_task = tokio::spawn(async move {
           while let Some(message) = rx.recv().await {
