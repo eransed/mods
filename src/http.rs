@@ -82,6 +82,7 @@ impl HttpModule {
       .route("/endpoints", get(endpoints_handler))
       .route("/shutdown", get(shutdown_handler))
       .route("/config", get(config_handler))
+      .route("/default_config", get(default_config_handler))
       .route("/peers", get(peers_handler))
       .route("/clear_peers", get(clear_peers_handler))
       .route("/send", get(send_handler))
@@ -114,6 +115,7 @@ async fn endpoints_handler(State(_state): State<HttpState>) -> impl IntoResponse
     "/send",
     "/shutdown",
     "/config",
+    "/default_config",
     "/ping",
     "/peers",
     "/clear_peers",
@@ -216,6 +218,11 @@ async fn config_handler(State(state): State<HttpState>) -> impl IntoResponse {
     },
     Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config request failed").into_response(),
   }
+}
+
+// Return the complete default configuration without reading the active state.
+async fn default_config_handler(State(_state): State<HttpState>) -> impl IntoResponse {
+  (StatusCode::OK, Json(Config::default())).into_response()
 }
 
 async fn set_config_handler(
@@ -421,6 +428,18 @@ mod tests {
   async fn config_endpoint_returns_default_config() {
     let (addr, handle) = spawn_http_module().await;
     let response = reqwest::get(format!("http://{addr}/config")).await.unwrap();
+
+    assert!(response.status().is_success());
+    let config: Config = response.json().await.unwrap();
+    assert_eq!(config, Config::default());
+
+    handle.abort();
+  }
+
+  #[tokio::test]
+  async fn default_config_endpoint_returns_default_config() {
+    let (addr, handle) = spawn_http_module().await;
+    let response = reqwest::get(format!("http://{addr}/default_config")).await.unwrap();
 
     assert!(response.status().is_success());
     let config: Config = response.json().await.unwrap();

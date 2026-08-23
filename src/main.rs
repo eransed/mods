@@ -344,11 +344,15 @@ async fn main() {
           }
         }
         result = config_rx.changed() => {
+          // Wait for the HTTP listener task to release its socket before restarting it.
           task.abort();
+          let _ = task.await;
           if result.is_err() { break; }
         }
         result = shutdown_rx.changed() => {
+          // Wait for the HTTP listener task to release its socket before shutting down.
           task.abort();
+          let _ = task.await;
           if result.is_err() || *shutdown_rx.borrow() { break; }
         }
       }
@@ -378,11 +382,15 @@ async fn main() {
           }
         }
         result = config_rx.changed() => {
+          // Wait for the websocket listener task to release its socket before rebinding.
           task.abort();
+          let _ = task.await;
           if result.is_err() { break; }
         }
         result = shutdown_rx.changed() => {
+          // Wait for the websocket listener task to release its socket before shutting down.
           task.abort();
+          let _ = task.await;
           if result.is_err() || *shutdown_rx.borrow() { break; }
         }
       }

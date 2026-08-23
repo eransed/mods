@@ -64,3 +64,26 @@ test('settings checkbox changes when the custom checkbox is clicked', async ({ p
   await expect(checkbox).toBeChecked()
 })
 
+test('adding a camera device uses the server default configuration', async ({ page, request }) => {
+  // Use the real default endpoint while starting with an empty camera list.
+  const defaultResponse = await request.get('http://127.0.0.1:8123/default_config')
+  const defaultConfig = await defaultResponse.json()
+  const activeConfig = { ...defaultConfig, camera_configs: [] }
+  await page.route('**/config', async (route) => {
+    await route.fulfill({ json: activeConfig })
+  })
+
+  await page.goto('/settings')
+  const cameraSection = page.locator('section.settings-section').filter({ hasText: 'camera_configs' }).first()
+  await cameraSection.getByRole('button', { name: 'Add Camera Device' }).click()
+
+  const cameraEntry = cameraSection.locator('section.settings-section').last()
+  await expect(cameraEntry.locator('.config-field').filter({ hasText: 'name' }).locator('input')).toHaveValue(
+    defaultConfig.camera_configs[0].name.value,
+  )
+  await expect(cameraEntry.locator('.config-field').filter({ hasText: 'device_width' }).locator('input')).toHaveValue(
+    String(defaultConfig.camera_configs[0].device_width.value),
+  )
+  await expect(cameraEntry.locator('.config-field').filter({ hasText: 'enable_camera' }).locator('input')).toBeChecked()
+})
+

@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import type { Config, OpenProtocolConfig } from "../types/Config";
+import type { Config } from "../types/Config";
 import { Button } from "./Button";
 
 export interface SettingsProps {
@@ -15,19 +15,27 @@ export function Settings({ http_port }: SettingsProps) {
     let url = `${protocol}://${window.location.hostname}:${http_port}`
     const [config, setConfig] = useState<Config | null>(null);
     const [configModified, setConfigModified] = useState<Config | null>(null);
+    const [defaultConfig, setDefaultConfig] = useState<Config | null>(null);
     const [errState, setErrState] = useState<any>(null);
 
     // fetch the current configuration from the server
     useEffect(() => {
         const fetchConfig = async () => {
             try {
-                const response = await fetch(`${url}/config`);
-                if (response.ok) {
-                    const config = await response.json();
+                const [configResponse, defaultConfigResponse] = await Promise.all([
+                    fetch(`${url}/config`),
+                    fetch(`${url}/default_config`),
+                ]);
+                if (configResponse.ok && defaultConfigResponse.ok) {
+                    // Load active and default values separately so new entries use server metadata.
+                    const config = await configResponse.json() as Config;
+                    const defaultConfig = await defaultConfigResponse.json() as Config;
                     setConfig(config);
                     setConfigModified(config);
+                    setDefaultConfig(defaultConfig);
                     console.log('Current configuration:', config);
                 } else {
+                    const response = !configResponse.ok ? configResponse : defaultConfigResponse;
                     console.error('Failed to fetch configuration:', response.statusText);
                     setErrState(response.statusText)
                 }
@@ -67,6 +75,7 @@ export function Settings({ http_port }: SettingsProps) {
                     label={key}
                     value={value}
                     oldValue={config ? config[key as keyof Config] : null}
+                    defaultValue={defaultConfig ? defaultConfig[key as keyof Config] : null}
                     onChange={(newValue) => {
                         if (configModified) {
                             const updatedConfig = { ...configModified, [key]: newValue } as Config;
@@ -99,11 +108,12 @@ interface ConfigSectionProps {
     label: string;
     value: unknown;
     oldValue: unknown;
+    defaultValue?: unknown;
     onChange: (newValue: unknown) => void;
     onRemove?: () => void;
 }
 
-function ConfigSection({ label, value, oldValue, onChange, onRemove }: ConfigSectionProps) {
+function ConfigSection({ label, value, oldValue, defaultValue, onChange, onRemove }: ConfigSectionProps) {
     const entries = Array.isArray(value)
         ? value.map((entry, index) => [String(index), entry] as const)
         : value !== null && typeof value === 'object'
@@ -123,6 +133,11 @@ function ConfigSection({ label, value, oldValue, onChange, onRemove }: ConfigSec
                         : oldValue !== null && typeof oldValue === 'object'
                             ? (oldValue as ConfigObject)[key]
                             : null}
+                    defaultValue={Array.isArray(defaultValue)
+                        ? defaultValue[Number(key)]
+                        : defaultValue !== null && typeof defaultValue === 'object'
+                            ? (defaultValue as ConfigObject)[key]
+                            : null}
                     onChange={(newValue) => {
                         if (Array.isArray(value)) {
                             const updatedValue = [...value];
@@ -140,7 +155,7 @@ function ConfigSection({ label, value, oldValue, onChange, onRemove }: ConfigSec
                 />
             ))}
             {Array.isArray(value) && (
-                <Button type="button" onClick={() => onChange([...value, createDefaultArrayEntry(label, value)])}>
+                <Button type="button" onClick={() => onChange([...value, createDefaultArrayEntry(defaultValue)])}>
                     Add {configTypeLabel(label)}
                 </Button>
             )}
@@ -159,7 +174,7 @@ function configTypeLabel(label: string): string {
         .replace(/(^|_)\w/g, (match) => match.replace('_', '').toUpperCase());
 }
 
-function ConfigEntry({ label, value, oldValue, onChange, onRemove }: ConfigSectionProps) {
+function ConfigEntry({ label, value, oldValue, defaultValue, onChange, onRemove }: ConfigSectionProps) {
     if (isConfigProperty(value)) {
         return value.hide ? null : (
             <ConfigField
@@ -176,7 +191,7 @@ function ConfigEntry({ label, value, oldValue, onChange, onRemove }: ConfigSecti
             <div className="settings-subsection">
                 {Array.isArray(value) && value.length === 0
                     ? <p>No entries</p>
-                    : <ConfigSection label={label} value={value} oldValue={oldValue} onChange={onChange} onRemove={onRemove} />}
+                    : <ConfigSection label={label} value={value} oldValue={oldValue} defaultValue={defaultValue} onChange={onChange} onRemove={onRemove} />}
             </div>
         );
     }
@@ -184,38 +199,18 @@ function ConfigEntry({ label, value, oldValue, onChange, onRemove }: ConfigSecti
     return null;
 }
 
-function createDefaultArrayEntry(label: string, entries: unknown[]): OpenProtocolConfig | unknown {
-    if (label === 'open_protocol_configs') {
-        return {
-            activated: { value: true, default_value: true, added_version: '1.0.0', description: 'Whether the client is activated', hide: false, deprecated_version: '' },
-            name: { value: 'default', default_value: 'default', added_version: '1.0.0', description: 'The name of the client', hide: false, deprecated_version: '' },
-            ip: { value: '127.0.0.1', default_value: '127.0.0.1', added_version: '1.0.0', description: 'The IP address of the client', hide: false, deprecated_version: '' },
-            port: { value: 4545, default_value: 4545, added_version: '1.0.0', description: 'The port of the client', hide: false, deprecated_version: '' },
-            keep_alive_time_ms: { value: 7500, default_value: 7500, added_version: '1.0.0', description: 'The keep-alive time in milliseconds', hide: false, deprecated_version: '' },
-            reconnect_delay_ms: { value: 5000, default_value: 5000, added_version: '1.0.0', description: 'The reconnect delay in milliseconds', hide: false, deprecated_version: '' },
-            mid_0001_config: {
-                rev: 6,
-                active: true,
-            },
-        };
-    }
-
-    return createDefaultValue(entries[0]);
+function createDefaultArrayEntry(value: unknown): unknown {
+    // Clone the server-provided entry without changing its configured default values.
+    return Array.isArray(value) && value.length > 0 ? cloneConfigValue(value[0]) : {};
 }
 
-function createDefaultValue(value: unknown): unknown {
-    // Preserve property metadata when creating a new array entry.
-    if (isConfigProperty(value)) {
-        return { ...value, value: createDefaultValue(value.value) };
-    }
-    if (typeof value === 'boolean') return false;
-    if (typeof value === 'number') return 0;
-    if (typeof value === 'string') return '';
-    if (Array.isArray(value)) return [];
+function cloneConfigValue(value: unknown): unknown {
+    // Deep-copy nested config objects so editing a new entry cannot mutate defaults.
+    if (Array.isArray(value)) return value.map(cloneConfigValue);
     if (value !== null && typeof value === 'object') {
-        return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, createDefaultValue(child)]));
+        return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, cloneConfigValue(child)]));
     }
-    return {};
+    return value;
 }
 
 interface ConfigFieldProps {
