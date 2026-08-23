@@ -31,6 +31,7 @@ export interface OpenProtocolConfig {
 }
 
 export interface OpenProtocolClient {
+    activated:          boolean;
     name:               string;
     ip:                 string;
     port:               number;

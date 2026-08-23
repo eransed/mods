@@ -6,6 +6,7 @@ import { Api } from './components/Api'
 import { Camera } from './components/Camera'
 import { Settings } from './components/Settings'
 import { About } from './components/About'
+import { Button } from './components/Button'
 // import mermaid from 'mermaid'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
@@ -287,7 +288,7 @@ function App() {
     <div className={`app-shell${screenWidth <= cutoffWidth ? ' small' : ''}${sidebarOpen ? ' sidebar-open' : ''}`}>
       <aside className={`sidebar${screenWidth <= cutoffWidth ? ' small' : ''}${screenWidth <= cutoffWidth && sidebarOpen ? ' visible' : ''}`}>
         <div className="sidebar-header">
-          <button
+          <Button
             className="hamburger-btn"
             onClick={toggleSidebar}
             aria-label="Toggle menu"
@@ -296,7 +297,7 @@ function App() {
             <span></span>
             <span></span>
             <span></span>
-          </button>
+          </Button>
         </div>
         <nav aria-label="Primary">
           <ul className="nav-list">
@@ -324,7 +325,7 @@ function App() {
       <main className={`content${screenWidth <= cutoffWidth ? ' small' : ''}`}>
         <header className="header">
           {!sidebarOpen && (
-            <button
+            <Button
               className="hamburger-btn header-hamburger"
               onClick={toggleSidebar}
               aria-label="Toggle menu"
@@ -333,7 +334,7 @@ function App() {
               <span></span>
               <span></span>
               <span></span>
-            </button>
+            </Button>
           )}
           <h1>mods</h1>
           <p className="status" aria-live="polite">

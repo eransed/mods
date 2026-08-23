@@ -52,6 +52,7 @@ pub struct MidConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OpenProtocolClientConfig {
+  pub activated: bool,
   pub name: String,
   pub ip: String,
   pub port: u16,
@@ -63,6 +64,7 @@ pub struct OpenProtocolClientConfig {
 impl Default for OpenProtocolClientConfig {
   fn default() -> Self {
     Self {
+      activated: false,
       name: "default".to_string(),
       ip: "127.0.0.1".to_string(),
       port: 4545,

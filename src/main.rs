@@ -13,15 +13,12 @@ mod ws_server;
 
 use crate::logging::init_tracing;
 use crate::message::Message;
-use crate::openprotocol::core::MidName;
-use crate::openprotocol::mid_0002::Mid0002;
 use config::ConfigModule;
 use http::HttpModule;
 use std::net::IpAddr;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
-use strum::IntoEnumIterator;
 use sysinfo::MemoryRefreshKind;
 use sysinfo::Pid;
 use sysinfo::System;
@@ -59,37 +56,51 @@ async fn run_openprotocol(
   mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
 ) {
   loop {
-    let client_config = config_rx
+    let activated_clients: Vec<_> = config_rx
       .borrow()
       .open_protocol_config
       .open_protocol_clients
-      .first()
+      .iter()
+      .filter(|c| c.activated)
       .cloned()
-      .unwrap_or_default();
-    info!("Starts OpenProtocol client...");
-    let client = openprotocol::client::client(&client_config);
-    tokio::pin!(client);
+      .collect();
+
+    let mut clients = tokio::task::JoinSet::new();
+    for client_config in activated_clients {
+      info!("Starting OpenProtocol client for: {}", client_config.name);
+      clients.spawn(run_openprotocol_client(client_config));
+    }
 
     tokio::select! {
-      result = &mut client => match result {
-        Ok(()) => info!("OpenProtocol client stopped successfully"),
-        Err(error) => error!(%error, "OpenProtocol client error"),
-      },
       result = config_rx.changed() => {
-        if result.is_err() { return; }
-        info!("Restarting OpenProtocol client after configuration change");
-        continue;
+        clients.abort_all();
+        while clients.join_next().await.is_some() {}
+        if result.is_err() {
+          return;
+        }
       }
-      result = shutdown_rx.changed() => {
-        if result.is_err() || *shutdown_rx.borrow() { return; }
+      _result = shutdown_rx.changed() => {
+        clients.abort_all();
+        while clients.join_next().await.is_some() {}
+        return;
       }
+      result = clients.join_next(), if !clients.is_empty() => {
+        if let Some(Err(error)) = result {
+          error!(?error, "OpenProtocol client task stopped unexpectedly");
+        }
+      }
+    }
+  }
+}
+
+async fn run_openprotocol_client(client_config: types::OpenProtocolClientConfig) {
+  loop {
+    match openprotocol::client::client(&client_config).await {
+      Ok(()) => info!("OpenProtocol client '{}' stopped successfully", client_config.name),
+      Err(error) => error!(%error, "OpenProtocol client '{}' error", client_config.name),
     }
 
-    tokio::select! {
-      _ = tokio::time::sleep(Duration::from_millis(client_config.reconnect_delay_ms)) => {},
-      _ = shutdown_rx.changed() => return,
-      result = config_rx.changed() => if result.is_err() { return; },
-    }
+    tokio::time::sleep(Duration::from_millis(client_config.reconnect_delay_ms)).await;
   }
 }
 
@@ -385,16 +396,6 @@ async fn main() {
   info!("websocket server listening at: {}", ws_port);
 
   info!("Current working directory: {}", std::env::current_dir().unwrap().display());
-
-  let mut mid2 = Mid0002::default();
-  mid2.rev1.controller_name = String::from("test");
-
-  info!("{:#?}", mid2);
-
-  info!("Available MIDs:");
-  for mid_name in MidName::iter() {
-    info!("MID {:04} {}", mid_name as u16, mid_name.as_ref());
-  }
 
   // handle stop signals and shutdown
 

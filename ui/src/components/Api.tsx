@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import { Button } from "./Button";
 
 export interface ApiProps {
   port: number
@@ -80,9 +81,9 @@ export function Api({ port }: ApiProps) {
         <h1>API</h1>
         {endpoints ? Object.entries(endpoints).map((endpoint, index) => {
           return <div key={index}>
-            <button style={{ margin: '8px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '4px', padding: '5px', cursor: 'pointer' }} onClick={() => get(`${host}${endpoint[1]}`)}>
+            <Button onClick={() => get(`${host}${endpoint[1]}`)}>
               GET
-            </button>
+            </Button>
             <a style={{ fontSize: '0.8rem', color: '#fff' }} href={`${protocol}://${rootUrl}:${rootPort}${endpoint[1]}`} target="_blank" rel="noopener noreferrer">
               {endpoint[1]}
             </a>
@@ -94,9 +95,9 @@ export function Api({ port }: ApiProps) {
       <div style={{ overflowY: 'scroll', minHeight: '600px', maxHeight: '600px' }}>
         <div style={{ display: 'flex' }}>
           <div style={{ fontSize: '1.1rem' }}>Log</div>
-          <button style={{ marginLeft: '20px' }} onClick={() => {
+          <Button onClick={() => {
             setLog([])
-          }}>Clear</button>
+          }}>Clear</Button>
         </div>
         {log ? log.map((entry, index) => <pre style={{ fontSize: '0.7rem' }} key={index}>{entry}</pre>) : null}
       </div>

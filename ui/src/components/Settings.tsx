@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Config } from "../types/Config";
+import type { Config, OpenProtocolClient } from "../types/Config";
+import { Button } from "./Button";
 
 export interface SettingsProps {
     http_port: number
@@ -73,12 +74,12 @@ export function Settings({ http_port }: SettingsProps) {
                 </div>
             ))}
             {config && configModified &&
-                <button className="config-save" disabled={configEqual(config, configModified)} onClick={() => {
+                <Button className="config-save" disabled={configEqual(config, configModified)} onClick={() => {
                     if (configModified) {
                         setConfig(configModified)
                         updateConfig(url, configModified)
                     }
-                }}>Save</button>
+                }}>Save</Button>
             }
         </div>
     );
@@ -91,6 +92,7 @@ interface ObjectConfigField {
 }
 
 function objectConfigField(conf: ObjectConfigField) {
+    const isArray = Array.isArray(conf.value);
     return (
         <div>
             {Object.entries(conf.value).map(([key, value]) => (
@@ -112,6 +114,11 @@ function objectConfigField(conf: ObjectConfigField) {
                             }
                             conf.onChange(updatedValue);
                         }}
+                        onRemove={isArray ? () => {
+                            const updatedValue = [...conf.value as unknown[]];
+                            updatedValue.splice(Number(key), 1);
+                            conf.onChange(updatedValue);
+                        } : undefined}
                     />
                 </div>
             ))}
@@ -119,14 +126,45 @@ function objectConfigField(conf: ObjectConfigField) {
     );
 }
 
+function createDefaultArrayEntry(label: string, entries: unknown[]): OpenProtocolClient | unknown {
+    if (label === 'open_protocol_clients') {
+        return {
+            activated: true,
+            name: 'default',
+            ip: '127.0.0.1',
+            port: 4545,
+            keep_alive_time_ms: 7500,
+            reconnect_delay_ms: 5000,
+            mid_0001_config: {
+                rev: 6,
+                active: true,
+            },
+        };
+    }
+
+    return createDefaultValue(entries[0]);
+}
+
+function createDefaultValue(value: unknown): unknown {
+    if (typeof value === 'boolean') return false;
+    if (typeof value === 'number') return 0;
+    if (typeof value === 'string') return '';
+    if (Array.isArray(value)) return [];
+    if (value !== null && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, createDefaultValue(child)]));
+    }
+    return {};
+}
+
 interface ConfigFieldProps {
     label: string;
     value: unknown;
     oldValue: unknown;
     onChange: (newValue: unknown) => void;
+    onRemove?: () => void;
 }
 
-function ConfigField({ label, value, oldValue, onChange }: ConfigFieldProps) {
+function ConfigField({ label, value, oldValue, onChange, onRemove }: ConfigFieldProps) {
     let inp = <div style={{ color: '#e00' }}><b>Unsupported config parameter type: {typeof value} ({label})</b></div>
     let id = 'id-' + (1e9 * Math.random()).toFixed(0)
     if (typeof value === 'boolean') {
@@ -170,6 +208,11 @@ function ConfigField({ label, value, oldValue, onChange }: ConfigFieldProps) {
                     <b>
                         {label}
                     </b>
+                    {onRemove && <Button type="button" onClick={onRemove}>-</Button>}
+                    {value instanceof Array && <Button type="button" onClick={() => {
+                        const entries = value as unknown[];
+                        onChange([...entries, createDefaultArrayEntry(label, entries)]);
+                    }}>+</Button>}
                     <i>
                         ({typeof value}):
                     </i>

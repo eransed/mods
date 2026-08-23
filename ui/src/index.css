@@ -99,14 +99,15 @@ label input[type=checkbox]:checked + span.checkbox:before {
 }
 
 button {
-  padding-left: 1rem;
-  padding-right: 1rem;
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
+  margin: 0.5rem;
+  padding: 0.2rem 0.6rem;
   border: 1px solid var(--accent);
   background: var(--bg);
   color: var(--fg);
+  border-radius: 0.4rem;
   cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
 button:disabled {
