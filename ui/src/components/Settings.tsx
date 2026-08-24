@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Config } from "../types/Config";
 import { Button } from "./Button";
@@ -22,6 +22,25 @@ function configEqual(a: Config, b: Config): boolean {
     return JSON.stringify(a) === JSON.stringify(b);
 }
 
+function configChangeCount(current: unknown, saved: unknown): number {
+    if (isConfigProperty(current) && isConfigProperty(saved)) {
+        return current.value === saved.value ? 0 : 1;
+    }
+    if (Array.isArray(current) && Array.isArray(saved)) {
+        const length = Math.max(current.length, saved.length);
+        return Array.from({ length }, (_, index) => configChangeCount(current[index], saved[index]))
+            .reduce((total, changes) => total + changes, 0);
+    }
+    if (current !== null && typeof current === 'object' && saved !== null && typeof saved === 'object') {
+        const keys = new Set([...Object.keys(current), ...Object.keys(saved)]);
+        return [...keys].reduce((total, key) => total + configChangeCount(
+            (current as ConfigObject)[key],
+            (saved as ConfigObject)[key],
+        ), 0);
+    }
+    return current === saved ? 0 : 1;
+}
+
 export function Settings({ http_port, webSocket, openProtocolStates: receivedOpenProtocolStates }: SettingsProps) {
     let protocol = 'http'
     let url = `${protocol}://${window.location.hostname}:${http_port}`
@@ -31,6 +50,7 @@ export function Settings({ http_port, webSocket, openProtocolStates: receivedOpe
     const [openProtocolStates, setOpenProtocolStates] = useState<Record<string, OpenProtocolState>>(receivedOpenProtocolStates);
     const [connectingOpenProtocolNames, setConnectingOpenProtocolNames] = useState<Set<string>>(new Set());
     const [errState, setErrState] = useState<any>(null);
+    const configFileInput = useRef<HTMLInputElement>(null);
 
     // fetch the current configuration from the server
     useEffect(() => {
@@ -109,13 +129,49 @@ export function Settings({ http_port, webSocket, openProtocolStates: receivedOpe
             <div className="settings-sub-top-bar">
                 <h1>Settings{config && configModified && !configEqual(config, configModified) ? ' *' : ''}</h1>
                 {config && configModified &&
-                    <Button className="config-save" disabled={configEqual(config, configModified)} onClick={() => {
-                        if (configModified) {
+                    <div className="settings-actions">
+                        <Button type="button" onClick={() => downloadConfig(configModified)}>Download config</Button>
+                        <Button type="button" onClick={() => configFileInput.current?.click()}>Upload config</Button>
+                        <Button type="button" onClick={async () => {
+                            try {
+                                const resetConfigValue = await factoryResetConfig(url);
+                                setConfig(resetConfigValue);
+                                setConfigModified(resetConfigValue);
+                                setDefaultConfig(resetConfigValue);
+                                setConnectingOpenProtocolNames(new Set(resetConfigValue.open_protocol_configs.map((entry) => entry.name.value)));
+                            } catch (error) {
+                                setErrState(`Could not factory reset config: ${error}`);
+                            }
+                        }}>Factory reset</Button>
+                        <input
+                            ref={configFileInput}
+                            className="settings-config-file-input"
+                            type="file"
+                            accept="application/json,.json"
+                            onChange={async (event) => {
+                                const file = event.target.files?.[0];
+                                event.target.value = '';
+                                if (!file) return;
+                                try {
+                                    const uploadedConfig = JSON.parse(await file.text()) as Config;
+                                    setConfigModified(uploadedConfig);
+                                } catch (error) {
+                                    setErrState(`Could not upload config: ${error}`);
+                                }
+                            }}
+                        />
+                        {!configEqual(config, configModified) && <Button type="button" onClick={() => {
+                            setConnectingOpenProtocolNames(new Set());
+                            setConfigModified(config);
+                        }}>
+                            Undo {configChangeCount(configModified, config)} changes
+                        </Button>}
+                        <Button className="config-save" disabled={configEqual(config, configModified)} onClick={() => {
                             setConnectingOpenProtocolNames(new Set(configModified.open_protocol_configs.map((entry) => entry.name.value)));
                             setConfig(configModified)
                             updateConfig(url, configModified)
-                        }
-                    }}>Save</Button>
+                        }}>Save</Button>
+                    </div>
                 }
             </div>
             {configModified && Object.entries(configModified).map(([key, value]) => (
@@ -384,6 +440,23 @@ function cloneConfigValue(value: unknown): unknown {
         return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, cloneConfigValue(child)]));
     }
     return value;
+}
+
+function downloadConfig(config: Config): void {
+    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'config.json';
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+async function factoryResetConfig(url: string): Promise<Config> {
+    const response = await fetch(`${url}/reset_config`);
+    if (!response.ok) {
+        throw new Error(`Failed to reset configuration: ${response.statusText}`);
+    }
+    return await response.json() as Config;
 }
 
 interface ConfigFieldProps {
