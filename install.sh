@@ -64,7 +64,7 @@ fi
 start_time="$(date -u +%s)"
 
 log_info "Building mods..."
-cargo build --release ${cargo_extra_args}
+cargo build --release --all-features ${cargo_extra_args}
 rv=$?
 
 printf "\n"
