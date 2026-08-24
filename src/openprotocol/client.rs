@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::io::{self, Error, ErrorKind};
+use std::net::SocketAddr;
 use std::time::Instant;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -24,6 +25,7 @@ pub struct Client {
   state: OpenProtocolState,
   state_sender: Sender<Message>,
   keep_alive_sent_at: VecDeque<Instant>,
+  peer_addr: SocketAddr,
 }
 
 impl Client {
@@ -35,6 +37,7 @@ impl Client {
     // Build the controller address from the scalar configuration values.
     let addr = format!("{}:{}", config.ip.value, config.port.value);
     let stream = TcpStream::connect(addr).await?;
+    let peer_addr = stream.peer_addr()?;
     let client = Self {
       config: config.clone(),
       stream,
@@ -49,6 +52,7 @@ impl Client {
       },
       state_sender,
       keep_alive_sent_at: VecDeque::new(),
+      peer_addr,
     };
     client.publish_state();
     Ok(client)
@@ -120,7 +124,7 @@ impl Client {
 
   async fn send<M: Mid>(&mut self, message: &M) -> io::Result<()> {
     let serialized = message.str();
-    info!("SEND: '{}'", serialized);
+    info!(peer = %self.peer_addr, "SEND: '{}'", serialized);
     self.stream.write_all(serialized.as_bytes()).await?;
     self.stream.write_all(&[0]).await
   }
@@ -128,7 +132,7 @@ impl Client {
   fn handle_received(&mut self, message: &str) {
     match mid_parse_header(message) {
       Ok(header) => {
-        info!("RECV: '{}'", message);
+        info!(peer = %self.peer_addr, "RECV: '{}'", message);
         match header.mid {
           2 => match mid_0002::mid_parse_0002(message) {
             Ok(m2) => {
@@ -236,33 +240,45 @@ fn mid_9999() -> Mid9999 {
 }
 
 fn take_message(buffer: &mut Vec<u8>) -> io::Result<Option<String>> {
-  if buffer.len() < 20 {
-    return Ok(None);
-  }
+  loop {
+    while buffer.first() == Some(&0) {
+      buffer.remove(0);
+    }
+    if buffer.len() < 20 {
+      return Ok(None);
+    }
 
-  let header = std::str::from_utf8(&buffer[..20])
-    .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
-  let length = header[..4]
-    .parse::<usize>()
-    .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
-  if length < 20 {
-    return Err(io::Error::new(
-      io::ErrorKind::InvalidData,
-      "MID length is shorter than its header",
-    ));
-  }
-  if buffer.len() < length {
-    return Ok(None);
-  }
+    let header = std::str::from_utf8(&buffer[..20])
+      .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    let length = match header[..4].parse::<usize>() {
+      Ok(length) => length,
+      Err(error) => {
+        if let Some(separator) = buffer.iter().position(|byte| *byte == 0) {
+          buffer.drain(..=separator);
+          continue;
+        }
+        return Err(io::Error::new(io::ErrorKind::InvalidData, error));
+      }
+    };
+    if length < 20 {
+      return Err(io::Error::new(
+        io::ErrorKind::InvalidData,
+        "MID length is shorter than its header",
+      ));
+    }
+    if buffer.len() < length {
+      return Ok(None);
+    }
 
-  let message = std::str::from_utf8(&buffer[..length])
-    .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?
-    .to_owned();
-  buffer.drain(..length);
-  if buffer.first() == Some(&0) {
-    buffer.remove(0);
+    let message = std::str::from_utf8(&buffer[..length])
+      .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?
+      .to_owned();
+    buffer.drain(..length);
+    if buffer.first() == Some(&0) {
+      buffer.remove(0);
+    }
+    return Ok(Some(message));
   }
-  Ok(Some(message))
 }
 
 #[cfg(test)]
@@ -285,6 +301,15 @@ mod tests {
     let mut buffer = format!("{}\0{}\0", first, second).into_bytes();
     assert_eq!(take_message(&mut buffer).unwrap().as_deref(), Some(first));
     assert_eq!(take_message(&mut buffer).unwrap().as_deref(), Some(second));
+    assert!(buffer.is_empty());
+  }
+
+  #[test]
+  fn skips_stray_nul_terminators_before_message() {
+    let message = "00200099001000000000";
+    let mut buffer = format!("\0{}\0", message).into_bytes();
+
+    assert_eq!(take_message(&mut buffer).unwrap().as_deref(), Some(message));
     assert!(buffer.is_empty());
   }
 }

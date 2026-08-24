@@ -15,6 +15,8 @@ export APRILTAG_SYS_WINDOWS_PTHREAD_INCLUDE_DIR="$VCPKG_ROOT/installed/x64-windo
 export APRILTAG_SYS_WINDOWS_PTHREAD_STATIC_LIB="$VCPKG_ROOT/installed/x64-windows-static/lib/pthreadVC3.lib"
 ```
 
+Never use unsafe code! No exceptions. If you need to use unsafe code, please discuss it with the team first.
+
 It is forbidden to use unwrap() and expect() in the code. Use proper error handling instead.
 
 As a last step after cargo check passes run ```cargo fmt```.

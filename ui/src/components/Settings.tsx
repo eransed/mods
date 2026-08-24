@@ -29,6 +29,7 @@ export function Settings({ http_port, webSocket, openProtocolStates: receivedOpe
     const [configModified, setConfigModified] = useState<Config | null>(null);
     const [defaultConfig, setDefaultConfig] = useState<Config | null>(null);
     const [openProtocolStates, setOpenProtocolStates] = useState<Record<string, OpenProtocolState>>(receivedOpenProtocolStates);
+    const [connectingOpenProtocolNames, setConnectingOpenProtocolNames] = useState<Set<string>>(new Set());
     const [errState, setErrState] = useState<any>(null);
 
     // fetch the current configuration from the server
@@ -62,6 +63,11 @@ export function Settings({ http_port, webSocket, openProtocolStates: receivedOpe
     }, [url]);
 
     useEffect(() => {
+        const receivedNames = new Set(Object.keys(receivedOpenProtocolStates));
+        setConnectingOpenProtocolNames((current) => {
+            const next = new Set([...current].filter((name) => !receivedNames.has(name)));
+            return next.size === current.size ? current : next;
+        });
         setOpenProtocolStates((current) => ({ ...current, ...receivedOpenProtocolStates }));
     }, [receivedOpenProtocolStates]);
 
@@ -73,6 +79,12 @@ export function Settings({ http_port, webSocket, openProtocolStates: receivedOpe
                 const message = JSON.parse(event.data) as { OpenProtocolState?: OpenProtocolState };
                 const state = message.OpenProtocolState;
                 if (state) {
+                    setConnectingOpenProtocolNames((current) => {
+                        if (!current.has(state.name)) return current;
+                        const next = new Set(current);
+                        next.delete(state.name);
+                        return next;
+                    });
                     setOpenProtocolStates((current) => ({ ...current, [state.name]: state }));
                 }
             } catch {
@@ -95,10 +107,11 @@ export function Settings({ http_port, webSocket, openProtocolStates: receivedOpe
         <div className="settings-page">
             {/* Keep the page identity and save action visible while settings scroll. */}
             <div className="settings-sub-top-bar">
-                <h1>Settings</h1>
+                <h1>Settings{config && configModified && !configEqual(config, configModified) ? ' *' : ''}</h1>
                 {config && configModified &&
                     <Button className="config-save" disabled={configEqual(config, configModified)} onClick={() => {
                         if (configModified) {
+                            setConnectingOpenProtocolNames(new Set(configModified.open_protocol_configs.map((entry) => entry.name.value)));
                             setConfig(configModified)
                             updateConfig(url, configModified)
                         }
@@ -113,6 +126,7 @@ export function Settings({ http_port, webSocket, openProtocolStates: receivedOpe
                     oldValue={config ? config[key as keyof Config] : null}
                     defaultValue={defaultConfig ? defaultConfig[key as keyof Config] : null}
                     openProtocolStates={openProtocolStates}
+                    connectingOpenProtocolNames={connectingOpenProtocolNames}
                     onChange={(newValue) => {
                         if (configModified) {
                             const updatedConfig = { ...configModified, [key]: newValue } as Config;
@@ -147,11 +161,12 @@ interface ConfigSectionProps {
     oldValue: unknown;
     defaultValue?: unknown;
     openProtocolStates?: Record<string, OpenProtocolState>;
+    connectingOpenProtocolNames?: Set<string>;
     onChange: (newValue: unknown) => void;
     onRemove?: () => void;
 }
 
-function ConfigSection({ label, value, oldValue, defaultValue, openProtocolStates = {}, onChange, onRemove }: ConfigSectionProps) {
+function ConfigSection({ label, value, oldValue, defaultValue, openProtocolStates = {}, connectingOpenProtocolNames = new Set(), onChange, onRemove }: ConfigSectionProps) {
     const sectionLabel = typeof label === 'string' ? label : '';
     const entries = Array.isArray(value)
         ? value.map((entry, index) => [String(index), entry] as const)
@@ -177,6 +192,7 @@ function ConfigSection({ label, value, oldValue, defaultValue, openProtocolState
                         Array.isArray(oldValue) ? oldValue[Number(key)] : null,
                         Number(key),
                         openProtocolStates,
+                        connectingOpenProtocolNames,
                     ) : key}
                     value={entry}
                     oldValue={Array.isArray(oldValue)
@@ -189,7 +205,8 @@ function ConfigSection({ label, value, oldValue, defaultValue, openProtocolState
                         : defaultValue !== null && typeof defaultValue === 'object'
                             ? (defaultValue as ConfigObject)[key]
                             : null}
-                            openProtocolStates={openProtocolStates}
+                    openProtocolStates={openProtocolStates}
+                    connectingOpenProtocolNames={connectingOpenProtocolNames}
                     onChange={(newValue) => {
                         if (Array.isArray(value)) {
                             const updatedValue = [...value];
@@ -207,7 +224,10 @@ function ConfigSection({ label, value, oldValue, defaultValue, openProtocolState
                 />
             ))}
             {Array.isArray(value) && (
-                <Button type="button" onClick={() => onChange([...value, createDefaultArrayEntry(defaultValue)])}>
+                <Button type="button" onClick={() => onChange([
+                    ...value,
+                    createArrayEntry(sectionLabel, value, defaultValue),
+                ])}>
                     Add {configTypeLabel(sectionLabel)}
                 </Button>
             )}
@@ -234,6 +254,7 @@ function arrayEntryLabel(
     oldEntry: unknown,
     index: number,
     openProtocolStates: Record<string, OpenProtocolState>,
+    connectingOpenProtocolNames: Set<string>,
 ): ReactNode {
     // Use device names as collection entry labels when the server provides them.
     if (sectionLabel === 'camera_configs' || sectionLabel === 'open_protocol_configs') {
@@ -244,19 +265,27 @@ function arrayEntryLabel(
                     ? configPropertyString((oldEntry as ConfigObject).name)
                     : undefined;
                 const stateName = oldName && oldName !== name.value ? oldName : name.value;
-                const state = sectionLabel === 'open_protocol_configs' ? openProtocolStates[stateName] : undefined;
+                const isJustAdded = sectionLabel === 'open_protocol_configs' && oldEntry == null;
+                const isConnecting = sectionLabel === 'open_protocol_configs' && connectingOpenProtocolNames.has(name.value);
+                const state = !isJustAdded && sectionLabel === 'open_protocol_configs'
+                    ? openProtocolStates[stateName]
+                    : undefined;
                 if (sectionLabel === 'open_protocol_configs') {
                     const ip = configPropertyString((entry as ConfigObject).ip) ?? 'unknown';
                     const port = configPropertyNumber((entry as ConfigObject).port) ?? 0;
                     const address = state ? `${state.ip}:${state.port}` : `${ip}:${port}`;
-                    const status = state?.connected
-                        ? `Connected: ${state.ping_ms ?? '-'} ms`
-                        : state
-                            ? `Disconnected: '${state.error ?? 'unknown error'}'`
-                            : null;
+                    const status = isJustAdded
+                        ? 'Just added'
+                        : isConnecting
+                            ? 'Connecting...'
+                            : state?.connected
+                                ? `Connected: Ping ${state.ping_ms ?? '-'} ms`
+                                : state
+                                    ? `Disconnected: '${state.error ?? 'unknown error'}'`
+                                    : null;
                     return <>
                         <span className="settings-entry-address">
-                            {state && <span className={`dot ${state.connected ? 'dot-connected' : 'dot-error'}`} aria-hidden="true" />}
+                            {(state || isJustAdded || isConnecting) && <span className={`dot ${isJustAdded || isConnecting ? 'dot-connecting' : state?.connected ? 'dot-connected' : 'dot-error'}`} aria-hidden="true" />}
                             <b className="settings-entry-name">{name.value}</b>
                             <span className="settings-entry-address-value">{address}</span>
                         </span>
@@ -292,7 +321,7 @@ function configTypeLabel(label: string): string {
         .replace(/(^|_)\w/g, (match) => match.replace('_', '').toUpperCase());
 }
 
-function ConfigEntry({ label, value, oldValue, defaultValue, openProtocolStates = {}, onChange, onRemove }: ConfigSectionProps) {
+function ConfigEntry({ label, value, oldValue, defaultValue, openProtocolStates = {}, connectingOpenProtocolNames = new Set(), onChange, onRemove }: ConfigSectionProps) {
     if (isConfigProperty(value)) {
         return value.hide ? null : (
             <ConfigField
@@ -309,12 +338,38 @@ function ConfigEntry({ label, value, oldValue, defaultValue, openProtocolStates 
             <div className="settings-subsection">
                 {Array.isArray(value) && value.length === 0
                     ? <p>No entries</p>
-                    : <ConfigSection label={label} value={value} oldValue={oldValue} defaultValue={defaultValue} openProtocolStates={openProtocolStates} onChange={onChange} onRemove={onRemove} />}
+                    : <ConfigSection label={label} value={value} oldValue={oldValue} defaultValue={defaultValue} openProtocolStates={openProtocolStates} connectingOpenProtocolNames={connectingOpenProtocolNames} onChange={onChange} onRemove={onRemove} />}
             </div>
         );
     }
 
     return null;
+}
+
+function createArrayEntry(sectionLabel: string, entries: unknown[], defaultValue: unknown): unknown {
+    const entry = createDefaultArrayEntry(defaultValue);
+    if (sectionLabel !== 'open_protocol_configs' || entry === null || typeof entry !== 'object') {
+        return entry;
+    }
+
+    const name = configPropertyString((entry as ConfigObject).name);
+    if (!name) return entry;
+
+    const usedNames = new Set(entries.map((currentEntry) => {
+        if (currentEntry !== null && typeof currentEntry === 'object') {
+            return configPropertyString((currentEntry as ConfigObject).name);
+        }
+        return undefined;
+    }).filter((currentName): currentName is string => currentName !== undefined));
+    let index = 1;
+    while (usedNames.has(`${name}_${index}`)) index += 1;
+
+    const namedEntry = cloneConfigValue(entry) as ConfigObject;
+    const nameProperty = namedEntry.name;
+    if (isConfigProperty(nameProperty)) {
+        namedEntry.name = { ...nameProperty, value: `${name}_${index}` };
+    }
+    return namedEntry;
 }
 
 function createDefaultArrayEntry(value: unknown): unknown {
