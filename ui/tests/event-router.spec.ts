@@ -103,7 +103,9 @@ test('OpenProtocol state updates the device label from a mock server', async ({ 
     await page.goto('/settings')
 
     const deviceLabel = page.locator('section.settings-section h2').filter({ hasText: 'e2e-open-protocol' }).first()
-    await expect(deviceLabel).toContainText(/e2e-open-protocol 127\.0\.0\.1:5555 - Connected: \d+ ms/)
+    await expect(deviceLabel.locator('.settings-entry-name')).toHaveText('e2e-open-protocol')
+    await expect(deviceLabel.locator('.settings-entry-address-value')).toHaveText('127.0.0.1:5555')
+    await expect(deviceLabel.locator('.settings-entry-connection')).toContainText(/Connected: \d+ ms/)
   } finally {
     await request.post('http://127.0.0.1:8123/set_config', { data: originalConfig })
   }

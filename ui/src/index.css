@@ -217,9 +217,22 @@ button:disabled {
 }
 
 .settings-section h2 {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
   color: color-mix(in srgb, var(--accent) 70%, var(--fg));
   font-size: 1.35rem;
   margin-bottom: 0.5rem;
+}
+
+.settings-section-heading-content {
+  min-width: 0;
+}
+
+.settings-section-remove {
+  flex: 0 0 auto;
+  margin: 0;
 }
 
 .settings-section-count {
@@ -232,6 +245,37 @@ button:disabled {
 
 .settings-subsection {
   margin-left: 1rem;
+}
+
+.settings-entry-address,
+.settings-entry-connection {
+  display: block;
+}
+
+.settings-entry-address {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.settings-entry-name {
+  color: var(--accent);
+}
+
+.settings-entry-address-value {
+  color: #888;
+  font-size: 0.7em;
+  font-style: italic;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.settings-entry-connection {
+  color: #888;
+  font-size: 0.7em;
+  font-style: italic;
+  font-weight: 400;
+  overflow-wrap: anywhere;
 }
 
 .config-field-type {

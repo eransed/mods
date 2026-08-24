@@ -162,9 +162,11 @@ function ConfigSection({ label, value, oldValue, defaultValue, openProtocolState
     return (
         <section className="settings-section">
             <h2>
-                {configSectionHeadingLabel(label)}
-                {Array.isArray(value) && <span className="settings-section-count">({value.length})</span>}
-                {onRemove && <Button type="button" onClick={onRemove}>Remove</Button>}
+                <span className="settings-section-heading-content">
+                    {configSectionHeadingLabel(label)}
+                    {Array.isArray(value) && <span className="settings-section-count">({value.length})</span>}
+                </span>
+                {onRemove && <Button className="settings-section-remove" type="button" onClick={onRemove}>Remove</Button>}
             </h2>
             {entries.map(([key, entry]) => (
                 <ConfigEntry
@@ -252,7 +254,16 @@ function arrayEntryLabel(
                         : state
                             ? `Disconnected: '${state.error ?? 'unknown error'}'`
                             : null;
-                    return <><b>{name.value}</b><span className="config-field-state"> {address}{status && ` - ${status}`}</span></>;
+                    return <>
+                        <span className="settings-entry-address">
+                            {state && <span className={`dot ${state.connected ? 'dot-connected' : 'dot-error'}`} aria-hidden="true" />}
+                            <b className="settings-entry-name">{name.value}</b>
+                            <span className="settings-entry-address-value">{address}</span>
+                        </span>
+                        <span className="settings-entry-connection">
+                            {status && <span className="config-field-state">{status}</span>}
+                        </span>
+                    </>;
                 }
                 return name.value;
             }
