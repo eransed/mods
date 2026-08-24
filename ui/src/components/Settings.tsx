@@ -1,17 +1,9 @@
 import { useEffect, useId, useState } from "react";
+import type { ReactNode } from "react";
 import type { Config } from "../types/Config";
 import { Button } from "./Button";
 
-export interface SettingsProps {
-    http_port: number
-    webSocket: WebSocket | null
-}
-
-function configEqual(a: Config, b: Config): boolean {
-    return JSON.stringify(a) === JSON.stringify(b);
-}
-
-type OpenProtocolState = {
+export type OpenProtocolState = {
     name: string;
     ip: string;
     port: number;
@@ -20,13 +12,23 @@ type OpenProtocolState = {
     error: string | null;
 };
 
-export function Settings({ http_port, webSocket }: SettingsProps) {
+export interface SettingsProps {
+    http_port: number
+    webSocket: WebSocket | null
+    openProtocolStates: Record<string, OpenProtocolState>
+}
+
+function configEqual(a: Config, b: Config): boolean {
+    return JSON.stringify(a) === JSON.stringify(b);
+}
+
+export function Settings({ http_port, webSocket, openProtocolStates: receivedOpenProtocolStates }: SettingsProps) {
     let protocol = 'http'
     let url = `${protocol}://${window.location.hostname}:${http_port}`
     const [config, setConfig] = useState<Config | null>(null);
     const [configModified, setConfigModified] = useState<Config | null>(null);
     const [defaultConfig, setDefaultConfig] = useState<Config | null>(null);
-    const [openProtocolStates, setOpenProtocolStates] = useState<Record<string, OpenProtocolState>>({});
+    const [openProtocolStates, setOpenProtocolStates] = useState<Record<string, OpenProtocolState>>(receivedOpenProtocolStates);
     const [errState, setErrState] = useState<any>(null);
 
     // fetch the current configuration from the server
@@ -58,6 +60,10 @@ export function Settings({ http_port, webSocket }: SettingsProps) {
 
         fetchConfig();
     }, [url]);
+
+    useEffect(() => {
+        setOpenProtocolStates((current) => ({ ...current, ...receivedOpenProtocolStates }));
+    }, [receivedOpenProtocolStates]);
 
     useEffect(() => {
         if (!webSocket) return;
@@ -136,7 +142,7 @@ function isConfigProperty(value: unknown): value is ConfigProperty {
 }
 
 interface ConfigSectionProps {
-    label: string;
+    label: ReactNode;
     value: unknown;
     oldValue: unknown;
     defaultValue?: unknown;
@@ -146,6 +152,7 @@ interface ConfigSectionProps {
 }
 
 function ConfigSection({ label, value, oldValue, defaultValue, openProtocolStates = {}, onChange, onRemove }: ConfigSectionProps) {
+    const sectionLabel = typeof label === 'string' ? label : '';
     const entries = Array.isArray(value)
         ? value.map((entry, index) => [String(index), entry] as const)
         : value !== null && typeof value === 'object'
@@ -155,14 +162,20 @@ function ConfigSection({ label, value, oldValue, defaultValue, openProtocolState
     return (
         <section className="settings-section">
             <h2>
-                {configModuleLabel(label)}
+                {configSectionHeadingLabel(label)}
                 {Array.isArray(value) && <span className="settings-section-count">({value.length})</span>}
                 {onRemove && <Button type="button" onClick={onRemove}>Remove</Button>}
             </h2>
             {entries.map(([key, entry]) => (
                 <ConfigEntry
                     key={key}
-                    label={Array.isArray(value) ? arrayEntryLabel(label, entry, Number(key), openProtocolStates) : key}
+                    label={Array.isArray(value) ? arrayEntryLabel(
+                        sectionLabel,
+                        entry,
+                        Array.isArray(oldValue) ? oldValue[Number(key)] : null,
+                        Number(key),
+                        openProtocolStates,
+                    ) : key}
                     value={entry}
                     oldValue={Array.isArray(oldValue)
                         ? oldValue[Number(key)]
@@ -193,7 +206,7 @@ function ConfigSection({ label, value, oldValue, defaultValue, openProtocolState
             ))}
             {Array.isArray(value) && (
                 <Button type="button" onClick={() => onChange([...value, createDefaultArrayEntry(defaultValue)])}>
-                    Add {configTypeLabel(label)}
+                    Add {configTypeLabel(sectionLabel)}
                 </Button>
             )}
         </section>
@@ -209,26 +222,37 @@ function configModuleLabel(label: string): string {
     return label;
 }
 
+function configSectionHeadingLabel(label: ReactNode) {
+    return typeof label === 'string' ? configModuleLabel(label) : label;
+}
+
 function arrayEntryLabel(
     sectionLabel: string,
     entry: unknown,
+    oldEntry: unknown,
     index: number,
     openProtocolStates: Record<string, OpenProtocolState>,
-): string {
+): ReactNode {
     // Use device names as collection entry labels when the server provides them.
     if (sectionLabel === 'camera_configs' || sectionLabel === 'open_protocol_configs') {
         if (entry !== null && typeof entry === 'object' && 'name' in entry) {
             const name = (entry as ConfigObject).name;
             if (isConfigProperty(name) && typeof name.value === 'string') {
-                const state = sectionLabel === 'open_protocol_configs' ? openProtocolStates[name.value] : undefined;
+                const oldName = oldEntry !== null && typeof oldEntry === 'object' && 'name' in oldEntry
+                    ? configPropertyString((oldEntry as ConfigObject).name)
+                    : undefined;
+                const stateName = oldName && oldName !== name.value ? oldName : name.value;
+                const state = sectionLabel === 'open_protocol_configs' ? openProtocolStates[stateName] : undefined;
                 if (sectionLabel === 'open_protocol_configs') {
                     const ip = configPropertyString((entry as ConfigObject).ip) ?? 'unknown';
                     const port = configPropertyNumber((entry as ConfigObject).port) ?? 0;
                     const address = state ? `${state.ip}:${state.port}` : `${ip}:${port}`;
                     const status = state?.connected
                         ? `Connected: ${state.ping_ms ?? '-'} ms`
-                        : `Disconnected: '${state?.error ?? 'not connected'}'`;
-                    return `${name.value} - ${address} - ${status}`;
+                        : state
+                            ? `Disconnected: '${state.error ?? 'unknown error'}'`
+                            : null;
+                    return <><b>{name.value}</b><span className="config-field-state"> {address}{status && ` - ${status}`}</span></>;
                 }
                 return name.value;
             }
@@ -297,7 +321,7 @@ function cloneConfigValue(value: unknown): unknown {
 }
 
 interface ConfigFieldProps {
-    label: string;
+    label: ReactNode;
     property: ConfigProperty;
     oldProperty: ConfigProperty | null;
     onChange: (newValue: unknown) => void;
@@ -306,7 +330,7 @@ interface ConfigFieldProps {
 function ConfigField({ label, property, oldProperty, onChange }: ConfigFieldProps) {
     const { value } = property;
     const id = useId()
-    let input = <div style={{ color: '#e00' }}><b>Unsupported config parameter type: {typeof value} ({label})</b></div>
+    let input = <div style={{ color: '#e00' }}><b>Unsupported config parameter type: {typeof value}</b></div>
     if (typeof value === 'boolean') {
         input = <input
             type="checkbox"
@@ -339,7 +363,7 @@ function ConfigField({ label, property, oldProperty, onChange }: ConfigFieldProp
         <div className="config-field">
             {/* Keep the editable setting identity together in the row's top section. */}
             <div className="config-field-top">
-                <div className="config-field-name">{configFieldLabel(label)}</div>
+                <div className="config-field-name"><b>{label}</b></div>
                 <div className="config-field-value">
                     {typeof value === 'boolean' ? (
                         /* Associate the visible custom control with its hidden input. */
@@ -361,13 +385,6 @@ function ConfigField({ label, property, oldProperty, onChange }: ConfigFieldProp
             </div>
         </div>
     );
-}
-
-function configFieldLabel(label: string) {
-    const separator = label.indexOf(' - ');
-    if (separator < 0) return <b>{label}</b>;
-
-    return <><b>{label.slice(0, separator)}</b><span className="config-field-state">{label.slice(separator)}</span></>;
 }
 
 function updateConfig(url: string, newConfig: Config) {

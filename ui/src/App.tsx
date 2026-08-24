@@ -4,7 +4,7 @@ import { msPretty } from './lib/utils'
 import { Overview } from './components/Overview'
 import { Api } from './components/Api'
 import { Camera } from './components/Camera'
-import { Settings } from './components/Settings'
+import { Settings, type OpenProtocolState } from './components/Settings'
 import { About } from './components/About'
 import { Button } from './components/Button'
 import type { Config } from './types/Config'
@@ -105,6 +105,7 @@ function App() {
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
   const [sys, setSys] = useState('')
   const [websocket, setWebsocket] = useState<WebSocket | null>(null)
+  const [openProtocolStates, setOpenProtocolStates] = useState<Record<string, OpenProtocolState>>({})
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > cutoffWidth)
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
   const disconnectStart = useRef<number | null>(null)
@@ -255,6 +256,10 @@ function App() {
         newWebSocket.onmessage = (e) => {
           try {
             let o = JSON.parse(e.data)
+            if (o.OpenProtocolState) {
+              const state = o.OpenProtocolState as OpenProtocolState
+              setOpenProtocolStates((current) => ({ ...current, [state.name]: state }))
+            }
             if (o.SystemStatus) {
               let cpu = (o.SystemStatus.cpu_percent as number).toFixed(1)
               let ram = (o.SystemStatus.ram_percent as number).toFixed(1)
@@ -346,7 +351,7 @@ function App() {
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<Overview />} />
             <Route path="/docs" element={<Docs />} />
-            <Route path="/settings" element={<Settings http_port={rootPort} webSocket={websocket} />} />
+            <Route path="/settings" element={<Settings http_port={rootPort} webSocket={websocket} openProtocolStates={openProtocolStates} />} />
             <Route path="/camera" element={websocket ? <Camera webSocket={websocket} /> : <div>Camera waiting for websocket connection...</div>} />
             <Route path="/api" element={<Api port={rootPort} />} />
             <Route path="/about" element={<About port={rootPort} />} />

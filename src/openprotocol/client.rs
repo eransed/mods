@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::io::{self, Error, ErrorKind};
 use std::time::Instant;
 
@@ -22,6 +23,7 @@ pub struct Client {
   receive_buffer: Vec<u8>,
   state: OpenProtocolState,
   state_sender: Sender<Message>,
+  keep_alive_sent_at: VecDeque<Instant>,
 }
 
 impl Client {
@@ -46,6 +48,7 @@ impl Client {
         error: None,
       },
       state_sender,
+      keep_alive_sent_at: VecDeque::new(),
     };
     client.publish_state();
     Ok(client)
@@ -69,9 +72,6 @@ impl Client {
     let mut keep_alive =
       time::interval(Duration::from_millis(self.config.keep_alive_time_ms.value));
     keep_alive.set_missed_tick_behavior(MissedTickBehavior::Delay);
-    keep_alive.tick().await;
-    let mut send_instant = Instant::now();
-
     loop {
       let mut read_buffer = [0_u8; 4096];
       tokio::select! {
@@ -82,24 +82,25 @@ impl Client {
           }
           self.receive_buffer.extend_from_slice(&read_buffer[..bytes_read]);
           while let Some(message) = take_message(&mut self.receive_buffer)? {
-            self.handle_received(&message, send_instant);
+            self.handle_received(&message);
           }
         }
         _ = keep_alive.tick() => {
-          send_instant = Instant::now();
+          let sent_at = Instant::now();
           self.send(&mid_9999()).await?;
+          self.keep_alive_sent_at.push_back(sent_at);
         }
         result = tokio::signal::ctrl_c() => {
           result?;
           self.send(&mid_0003()).await?;
-          self.wait_for_stop_ack(send_instant).await?;
+          self.wait_for_stop_ack().await?;
           return Ok(());
         }
       }
     }
   }
 
-  async fn wait_for_stop_ack(&mut self, send_instant: Instant) -> io::Result<()> {
+  async fn wait_for_stop_ack(&mut self) -> io::Result<()> {
     loop {
       let mut read_buffer = [0_u8; 4096];
       let bytes_read = self.stream.read(&mut read_buffer).await?;
@@ -109,7 +110,7 @@ impl Client {
       self.receive_buffer.extend_from_slice(&read_buffer[..bytes_read]);
       while let Some(message) = take_message(&mut self.receive_buffer)? {
         let is_stop_ack = mid_parse_0005(&message).map(|ack| ack.mid_number == 3).unwrap_or(false);
-        self.handle_received(&message, send_instant);
+        self.handle_received(&message);
         if is_stop_ack {
           return Ok(());
         }
@@ -124,7 +125,7 @@ impl Client {
     self.stream.write_all(&[0]).await
   }
 
-  fn handle_received(&mut self, message: &str, send_instant: Instant) {
+  fn handle_received(&mut self, message: &str) {
     match mid_parse_header(message) {
       Ok(header) => {
         info!("RECV: '{}'", message);
@@ -146,9 +147,7 @@ impl Client {
             }
           },
           9999 => {
-            let ping_ms = send_instant.elapsed().as_millis() as u64;
-            info!("Keep alive RTT: {}ms", ping_ms);
-            self.update_state(true, Some(ping_ms), None);
+            self.publish_keep_alive_response();
           }
           _ => {
             info!("RECV parsed MID {:04} REV {} LEN {}", header.mid, header.rev, header.len)
@@ -160,6 +159,15 @@ impl Client {
         self.update_state(false, None, Some(error.to_string()));
       }
     }
+  }
+
+  fn publish_keep_alive_response(&mut self) {
+    let Some(sent_at) = self.keep_alive_sent_at.pop_front() else {
+      return;
+    };
+    let ping_ms = sent_at.elapsed().as_millis() as u64;
+    info!("Keep alive RTT: {}ms", ping_ms);
+    self.update_state(true, Some(ping_ms), None);
   }
 
   fn update_state(&mut self, connected: bool, ping_ms: Option<u64>, error: Option<String>) {
