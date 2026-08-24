@@ -219,6 +219,22 @@ function isConfigProperty(value: unknown): value is ConfigProperty {
         && 'description' in value && 'hide' in value;
 }
 
+function isPlainValue(value: unknown): value is boolean | number | string {
+    return typeof value === 'boolean' || typeof value === 'number' || typeof value === 'string';
+}
+
+/** Wraps a plain config value so it can be edited with the same field component. */
+function plainProperty(value: boolean | number | string): ConfigProperty {
+    return {
+        value,
+        default_value: value,
+        added_version: '',
+        description: '',
+        hide: false,
+        deprecated_version: '',
+    };
+}
+
 interface ConfigSectionProps {
     label: ReactNode;
     value: unknown;
@@ -244,6 +260,9 @@ function ConfigSection({ label, value, oldValue, defaultValue, openProtocolState
                 <span className="settings-section-heading-content">
                     {configSectionHeadingLabel(label)}
                     {Array.isArray(value) && <span className="settings-section-count">({value.length})</span>}
+                    {Array.isArray(value) && Array.isArray(oldValue) && value.length !== oldValue.length && (
+                        <span className="settings-section-previous-count">was {oldValue.length}</span>
+                    )}
                 </span>
                 {onRemove && <Button className="settings-section-remove" type="button" onClick={onRemove}>Remove</Button>}
             </h2>
@@ -305,6 +324,7 @@ function configModuleLabel(label: string): string {
     if (label === 'logging_config') return 'Logging';
     if (label === 'camera_configs') return 'Camera Devices';
     if (label === 'open_protocol_configs') return 'OpenProtocol Devices';
+    if (label === 'volumes') return 'Volumes';
     return label;
 }
 
@@ -363,6 +383,12 @@ function arrayEntryLabel(
         }
     }
 
+    // Volumes are compact raw sphere entries.
+    if (sectionLabel === 'volumes' && entry !== null && typeof entry === 'object') {
+        const name = (entry as ConfigObject).name;
+        if (typeof name === 'string') return name;
+    }
+
     return `${index + 1}. ${sectionLabel}`;
 }
 
@@ -378,6 +404,7 @@ function configTypeLabel(label: string): string {
     // Name each configurable device type explicitly in its add action.
     if (label === 'open_protocol_configs') return 'OpenProtocol Device';
     if (label === 'camera_configs') return 'Camera Device';
+    if (label === 'volumes') return 'Sphere';
 
     // Turn any future collection names into readable labels by default.
     return label
@@ -407,11 +434,37 @@ function ConfigEntry({ label, value, oldValue, defaultValue, openProtocolStates 
         );
     }
 
+    // Plain values (e.g. volumes) carry no metadata but must still be editable.
+    if (isPlainValue(value)) {
+        return (
+            <ConfigField
+                label={label}
+                property={plainProperty(value)}
+                oldProperty={isPlainValue(oldValue) ? plainProperty(oldValue) : null}
+                onChange={onChange}
+            />
+        );
+    }
+
     return null;
 }
 
 function createArrayEntry(sectionLabel: string, entries: unknown[], defaultValue: unknown): unknown {
     const entry = createDefaultArrayEntry(defaultValue);
+    if (sectionLabel === 'volumes' && entry !== null && typeof entry === 'object') {
+        const used = new Set(entries.map((current) => {
+            if (current !== null && typeof current === 'object') {
+                const name = (current as ConfigObject).name;
+                return typeof name === 'string' ? name : undefined;
+            }
+            return undefined;
+        }).filter((currentName): currentName is string => currentName !== undefined));
+        let index = 1;
+        while (used.has(`sphere_${index}`)) index += 1;
+        const namedEntry = cloneConfigValue(entry) as ConfigObject;
+        namedEntry.name = `sphere_${index}`;
+        return namedEntry;
+    }
     if (sectionLabel !== 'open_protocol_configs' || entry === null || typeof entry !== 'object') {
         return entry;
     }
@@ -520,7 +573,7 @@ function ConfigField({ label, property, oldProperty, onChange }: ConfigFieldProp
             <div className="config-field-bottom">
                 <div className="config-field-type">Type: {typeof value}</div>
                 <div className="config-field-description">{property.description}</div>
-                <div className="config-field-version">Added {property.added_version}</div>
+                {property.added_version && <div className="config-field-version">Added {property.added_version}</div>}
             </div>
         </div>
     );

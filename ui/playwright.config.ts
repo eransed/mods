@@ -48,7 +48,7 @@ export default defineConfig({
     {
       command: 'cargo run --manifest-path ../Cargo.toml',
       url: 'http://127.0.0.1:8123',
-      reuseExistingServer: false,
+      reuseExistingServer: !process.env.CI,
     },
     {
       command: 'npm run dev -- --host 127.0.0.1 --port 4173',

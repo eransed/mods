@@ -4,6 +4,8 @@ import { msPretty } from './lib/utils'
 import { Overview } from './components/Overview'
 import { Api } from './components/Api'
 import { Camera } from './components/Camera'
+import { View } from './components/View'
+import { Volumes } from './components/Volumes'
 import { Settings, type OpenProtocolState } from './components/Settings'
 import { About } from './components/About'
 import { Button } from './components/Button'
@@ -11,6 +13,12 @@ import type { Config } from './types/Config'
 // import mermaid from 'mermaid'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
+
+type SystemStats = {
+  cpu: string
+  ram: string
+  mem: string
+}
 
 const pages = [
   {
@@ -69,6 +77,11 @@ const pages = [
     description: 'View camera feed.',
   },
   {
+    path: '/view',
+    label: 'View',
+    description: 'Full page 3D view.',
+  },
+  {
     path: '/docs',
     label: 'Docs',
     description: 'Documentation',
@@ -103,7 +116,7 @@ function App() {
 
   const [status, setStatus] = useState<ConnectionState>('connecting')
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
-  const [sys, setSys] = useState('')
+  const [systemStats, setSystemStats] = useState<SystemStats>({ cpu: '-', ram: '-', mem: '-' })
   const [websocket, setWebsocket] = useState<WebSocket | null>(null)
   const [openProtocolStates, setOpenProtocolStates] = useState<Record<string, OpenProtocolState>>({})
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > cutoffWidth)
@@ -264,7 +277,7 @@ function App() {
               let cpu = (o.SystemStatus.cpu_percent as number).toFixed(1)
               let ram = (o.SystemStatus.ram_percent as number).toFixed(1)
               let mem = (o.SystemStatus.pid_mem_bytes as number / 1024 / 1024).toFixed(1)
-              setSys(`${cpu}% | ${ram}% | ${mem}MB | `)
+              setSystemStats({ cpu, ram, mem })
             }
           } catch { }
         }
@@ -339,11 +352,20 @@ function App() {
               <span></span>
             </Button>
           )}
-          <h1>mods</h1>
-          <p className="status" aria-live="polite">
-            <span className={`dot dot-${status}`} aria-hidden="true" />
-            {sys}{status}{reconnectAttempts > 0 ? `[${msPretty(disconnectedSince)}]` : null} - {wsPort}
-          </p>
+          <div className="header-title">
+            <h1>mods</h1>
+            <p className="status" aria-live="polite">
+              <span className={`dot dot-${status}`} aria-hidden="true" />
+              <span className="status-stats">
+                <span className="status-stat">CPU: {systemStats.cpu}%</span>
+                <span className="status-stat">RAM: {systemStats.ram}%</span>
+                <span className="status-stat">MEM: {systemStats.mem}MB</span>
+              </span>
+              <span className="status-text">
+                {status}{reconnectAttempts > 0 ? `[${msPretty(disconnectedSince)}]` : null} - {wsPort}
+              </span>
+            </p>
+          </div>
         </header>
 
         <section className="page-body">
@@ -353,20 +375,24 @@ function App() {
             <Route path="/docs" element={<Docs />} />
             <Route path="/settings" element={<Settings http_port={rootPort} webSocket={websocket} openProtocolStates={openProtocolStates} />} />
             <Route path="/camera" element={websocket ? <Camera webSocket={websocket} /> : <div>Camera waiting for websocket connection...</div>} />
+            <Route path="/view" element={<View port={rootPort} />} />
+            <Route path="/volumes" element={<Volumes port={rootPort} />} />
             <Route path="/api" element={<Api port={rootPort} />} />
             <Route path="/about" element={<About port={rootPort} />} />
-            {pages.map((page) => (
-              <Route
-                key={page.path}
-                path={page.path}
-                element={
-                  <article>
-                    <h2>{page.label}</h2>
-                    <p>{page.description}</p>
-                  </article>
-                }
-              />
-            ))}
+            {pages
+              .filter((page) => page.path !== '/volumes')
+              .map((page) => (
+                <Route
+                  key={page.path}
+                  path={page.path}
+                  element={
+                    <article>
+                      <h2>{page.label}</h2>
+                      <p>{page.description}</p>
+                    </article>
+                  }
+                />
+              ))}
           </Routes>
         </section>
       </main>

@@ -188,6 +188,10 @@ mod tests {
   fn defaults_to_info_log_level() {
     let config = Config::default();
     assert_eq!(config.logging_config.log_level.value, "info");
+    assert_eq!(config.volumes.len(), 3);
+    assert_eq!(config.volumes[0].name, "bolt_1");
+    assert_eq!(config.volumes[0].enter_radius, 5.0);
+    assert_eq!(config.volumes[0].exit_radius, 7.5);
   }
 
   #[test]

@@ -3,6 +3,7 @@ export interface Config {
     logging_config:        LoggingConfig;
     camera_configs:        CameraConfig[];
     open_protocol_configs: OpenProtocolConfig[];
+    volumes:               Volume[];
 }
 
 export interface CameraConfig {
@@ -73,4 +74,18 @@ export interface OpenProtocolConfig {
 export interface Mid0001_Config {
     rev:    number;
     active: boolean;
+}
+
+export interface Volume {
+    name:              string;
+    position:          Position;
+    enter_radius:      number;
+    exit_radius:       number;
+    coordinate_system: string;
+}
+
+export interface Position {
+    x: number;
+    y: number;
+    z: number;
 }

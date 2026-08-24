@@ -43,6 +43,7 @@ input::-webkit-inner-spin-button {
 }
 
 input[type=number] {
+  appearance: textfield;
   -moz-appearance: textfield;
   /* Firefox */
 }
@@ -109,6 +110,8 @@ button {
   cursor: pointer;
   font-size: 1.05rem;
   font-weight: 700;
+  max-width: 100%;
+  white-space: nowrap;
 }
 
 .standard-button-secondary {
@@ -207,8 +210,10 @@ button:disabled {
   top: -1rem;
   z-index: 2;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem 1rem;
   width: 100%;
   min-height: 3rem;
   padding: 0.5rem 0;
@@ -218,6 +223,7 @@ button:disabled {
 
 .settings-sub-top-bar h1 {
   flex: 0 1 auto;
+  min-width: 0;
 }
 
 .settings-change-summary {
@@ -235,7 +241,10 @@ button:disabled {
 .settings-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .settings-actions button {
@@ -250,19 +259,24 @@ button:disabled {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
+  min-width: 0;
   color: color-mix(in srgb, var(--accent) 70%, var(--fg));
   font-size: 1.35rem;
   margin-bottom: 0.5rem;
 }
 
 .settings-section-heading-content {
+  flex: 1 1 12rem;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .settings-section-remove {
   flex: 0 0 auto;
   margin: 0;
+  margin-left: auto;
 }
 
 .settings-section-count {
@@ -273,8 +287,17 @@ button:disabled {
   font-weight: 400;
 }
 
+.settings-section-previous-count {
+  margin-left: 0.5rem;
+  color: #888;
+  font-size: 0.7em;
+  font-style: italic;
+  font-weight: 400;
+}
+
 .settings-subsection {
   margin-left: 1rem;
+  width: calc(100% - 1rem);
 }
 
 .settings-entry-address,
@@ -286,10 +309,13 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .settings-entry-name {
   color: var(--accent);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .settings-entry-address-value {
@@ -313,6 +339,24 @@ button:disabled {
 }
 
 @media (max-width: 900px) {
+  .settings-sub-top-bar {
+    align-items: flex-start;
+  }
+
+  .settings-sub-top-bar h1,
+  .settings-actions {
+    flex: 1 1 100%;
+  }
+
+  .settings-actions {
+    justify-content: flex-start;
+  }
+
+  .settings-subsection {
+    margin-left: 0.5rem;
+    width: calc(100% - 0.5rem);
+  }
+
   .config-field-top,
   .config-field-bottom {
     align-items: flex-start;
@@ -452,7 +496,8 @@ ul {
 
 .page-body {
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 1rem;
 }
 
@@ -464,12 +509,21 @@ ul {
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 1rem;
+  min-width: 0;
   padding-left: 0.5rem;
   padding-right: 0.5rem;
   height: 4rem;
   border-bottom: 1px solid var(--accent);
+}
+
+.header-title {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
 }
 
 .hamburger-btn {
@@ -514,22 +568,53 @@ h1 {
   font-size: 1.25rem;
   font-weight: 600;
   flex: 1;
+  min-width: 0;
 }
 
 .status {
   margin: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  text-transform: capitalize;
+  gap: 0.35rem;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
   color: var(--fg);
+  font-size: 0.85rem;
+}
+
+.status-stats {
+  display: inline-grid;
+  flex: 0 1 auto;
+  grid-template-columns: repeat(3, 7rem);
+  gap: 0.35rem;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.status-stat {
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #888;
+  font-style: italic;
+  text-transform: capitalize;
 }
 
 .dot {
+  flex: 0 0 auto;
   width: 0.625rem;
   height: 0.625rem;
   border-radius: 50%;
-  background: #007f00
+  background: #007f00;
 }
 
 .dot-error {

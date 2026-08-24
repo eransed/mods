@@ -324,6 +324,9 @@ pub struct Config {
   pub logging_config: LoggingConfig,
   pub camera_configs: Vec<CameraConfig>,
   pub open_protocol_configs: Vec<OpenProtocolClientConfig>,
+  /// Tolerate config files written before volumes existed.
+  #[serde(default)]
+  pub volumes: Vec<Sphere>,
 }
 
 impl Default for Config {
@@ -333,7 +336,67 @@ impl Default for Config {
       logging_config: LoggingConfig::default(),
       camera_configs: vec![CameraConfig::default()],
       open_protocol_configs: vec![OpenProtocolClientConfig::default()],
+      volumes: Sphere::defaults(),
     }
+  }
+}
+
+/// A cartesian position in millimeters.
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+pub struct Position3D {
+  pub x: f64,
+  pub y: f64,
+  pub z: f64,
+}
+
+/// A named spherical volume expressed in a given coordinate system.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Sphere {
+  pub name: String,
+  pub position: Position3D,
+  pub enter_radius: f64,
+  pub exit_radius: f64,
+  pub coordinate_system: String,
+}
+
+impl Default for Sphere {
+  fn default() -> Self {
+    Self {
+      name: "sphere".to_string(),
+      position: Position3D::default(),
+      enter_radius: 5.0,
+      exit_radius: 7.5,
+      coordinate_system: "world".to_string(),
+    }
+  }
+}
+
+impl Sphere {
+  /// Example spheres, also used to generate the UI types.
+  pub fn defaults() -> Vec<Sphere> {
+    vec![
+      Sphere {
+        name: "bolt_1".to_string(),
+        position: Position3D { x: 100.0, y: 0.0, z: 250.0 },
+        enter_radius: 5.0,
+        exit_radius: 7.5,
+        coordinate_system: "world".to_string(),
+      },
+      Sphere {
+        name: "bolt_2".to_string(),
+        position: Position3D { x: -100.0, y: 50.0, z: 250.0 },
+        enter_radius: 5.0,
+        exit_radius: 7.5,
+        coordinate_system: "world".to_string(),
+      },
+      Sphere {
+        name: "fixture".to_string(),
+        position: Position3D { x: 0.0, y: 300.0, z: 0.0 },
+        enter_radius: 5.0,
+        exit_radius: 7.5,
+        coordinate_system: "station".to_string(),
+      },
+    ]
   }
 }
 

@@ -139,6 +139,139 @@ test('factory reset stages defaults until save is clicked', async ({ page, reque
   expect(saveRequests).toBe(1)
 })
 
+test('removing a config array entry shows the previous item count', async ({ page, request }) => {
+  const originalConfigResponse = await request.get('http://127.0.0.1:8123/config')
+  const originalConfig = await originalConfigResponse.json()
+  const defaultResponse = await request.get('http://127.0.0.1:8123/default_config')
+  const defaultConfig = await defaultResponse.json()
+  const cameraEntry = structuredClone(defaultConfig.camera_configs[0])
+  const activeConfig = { ...defaultConfig, camera_configs: [structuredClone(cameraEntry), structuredClone(cameraEntry)] }
+  activeConfig.camera_configs[0].name.value = 'remove-counter-camera-a'
+  activeConfig.camera_configs[1].name.value = 'remove-counter-camera-b'
+
+  try {
+    await page.route('**/config', async (route) => {
+      await route.fulfill({ json: activeConfig })
+    })
+
+    await page.goto('/settings')
+    const cameraSection = page.locator('section.settings-section').filter({ hasText: 'Camera Devices' }).first()
+    const heading = cameraSection.locator('h2').first()
+
+    await expect(heading.locator('.settings-section-count')).toHaveText('(2)')
+    await expect(heading.locator('.settings-section-previous-count')).toHaveCount(0)
+
+    await cameraSection.getByRole('button', { name: 'Remove' }).first().click()
+    await expect(heading.locator('.settings-section-count')).toHaveText('(1)')
+    await expect(heading.locator('.settings-section-previous-count')).toHaveText('was 2')
+  } finally {
+    await request.post('http://127.0.0.1:8123/set_config', { data: originalConfig })
+  }
+})
+
+test('adding config array entries shows the previous item count', async ({ page, request }) => {
+  const originalConfigResponse = await request.get('http://127.0.0.1:8123/config')
+  const originalConfig = await originalConfigResponse.json()
+  const defaultResponse = await request.get('http://127.0.0.1:8123/default_config')
+  const defaultConfig = await defaultResponse.json()
+  const activeConfig = { ...defaultConfig, camera_configs: [] }
+
+  try {
+    await page.route('**/config', async (route) => {
+      await route.fulfill({ json: activeConfig })
+    })
+
+    await page.goto('/settings')
+    const cameraSection = page.locator('section.settings-section').filter({ hasText: 'Camera Devices' }).first()
+    const heading = cameraSection.locator('h2').first()
+
+    await expect(heading.locator('.settings-section-count')).toHaveText('(0)')
+    await expect(heading.locator('.settings-section-previous-count')).toHaveCount(0)
+
+    await cameraSection.getByRole('button', { name: 'Add Camera Device' }).click()
+    await expect(heading.locator('.settings-section-count')).toHaveText('(1)')
+    await expect(heading.locator('.settings-section-previous-count')).toHaveText('was 0')
+
+    await cameraSection.getByRole('button', { name: 'Add Camera Device' }).click()
+    await expect(heading.locator('.settings-section-count')).toHaveText('(2)')
+    await expect(heading.locator('.settings-section-previous-count')).toHaveText('was 0')
+  } finally {
+    await request.post('http://127.0.0.1:8123/set_config', { data: originalConfig })
+  }
+})
+
+test('settings page does not scroll horizontally on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const defaultConfig = {
+    general_config: {
+      ws_port: { value: 8124, default_value: 8124, added_version: '1.0.0', description: 'Websocket port', hide: false, deprecated_version: '' },
+    },
+    logging_config: {},
+    camera_configs: [
+      {
+        name: { value: 'mobile-camera-with-a-very-long-name-that-must-stay-contained', default_value: 'camera', added_version: '1.0.0', description: 'Camera name', hide: false, deprecated_version: '' },
+      },
+    ],
+    open_protocol_configs: [],
+  }
+  const activeConfig = structuredClone(defaultConfig)
+  activeConfig.general_config.ws_port.value = 9000
+
+  await page.route('**/config', async (route) => {
+    await route.fulfill({ json: activeConfig })
+  })
+  await page.route('**/default_config', async (route) => {
+    await route.fulfill({ json: defaultConfig })
+  })
+
+  await page.goto('/settings')
+  await expect(page.getByRole('heading', { level: 1, name: /Settings/ })).toBeVisible()
+  await page.locator('.status-stats').evaluate((statusStats) => {
+    statusStats.innerHTML = '<span class="status-stat">CPU: 100.0%</span><span class="status-stat">RAM: 100.0%</span><span class="status-stat">MEM: 9999.9MB</span>'
+  })
+  await page.locator('.status-text').evaluate((statusText) => {
+    statusText.textContent = 'connected-with-a-very-long-status-message-that-must-not-resize-the-rest-of-the-ui - 8124'
+  })
+  await expect(page.locator('.status-stats')).toBeVisible()
+
+  const canScrollHorizontally = await page.evaluate(() => {
+    const pageBody = document.querySelector('.page-body')
+    const documentRoot = document.documentElement
+    const before = {
+      document: window.scrollX,
+      pageBody: pageBody?.scrollLeft ?? 0,
+    }
+
+    window.scrollTo(1000, window.scrollY)
+    if (pageBody) pageBody.scrollLeft = 1000
+
+    const after = {
+      document: window.scrollX,
+      pageBody: pageBody?.scrollLeft ?? 0,
+      documentOverflow: documentRoot.scrollWidth > documentRoot.clientWidth,
+      pageBodyOverflow: pageBody ? pageBody.scrollWidth > pageBody.clientWidth : false,
+    }
+
+    window.scrollTo(before.document, window.scrollY)
+    if (pageBody) pageBody.scrollLeft = before.pageBody
+
+    return after.document > 0 || after.pageBody > 0 || after.documentOverflow || after.pageBodyOverflow
+  })
+
+  expect(canScrollHorizontally).toBe(false)
+
+  const removeButtonBoxes = await page.getByRole('button', { name: 'Remove' }).evaluateAll((buttons) => buttons.map((button) => {
+    const box = button.getBoundingClientRect()
+    return { left: box.left, right: box.right }
+  }))
+
+  expect(removeButtonBoxes.length).toBeGreaterThan(0)
+  for (const box of removeButtonBoxes) {
+    expect(box.left).toBeGreaterThanOrEqual(0)
+    expect(box.right).toBeLessThanOrEqual(390)
+  }
+})
+
 test('OpenProtocol state updates the device label from a mock server', async ({ page, request }) => {
   const configResponse = await request.get('http://127.0.0.1:8123/config')
   const originalConfig = await configResponse.json()
