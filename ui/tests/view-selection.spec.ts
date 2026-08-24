@@ -54,7 +54,7 @@ test('selecting a sphere opens the editor panel with its data', async ({ page })
 
   await expect(page.getByTestId('volume-panel')).toBeVisible()
   await expect(page.getByTestId('volume-panel-title')).toHaveText('sphere_1')
-  await expect(page.getByTestId('volume-panel-enter-radius')).toHaveValue('5')
+  await expect(page.getByTestId('volume-panel-enter-radius')).toHaveValue('5.0')
   await expect(page.getByTestId('volume-panel-exit-radius')).toHaveValue('7.5')
 })
 
@@ -93,9 +93,14 @@ test('sphere data can be edited and saved from the panel', async ({ page }) => {
   await expect(page.getByTestId('volume-panel')).toBeVisible()
 
   await page.getByTestId('volume-panel-name').fill('sphere_edited')
-  await page.getByTestId('volume-panel-x').fill('1.5')
+  await page.getByTestId('volume-panel-x').fill('1.53')
   await page.getByTestId('volume-panel-enter-radius').fill('6')
   await expect(page.getByTestId('volume-panel-title')).toHaveText('sphere_edited')
+
+  // Values are displayed with a single decimal once the field loses focus.
+  await page.getByTestId('volume-panel-coordinate-system').focus()
+  await expect(page.getByTestId('volume-panel-x')).toHaveValue('1.5')
+  await expect(page.getByTestId('volume-panel-enter-radius')).toHaveValue('6.0')
 
   await page.getByTestId('volume-panel-save').click()
 
@@ -103,7 +108,7 @@ test('sphere data can be edited and saved from the panel', async ({ page }) => {
   const saved = JSON.parse(savedBody ?? '{}')
   expect(saved.volumes[0]).toMatchObject({
     name: 'sphere_edited',
-    position: { x: 1.5, y: 0, z: 0 },
+    position: { x: 1.53, y: 0, z: 0 },
     enter_radius: 6,
     exit_radius: 7.5,
   })
@@ -134,4 +139,72 @@ test('the panel fills the bottom half on small screens', async ({ page }) => {
   // Stacked: the panel starts where the 3D view ends and covers roughly the same height.
   expect(panel.y).toBeGreaterThanOrEqual(view.y + view.height - 2)
   expect(Math.abs(panel.height - view.height)).toBeLessThan(4)
+})
+
+test('the menu button opens the panel without selecting a sphere', async ({ page }) => {
+  await mockConfig(page)
+  await page.goto('/view')
+
+  const panel = page.getByTestId('volume-panel')
+  await expect(panel).toBeHidden()
+  await page.getByTestId('view-menu-open').click()
+
+  await expect(panel).toBeVisible()
+  await expect(page.getByTestId('volume-panel-empty')).toBeVisible()
+  await expect(page.getByTestId('volume-panel-title')).toHaveText('View')
+  await expect(page.getByTestId('view-center-position')).toBeDisabled()
+  await expect(page.getByTestId('view-center-origin')).toBeEnabled()
+  await expect(page.getByTestId('view-menu-open')).toBeHidden()
+})
+
+test('the center buttons keep the panel open', async ({ page }) => {
+  await mockConfig(page)
+  await page.goto('/view')
+  await clickSphere(page)
+
+  await expect(page.getByTestId('view-center-position')).toBeEnabled()
+  await page.getByTestId('view-center-position').click()
+  await page.getByTestId('view-center-origin').click()
+  await expect(page.getByTestId('volume-panel')).toBeVisible()
+  await expect(page.getByTestId('volume-panel-title')).toHaveText('sphere_1')
+})
+
+test('the dark mode switch toggles the 3D view background', async ({ page }) => {
+  await mockConfig(page)
+  await page.goto('/view')
+  await page.getByTestId('view-menu-open').click()
+
+  const view = page.getByTestId('view-container')
+  const toggle = page.getByTestId('view-dark-mode')
+  await expect(toggle).toBeChecked()
+  await expect(view).toHaveCSS('background-color', 'rgb(0, 0, 0)')
+
+  await toggle.uncheck()
+  await expect(view).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+})
+
+test('changed values are marked and can be undone', async ({ page }) => {
+  await mockConfig(page)
+  await page.goto('/view')
+  await clickSphere(page)
+
+  const save = page.getByTestId('volume-panel-save')
+  const undo = page.getByTestId('volume-panel-undo')
+  const marker = page.getByTestId('volume-panel-enter-radius-modified')
+
+  await expect(save).toBeDisabled()
+  await expect(undo).toBeDisabled()
+  await expect(marker).toBeHidden()
+
+  await page.getByTestId('volume-panel-enter-radius').fill('9')
+  await expect(marker).toHaveText('*')
+  await expect(page.getByTestId('volume-panel-name-modified')).toBeHidden()
+  await expect(save).toBeEnabled()
+  await expect(undo).toBeEnabled()
+
+  await undo.click()
+  await expect(marker).toBeHidden()
+  await expect(page.getByTestId('volume-panel-enter-radius')).toHaveValue('5.0')
+  await expect(save).toBeDisabled()
+  await expect(undo).toBeDisabled()
 })
