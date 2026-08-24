@@ -20,96 +20,6 @@ type SystemStats = {
   mem: string
 }
 
-const pages = [
-  {
-    path: '/overview',
-    label: 'Overview',
-    description: '3D overview of the station.',
-  },
-  {
-    path: '/volumes',
-    label: 'Volumes',
-    description: 'Manage volumes (positions). List view.',
-  },
-  {
-    path: '/geometries',
-    label: 'Geometries',
-    description: 'Tool geometries, including articulated arms.',
-  },
-  {
-    path: '/device-connections',
-    label: 'Device Connections',
-    description: 'Tightening, welding tools, projectors etc.',
-  },
-  {
-    path: '/sensors',
-    label: 'Sensors',
-    description: 'Configure different types of sensors.',
-  },
-  {
-    path: '/message-router',
-    label: 'Message Router',
-    description: 'Manage message routing and preferences.',
-  },
-  {
-    path: '/message-log',
-    label: 'Message Log',
-    description: 'View and manage message logs.',
-  },
-  {
-    path: '/settings',
-    label: 'Settings',
-    description: 'Manage runtime behavior and preferences.',
-  },
-  {
-    path: '/about',
-    label: 'About',
-    description: 'Application information.',
-  },
-  {
-    path: '/api',
-    label: 'API',
-    description: 'View available API endpoints.',
-  },
-  {
-    path: '/camera',
-    label: 'Camera',
-    description: 'View camera feed.',
-  },
-  {
-    path: '/view',
-    label: 'View',
-    description: 'Full page 3D view.',
-  },
-  {
-    path: '/docs',
-    label: 'Docs',
-    description: 'Documentation',
-  }
-]
-
-function Docs() {
-  // setTimeout(() => {
-  //   mermaid.run();
-  // }, 300)
-
-  let m =
-    `
-  graph TD
-    A[Client] --> B[Load Balancer]
-    B --> C[Server01]
-    B --> D[Server02]
-
-  `
-  return <>
-    <div>
-      <pre className="mermaid">
-        {m}
-      </pre>
-    </div>
-  </>
-}
-
 function App() {
   // mermaid.initialize({})
   const cutoffWidth = 600
@@ -300,6 +210,20 @@ function App() {
     }
   }, [defaultWsPort, host])
 
+  let routes = [
+    <Route path="/view" element={<View port={rootPort} />} />,
+    <Route path="/volumes" element={<Volumes port={rootPort} />} />,
+    <Route path="/overview" element={<Overview />} />,
+    <Route path="/camera" element={websocket ? <Camera webSocket={websocket} /> : <div>Camera waiting for websocket connection...</div>} />,
+    <Route path="/settings" element={<Settings http_port={rootPort} webSocket={websocket} openProtocolStates={openProtocolStates} />} />,
+    <Route path="/api" element={<Api port={rootPort} />} />,
+    <Route path="/about" element={<About port={rootPort} />} />,
+  ]
+
+  function capitalize(w: string) {
+    return String(w).charAt(0).toUpperCase() + String(w).slice(1);
+  }
+
   return (
     <div className={`app-shell${screenWidth <= cutoffWidth ? ' small' : ''}${sidebarOpen ? ' sidebar-open' : ''}`}>
       <aside className={`sidebar${screenWidth <= cutoffWidth ? ' small' : ''}${screenWidth <= cutoffWidth && sidebarOpen ? ' visible' : ''}`}>
@@ -317,10 +241,10 @@ function App() {
         </div>
         <nav aria-label="Primary">
           <ul className="nav-list">
-            {pages.map((page) => (
-              <li key={page.path}>
+            {routes.map((page) => (
+              <li key={page.props.path}>
                 <NavLink
-                  to={page.path}
+                  to={page.props.path}
                   className={({ isActive }) =>
                     `nav-link${isActive ? ' nav-link-active' : ''}`
                   }
@@ -330,7 +254,7 @@ function App() {
                     }
                   }}
                 >
-                  {page.label}
+                  {capitalize(page.props.path.replace('/', '') || 'overview')}
                 </NavLink>
               </li>
             ))}
@@ -370,29 +294,8 @@ function App() {
 
         <section className="page-body">
           <Routes>
-            <Route path="/" element={<Navigate to="/overview" replace />} />
-            <Route path="/overview" element={<Overview />} />
-            <Route path="/docs" element={<Docs />} />
-            <Route path="/settings" element={<Settings http_port={rootPort} webSocket={websocket} openProtocolStates={openProtocolStates} />} />
-            <Route path="/camera" element={websocket ? <Camera webSocket={websocket} /> : <div>Camera waiting for websocket connection...</div>} />
-            <Route path="/view" element={<View port={rootPort} />} />
-            <Route path="/volumes" element={<Volumes port={rootPort} />} />
-            <Route path="/api" element={<Api port={rootPort} />} />
-            <Route path="/about" element={<About port={rootPort} />} />
-            {pages
-              .filter((page) => page.path !== '/volumes')
-              .map((page) => (
-                <Route
-                  key={page.path}
-                  path={page.path}
-                  element={
-                    <article>
-                      <h2>{page.label}</h2>
-                      <p>{page.description}</p>
-                    </article>
-                  }
-                />
-              ))}
+            <Route path="/" element={<Navigate to="/view" replace />} />,
+            {routes}
           </Routes>
         </section>
       </main>

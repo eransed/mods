@@ -23,8 +23,9 @@ interface RawImageDetection {
 }
 
 export function Camera({ webSocket }: CameraProps) {
+    const initialMessage = 'No data received'
     const [data, setData] = useState<RawImageDetection | null>(null);
-    const [errorState, setErrorState] = useState<any>('No data received');
+    const [errorState, setErrorState] = useState<any>(initialMessage);
     const [bytesReceived, setBytesReceived] = useState<number>(0);
     const [framesReceived, setFramesReceived] = useState<number>(0);
     const [receivedFrequency, setReceivedFrequency] = useState<number>(0);

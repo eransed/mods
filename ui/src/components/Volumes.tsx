@@ -21,9 +21,9 @@ function newVolume(existing: Volume[]): Volume {
   while (used.has(`sphere_${index}`)) index += 1
   return {
     name: `sphere_${index}`,
-    position: { x: 0, y: 0, z: 0 },
-    enter_radius: 5,
-    exit_radius: 7.5,
+    position: { x: Math.random() * 200, y: Math.random() * 200, z: Math.random() * 200 },
+    enter_radius: Math.random() * 4 + 1,
+    exit_radius: Math.random() * 8 + 2,
     coordinate_system: 'world',
   }
 }
