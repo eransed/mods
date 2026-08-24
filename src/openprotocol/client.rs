@@ -33,7 +33,7 @@ impl Client {
     config: &OpenProtocolClientConfig,
     state_sender: Sender<Message>,
   ) -> io::Result<Self> {
-    info!("Connecting with config: {:#?}", config);
+    info!("Connecting to: {}:{}", config.ip.value, config.port.value);
     // Build the controller address from the scalar configuration values.
     let addr = format!("{}:{}", config.ip.value, config.port.value);
     let stream = TcpStream::connect(addr).await?;
@@ -124,7 +124,7 @@ impl Client {
 
   async fn send<M: Mid>(&mut self, message: &M) -> io::Result<()> {
     let serialized = message.str();
-    info!(peer = %self.peer_addr, "SEND: '{}'", serialized);
+    info!("SEND [{}]: '{}'", self.peer_addr, serialized);
     self.stream.write_all(serialized.as_bytes()).await?;
     self.stream.write_all(&[0]).await
   }
@@ -132,7 +132,7 @@ impl Client {
   fn handle_received(&mut self, message: &str) {
     match mid_parse_header(message) {
       Ok(header) => {
-        info!(peer = %self.peer_addr, "RECV: '{}'", message);
+        info!("RECV [{}]: '{}'", self.peer_addr, message);
         match header.mid {
           2 => match mid_0002::mid_parse_0002(message) {
             Ok(m2) => {

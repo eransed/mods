@@ -103,14 +103,22 @@ label i {
 
 button {
   margin: 0.5rem;
-  padding: 0.2rem 0.6rem;
+  padding: 0.2rem 1.6rem;
   border: 1px solid var(--accent);
-  background: var(--bg);
-  color: var(--fg);
   border-radius: 0.4rem;
   cursor: pointer;
   font-size: 1.05rem;
   font-weight: 700;
+}
+
+.standard-button-secondary {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.standard-button-primary {
+  background: var(--accent);
+  color: var(--bg);
 }
 
 button:disabled {
@@ -210,6 +218,14 @@ button:disabled {
 
 .settings-sub-top-bar h1 {
   flex: 0 1 auto;
+}
+
+.settings-change-summary {
+  color: #aaa;
+  font-size: 0.7em;
+  font-style: italic;
+  font-weight: 400;
+  margin-left: 1.0rem;
 }
 
 .settings-sub-top-bar .config-save {

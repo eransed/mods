@@ -105,6 +105,40 @@ test('adding an OpenProtocol device marks it as just added', async ({ page, requ
   await expect(deviceEntry.locator('.settings-entry-address .dot-connecting')).toBeVisible()
 })
 
+test('factory reset stages defaults until save is clicked', async ({ page, request }) => {
+  const defaultResponse = await request.get('http://127.0.0.1:8123/default_config')
+  const defaultConfig = await defaultResponse.json()
+  const activeConfig = structuredClone(defaultConfig)
+  activeConfig.general_config.ws_port.value = 9000
+
+  let resetRequests = 0
+  let saveRequests = 0
+  await page.route('**/config', async (route) => {
+    await route.fulfill({ json: activeConfig })
+  })
+  await page.route('**/reset_config', async (route) => {
+    resetRequests += 1
+    await route.fulfill({ status: 500, json: { error: 'reset should not be called' } })
+  })
+  await page.route('**/set_config', async (route) => {
+    saveRequests += 1
+    await route.fulfill({ json: { ok: true } })
+  })
+
+  await page.goto('/settings')
+  await page.getByRole('button', { name: 'Factory reset' }).click()
+
+  await expect(page.locator('.config-field').filter({ hasText: 'ws_port' }).locator('input')).toHaveValue(
+    String(defaultConfig.general_config.ws_port.value),
+  )
+  await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
+  expect(resetRequests).toBe(0)
+  expect(saveRequests).toBe(0)
+
+  await page.getByRole('button', { name: 'Save' }).click()
+  expect(saveRequests).toBe(1)
+})
+
 test('OpenProtocol state updates the device label from a mock server', async ({ page, request }) => {
   const configResponse = await request.get('http://127.0.0.1:8123/config')
   const originalConfig = await configResponse.json()

@@ -123,26 +123,34 @@ export function Settings({ http_port, webSocket, openProtocolStates: receivedOpe
         </>
     }
 
+    let numberOfChanges = configChangeCount(configModified, config)
+    let changesText = numberOfChanges + ' ' + (numberOfChanges === 1 ? 'change' : 'changes')
+    changesText = numberOfChanges === 0 ? '' : changesText
+    let changesStar = numberOfChanges === 0 ? '' : '*'
+
     return (
         <div className="settings-page">
             {/* Keep the page identity and save action visible while settings scroll. */}
             <div className="settings-sub-top-bar">
-                <h1>Settings{config && configModified && !configEqual(config, configModified) ? ' *' : ''}</h1>
+                <h1>
+                    Settings{changesStar}{config && configModified && !configEqual(config, configModified) ? <span className="settings-change-summary">{changesText}</span> : ''}
+                </h1>
                 {config && configModified &&
                     <div className="settings-actions">
-                        <Button type="button" onClick={() => downloadConfig(configModified)}>Download config</Button>
-                        <Button type="button" onClick={() => configFileInput.current?.click()}>Upload config</Button>
+
                         <Button type="button" onClick={async () => {
                             try {
-                                const resetConfigValue = await factoryResetConfig(url);
-                                setConfig(resetConfigValue);
-                                setConfigModified(resetConfigValue);
-                                setDefaultConfig(resetConfigValue);
-                                setConnectingOpenProtocolNames(new Set(resetConfigValue.open_protocol_configs.map((entry) => entry.name.value)));
+                                if (defaultConfig) {
+                                    // Stage the reset locally; the Save button is the only server write.
+                                    setConnectingOpenProtocolNames(new Set());
+                                    setConfigModified(cloneConfigValue(defaultConfig) as Config);
+                                }
                             } catch (error) {
                                 setErrState(`Could not factory reset config: ${error}`);
                             }
                         }}>Factory reset</Button>
+                        <Button type="button" onClick={() => downloadConfig(configModified)}>Download</Button>
+                        <Button type="button" onClick={() => configFileInput.current?.click()}>Upload</Button>
                         <input
                             ref={configFileInput}
                             className="settings-config-file-input"
@@ -160,13 +168,13 @@ export function Settings({ http_port, webSocket, openProtocolStates: receivedOpe
                                 }
                             }}
                         />
-                        {!configEqual(config, configModified) && <Button type="button" onClick={() => {
+                        <Button type="button" disabled={configEqual(config, configModified)} onClick={() => {
                             setConnectingOpenProtocolNames(new Set());
                             setConfigModified(config);
                         }}>
-                            Undo {configChangeCount(configModified, config)} changes
-                        </Button>}
-                        <Button className="config-save" disabled={configEqual(config, configModified)} onClick={() => {
+                            Undo
+                        </Button>
+                        <Button className="config-save" variant="primary" disabled={configEqual(config, configModified)} onClick={() => {
                             setConnectingOpenProtocolNames(new Set(configModified.open_protocol_configs.map((entry) => entry.name.value)));
                             setConfig(configModified)
                             updateConfig(url, configModified)
@@ -449,14 +457,6 @@ function downloadConfig(config: Config): void {
     link.download = 'config.json';
     link.click();
     URL.revokeObjectURL(link.href);
-}
-
-async function factoryResetConfig(url: string): Promise<Config> {
-    const response = await fetch(`${url}/reset_config`);
-    if (!response.ok) {
-        throw new Error(`Failed to reset configuration: ${response.statusText}`);
-    }
-    return await response.json() as Config;
 }
 
 interface ConfigFieldProps {
