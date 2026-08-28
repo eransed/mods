@@ -8,7 +8,7 @@ use tokio::sync::{
   mpsc::UnboundedReceiver,
   watch,
 };
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, warn};
 use types::Config;
 
 pub enum ConfigRequest {
@@ -87,6 +87,7 @@ impl ConfigModule {
 
   pub async fn run(mut self) {
     loop {
+      debug!("config run loop iter");
       tokio::select! {
           maybe_request = self.request_receiver.recv() => match maybe_request {
               Some(request) => match request {
@@ -124,7 +125,7 @@ impl ConfigModule {
           },
           result = self.receiver.recv() => match result {
               Ok(Message::Broadcast { sender, body }) => {
-                  trace!("broadcast received: {} bytes from {}", body.len(), sender);
+                  debug!("broadcast received: {} bytes from {}", body.len(), sender);
               }
               Ok(Message::Ping { sender }) => {
                   debug!("ping received from {}", sender);
@@ -138,7 +139,9 @@ impl ConfigModule {
               Ok(Message::Discovery(event)) => {
                   debug!("discovery event received: {:?}", event);
               }
-              Ok(_) => {}
+              Ok(_) => {
+                debug!("Empty broadcast");
+              }
               Err(_) => {
                   error!("broadcast channel closed");
                   break;

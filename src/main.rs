@@ -10,6 +10,7 @@ mod udp_discovery_server;
 mod util;
 mod ws_client;
 mod ws_server;
+// mod module;
 
 use crate::logging::init_tracing;
 use crate::message::Message;
@@ -322,12 +323,25 @@ async fn main() {
   )
   .await
   {
-    Ok(server) => server,
+    Ok(server) => Ok(server),
     Err(e) => {
       warn!("Failed to initialize UDP Discovery Server: {}", e);
-      std::process::exit(1);
+      Err(e)
     }
   };
+
+  let discovery_config_rx = config_rx.clone();
+  let discovery_shutdown_rx = shutdown_rx.clone();
+  tokio::spawn(async move {
+    match discovery_server {
+      Ok(ds) => {
+        ds.run(discovery_config_rx, discovery_shutdown_rx).await;
+      },
+      Err(e) => {
+        error!("Failed to start discovery server: {}", e);
+      }
+    }
+  });
 
   tokio::spawn(openprotocol::mock_server::run(shutdown_rx.clone()));
 
@@ -422,11 +436,7 @@ async fn main() {
     }
   });
 
-  let discovery_config_rx = config_rx.clone();
-  let discovery_shutdown_rx = shutdown_rx.clone();
-  tokio::spawn(async move {
-    discovery_server.run(discovery_config_rx, discovery_shutdown_rx).await;
-  });
+
 
   tokio::spawn(async move {
     tokio::time::sleep(Duration::from_millis(200)).await;
