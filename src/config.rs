@@ -139,8 +139,8 @@ impl ConfigModule {
                   debug!("discovery event received: {:?}", event);
               }
               Ok(_) => {}
-              Err(_) => {
-                  error!("broadcast channel closed");
+              Err(e) => {
+                  error!("broadcast channel closed: {}", e);
                   break;
               }
           },

@@ -317,8 +317,8 @@ impl Default for UserInterfaceConfig {
   fn default() -> Self {
     Self {
       notification_position: ConfigProperty {
-        value: "top_right".to_string(),
-        default_value: "top_right".to_string(),
+        value: "bottom_left".to_string(),
+        default_value: "bottom_left".to_string(),
         allowed_values: Some(vec!["top_left".to_string(), "top_right".to_string(), "bottom_left".to_string(), "bottom_right".to_string()]),
         input_type: None,
         added_version: "1.0.0".to_string(),
