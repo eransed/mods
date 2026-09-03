@@ -64,6 +64,63 @@ test('settings checkbox changes when the custom checkbox is clicked', async ({ p
   await expect(checkbox).toBeChecked()
 })
 
+test('renders enum config properties as dropdowns and notifies after save', async ({ page }) => {
+  const config = {
+    general_config: {
+      notification_position: { value: 'top_right', default_value: 'top_right', allowed_values: ['top_left', 'top_right', 'bottom_left', 'bottom_right'], added_version: '1.0.0', description: 'Notification position', hide: false, deprecated_version: '' },
+    },
+    logging_config: {
+      log_level: { value: 'info', default_value: 'info', allowed_values: ['trace', 'debug', 'info', 'warn', 'error'], added_version: '1.0.0', description: 'Log level', hide: false, deprecated_version: '' },
+    },
+    camera_configs: [],
+    open_protocol_configs: [],
+    volumes: [],
+  }
+  await page.route('**/config', async (route) => route.fulfill({ json: config }))
+  await page.route('**/default_config', async (route) => route.fulfill({ json: config }))
+  await page.route('**/set_config', async (route) => route.fulfill({ json: config }))
+
+  await page.goto('/settings')
+  const position = page.locator('.config-field').filter({ hasText: 'notification_position' })
+  const level = page.locator('.config-field').filter({ hasText: 'log_level' })
+  await expect(position.locator('select')).toHaveValue('top_right')
+  await expect(position.locator('option')).toHaveCount(4)
+  await expect(position.locator('option')).toHaveText(['top_left', 'top_right', 'bottom_left', 'bottom_right'])
+  await expect(position.locator('input[type="text"]')).toHaveCount(0)
+  await position.locator('select').selectOption('bottom_left')
+  await expect(page.locator('.notification-tray')).toHaveClass(/notification-bottom_left/)
+  await expect(level.locator('select')).toHaveValue('info')
+  await level.locator('select').selectOption('debug')
+  await expect(page.getByRole('heading', { name: /Settings\*/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.notification-info')).toContainText('Saved 2 changes')
+})
+
+test('prompts before leaving settings with unsaved changes', async ({ page }) => {
+  const config = {
+    general_config: {
+      http_port: { value: 8123, default_value: 8123, added_version: '1.0.0', description: 'HTTP port', hide: false, deprecated_version: '' },
+      ws_port: { value: 8124, default_value: 8124, added_version: '1.0.0', description: 'Websocket port', hide: false, deprecated_version: '' },
+      allow_remote_connections: { value: false, default_value: false, added_version: '1.0.0', description: 'Remote connections', hide: false, deprecated_version: '' },
+    },
+    logging_config: {},
+    camera_configs: [],
+    open_protocol_configs: [],
+  }
+  await page.route('**/config', async (route) => route.fulfill({ json: config }))
+  await page.route('**/default_config', async (route) => route.fulfill({ json: config }))
+
+  await page.goto('/settings')
+  await page.locator('.config-field').filter({ hasText: 'http_port' }).locator('input').fill('9000')
+  await page.getByRole('link', { name: 'Volumes' }).click()
+
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog).toContainText('general_config.http_port')
+  await dialog.getByRole('button', { name: 'Restore' }).click()
+  await expect(page).toHaveURL(/\/volumes$/)
+})
+
 test('adding a camera device uses the server default configuration', async ({ page, request }) => {
   // Use the real default endpoint while starting with an empty camera list.
   const defaultResponse = await request.get('http://127.0.0.1:8123/default_config')

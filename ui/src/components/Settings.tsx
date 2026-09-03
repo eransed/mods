@@ -1,7 +1,9 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Config } from "../types/Config";
 import { Button } from "./Button";
+import { info as notifyInfo, setNotificationPosition } from "../lib/notifications";
+import { applyUserInterfaceColors } from "../lib/theme";
 
 export type OpenProtocolState = {
     name: string;
@@ -16,6 +18,12 @@ export interface SettingsProps {
     http_port: number
     webSocket: WebSocket | null
     openProtocolStates: Record<string, OpenProtocolState>
+    onUnsavedChangesChange?: (changes: string[], actions: SettingsActions | null) => void
+}
+
+export interface SettingsActions {
+    save: () => Promise<void>
+    restore: () => void
 }
 
 function configEqual(a: Config, b: Config): boolean {
@@ -41,7 +49,32 @@ function configChangeCount(current: unknown, saved: unknown): number {
     return current === saved ? 0 : 1;
 }
 
-export function Settings({ http_port, webSocket, openProtocolStates: receivedOpenProtocolStates }: SettingsProps) {
+function configChangeList(current: unknown, saved: unknown, path = ''): string[] {
+    if (isConfigProperty(current) && isConfigProperty(saved)) {
+        return current.value === saved.value ? [] : [path];
+    }
+    if (Array.isArray(current) || Array.isArray(saved)) {
+        const currentValues = Array.isArray(current) ? current : [];
+        const savedValues = Array.isArray(saved) ? saved : [];
+        const length = Math.max(currentValues.length, savedValues.length);
+        return Array.from({ length }, (_, index) => configChangeList(
+            currentValues[index],
+            savedValues[index],
+            `${path}[${index}]`,
+        )).flat();
+    }
+    if (current !== null && typeof current === 'object' && saved !== null && typeof saved === 'object') {
+        const keys = new Set([...Object.keys(current), ...Object.keys(saved)]);
+        return [...keys].flatMap((key) => configChangeList(
+            (current as ConfigObject)[key],
+            (saved as ConfigObject)[key],
+            path ? `${path}.${key}` : key,
+        ));
+    }
+    return current === saved ? [] : [path];
+}
+
+export function Settings({ http_port, webSocket, openProtocolStates: receivedOpenProtocolStates, onUnsavedChangesChange }: SettingsProps) {
     let protocol = 'http'
     let url = `${protocol}://${window.location.hostname}:${http_port}`
     const [config, setConfig] = useState<Config | null>(null);
@@ -83,6 +116,19 @@ export function Settings({ http_port, webSocket, openProtocolStates: receivedOpe
     }, [url]);
 
     useEffect(() => {
+        const position = configModified?.user_interface_config?.notification_position?.value;
+        if (typeof position === 'string') setNotificationPosition(position);
+        const userInterfaceConfig = configModified?.user_interface_config;
+        if (userInterfaceConfig) {
+            applyUserInterfaceColors({
+                background_color: userInterfaceConfig.background_color.value,
+                foreground_color: userInterfaceConfig.foreground_color.value,
+                accent_color: userInterfaceConfig.accent_color.value,
+            });
+        }
+    }, [configModified]);
+
+    useEffect(() => {
         const receivedNames = new Set(Object.keys(receivedOpenProtocolStates));
         setConnectingOpenProtocolNames((current) => {
             const next = new Set([...current].filter((name) => !receivedNames.has(name)));
@@ -116,17 +162,38 @@ export function Settings({ http_port, webSocket, openProtocolStates: receivedOpe
         return () => webSocket.removeEventListener('message', handleMessage);
     }, [webSocket]);
 
+    let numberOfChanges = configChangeCount(configModified, config)
+    let changesText = numberOfChanges + ' ' + (numberOfChanges === 1 ? 'change' : 'changes')
+    changesText = numberOfChanges === 0 ? '' : changesText
+    let changesStar = numberOfChanges === 0 ? '' : '*'
+
+    const saveConfig = useCallback(async () => {
+        if (!configModified) return;
+        setConnectingOpenProtocolNames(new Set(configModified.open_protocol_configs.map((entry) => entry.name.value)));
+        setConfig(configModified);
+        await updateConfig(url, configModified);
+        const savedChanges = configChangeCount(configModified, config);
+        notifyInfo(`Saved ${savedChanges} ${savedChanges === 1 ? 'change' : 'changes'}`);
+    }, [configModified, url]);
+
+    const restoreConfig = useCallback(() => {
+        if (!config) return;
+        setConnectingOpenProtocolNames(new Set());
+        setConfigModified(config);
+    }, [config]);
+
+    useEffect(() => {
+        const changes = config && configModified ? configChangeList(configModified, config) : [];
+        onUnsavedChangesChange?.(changes, changes.length > 0 ? { save: saveConfig, restore: restoreConfig } : null);
+        return () => onUnsavedChangesChange?.([], null);
+    }, [config, configModified, onUnsavedChangesChange]);
+
     if (errState) {
         return <>
             <h1>Settings</h1>
             <p>{`${errState}`}</p>
         </>
     }
-
-    let numberOfChanges = configChangeCount(configModified, config)
-    let changesText = numberOfChanges + ' ' + (numberOfChanges === 1 ? 'change' : 'changes')
-    changesText = numberOfChanges === 0 ? '' : changesText
-    let changesStar = numberOfChanges === 0 ? '' : '*'
 
     return (
         <div className="settings-page">
@@ -174,11 +241,7 @@ export function Settings({ http_port, webSocket, openProtocolStates: receivedOpe
                         }}>
                             Undo
                         </Button>
-                        <Button className="config-save" variant="primary" disabled={configEqual(config, configModified)} onClick={() => {
-                            setConnectingOpenProtocolNames(new Set(configModified.open_protocol_configs.map((entry) => entry.name.value)));
-                            setConfig(configModified)
-                            updateConfig(url, configModified)
-                        }}>Save</Button>
+                        <Button className="config-save" variant="primary" disabled={configEqual(config, configModified)} onClick={saveConfig}>Save</Button>
                     </div>
                 }
             </div>
@@ -207,6 +270,8 @@ type ConfigObject = Record<string, unknown>;
 type ConfigProperty = {
     value: boolean | number | string;
     default_value: boolean | number | string;
+    allowed_values?: string[];
+    input_type?: string;
     added_version: string;
     description: string;
     hide: boolean;
@@ -228,6 +293,8 @@ function plainProperty(value: boolean | number | string): ConfigProperty {
     return {
         value,
         default_value: value,
+        allowed_values: undefined,
+        input_type: undefined,
         added_version: '',
         description: '',
         hide: false,
@@ -324,6 +391,7 @@ function configModuleLabel(label: string): string {
     if (label === 'logging_config') return 'Logging';
     if (label === 'camera_configs') return 'Camera Devices';
     if (label === 'open_protocol_configs') return 'OpenProtocol Devices';
+    if (label === 'user_interface_config') return 'User Interface';
     if (label === 'volumes') return 'Volumes';
     return label;
 }
@@ -542,6 +610,23 @@ function ConfigField({ label, property, oldProperty, onChange }: ConfigFieldProp
             id={id}
             step={step}
         />
+    } else if (property.input_type === 'color' && typeof value === 'string') {
+        input = <input
+            type="color"
+            value={colorInputValue(value)}
+            onChange={(e) => onChange(updateColorValue(value, e.target.value))}
+            id={id}
+        />
+    } else if (property.allowed_values && property.allowed_values.length > 0) {
+        input = <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            id={id}
+        >
+            {property.allowed_values.map((allowedValue) => (
+                <option key={allowedValue} value={allowedValue}>{allowedValue}</option>
+            ))}
+        </select>
     } else if (typeof value === 'string') {
         input = <input
             type="text"
@@ -579,19 +664,25 @@ function ConfigField({ label, property, oldProperty, onChange }: ConfigFieldProp
     );
 }
 
-function updateConfig(url: string, newConfig: Config) {
-    fetch(`${url}/set_config`, {
+function colorInputValue(value: string): string {
+    return /^#[0-9a-f]{8}$/i.test(value) ? value.slice(0, 7) : value;
+}
+
+function updateColorValue(current: string, rgb: string): string {
+    const alpha = /^#[0-9a-f]{8}$/i.test(current) ? current.slice(7) : 'ff';
+    return `${rgb}${alpha}`;
+}
+
+async function updateConfig(url: string, newConfig: Config): Promise<void> {
+    const response = await fetch(`${url}/set_config`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(newConfig),
-    }).then((response) => {
-        if (!response.ok) {
-            throw new Error(`Failed to update configuration: ${response.statusText}`);
-        }
-        console.log('Configuration updated successfully');
-    }).catch((error) => {
-        console.error('Error updating configuration:', error);
     });
+    if (!response.ok) {
+        throw new Error(`Failed to update configuration: ${response.statusText}`);
+    }
+    console.log('Configuration updated successfully');
 }

@@ -1,15 +1,26 @@
-import { useEffect, useRef, useState } from 'react'
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { MouseEvent } from 'react'
+import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { msPretty } from './lib/utils'
 import { Overview } from './components/Overview'
 import { Api } from './components/Api'
 import { Camera } from './components/Camera'
 import { View } from './components/View'
 import { Volumes } from './components/Volumes'
-import { Settings, type OpenProtocolState } from './components/Settings'
+import { Settings, type OpenProtocolState, type SettingsActions } from './components/Settings'
 import { About } from './components/About'
 import { Button } from './components/Button'
 import type { Config } from './types/Config'
+import {
+  dismiss,
+  getNotificationPosition,
+  getNotifications,
+  setNotificationPosition,
+  subscribeNotificationPosition,
+  subscribeNotifications,
+  type Notification,
+} from './lib/notifications'
+import { applyUserInterfaceColors } from './lib/theme'
 // import mermaid from 'mermaid'
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error'
@@ -23,12 +34,22 @@ type SystemStats = {
 function App() {
   // mermaid.initialize({})
   const cutoffWidth = 600
+  const navigate = useNavigate()
 
   const [status, setStatus] = useState<ConnectionState>('connecting')
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
   const [systemStats, setSystemStats] = useState<SystemStats>({ cpu: '-', ram: '-', mem: '-' })
   const [websocket, setWebsocket] = useState<WebSocket | null>(null)
   const [openProtocolStates, setOpenProtocolStates] = useState<Record<string, OpenProtocolState>>({})
+  const [notifications, setNotifications] = useState<Notification[]>(getNotifications())
+  const [notificationPosition, setNotificationPositionState] = useState(getNotificationPosition())
+  const [settingsChanges, setSettingsChanges] = useState<string[]>([])
+  const [settingsActions, setSettingsActions] = useState<SettingsActions | null>(null)
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
+  const handleSettingsChanges = useCallback((changes: string[], actions: SettingsActions | null) => {
+    setSettingsChanges(changes)
+    setSettingsActions(actions)
+  }, [])
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > cutoffWidth)
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
   const disconnectStart = useRef<number | null>(null)
@@ -95,6 +116,13 @@ function App() {
           const config = (await response.json()) as Config
           if (typeof config.general_config?.ws_port?.value === 'number') {
             console.log('Config received:', config)
+            setNotificationPosition(config.user_interface_config?.notification_position?.value ?? 'top_right')
+            applyUserInterfaceColors({
+              background_color: config.user_interface_config?.background_color?.value ?? '#161a1eff',
+              foreground_color: config.user_interface_config?.foreground_color?.value ?? '#f4f6f8ff',
+              accent_color: config.user_interface_config?.accent_color?.value ?? '#ebcd26ff',
+            })
+            setNotificationPositionState(getNotificationPosition())
             resolvedWsPort = config.general_config.ws_port.value
             gotConfig = true
             setReconnectAttempts(0)
@@ -210,12 +238,15 @@ function App() {
     }
   }, [defaultWsPort, host])
 
+  useEffect(() => subscribeNotifications(setNotifications), [])
+  useEffect(() => subscribeNotificationPosition(setNotificationPositionState), [])
+
   let routes = [
     <Route path="/view" element={<View port={rootPort} />} />,
     <Route path="/volumes" element={<Volumes port={rootPort} />} />,
     <Route path="/overview" element={<Overview />} />,
     <Route path="/camera" element={websocket ? <Camera webSocket={websocket} /> : <div>Camera waiting for websocket connection...</div>} />,
-    <Route path="/settings" element={<Settings http_port={rootPort} webSocket={websocket} openProtocolStates={openProtocolStates} />} />,
+    <Route path="/settings" element={<Settings http_port={rootPort} webSocket={websocket} openProtocolStates={openProtocolStates} onUnsavedChangesChange={handleSettingsChanges} />} />,
     <Route path="/api" element={<Api port={rootPort} />} />,
     <Route path="/about" element={<About port={rootPort} />} />,
   ]
@@ -224,8 +255,38 @@ function App() {
     return String(w).charAt(0).toUpperCase() + String(w).slice(1);
   }
 
+  function handleNavigation(event: MouseEvent<HTMLAnchorElement>, path: string) {
+    if (settingsChanges.length > 0 && path !== '/settings') {
+      event.preventDefault()
+      setPendingNavigation(path)
+    } else if (screenWidth <= cutoffWidth) {
+      setSidebarOpen(false)
+    }
+  }
+
+  async function continueNavigation(save: boolean) {
+    if (!pendingNavigation || !settingsActions) return
+    if (save) {
+      await settingsActions.save()
+    } else {
+      settingsActions.restore()
+    }
+    const destination = pendingNavigation
+    setPendingNavigation(null)
+    navigate(destination)
+    if (screenWidth <= cutoffWidth) setSidebarOpen(false)
+  }
+
   return (
     <div className={`app-shell${screenWidth <= cutoffWidth ? ' small' : ''}${sidebarOpen ? ' sidebar-open' : ''}`}>
+      <div className={`notification-tray notification-${notificationPosition}`} aria-live="polite">
+        {notifications.map((notification) => (
+          <div key={notification.id} className={`notification notification-${notification.level}`} role="status">
+            <span>{notification.message}</span>
+            <button type="button" aria-label="Dismiss notification" onClick={() => dismiss(notification.id)}>x</button>
+          </div>
+        ))}
+      </div>
       <aside className={`sidebar${screenWidth <= cutoffWidth ? ' small' : ''}${screenWidth <= cutoffWidth && sidebarOpen ? ' visible' : ''}`}>
         <div className="sidebar-header">
           <Button
@@ -248,11 +309,7 @@ function App() {
                   className={({ isActive }) =>
                     `nav-link${isActive ? ' nav-link-active' : ''}`
                   }
-                  onClick={() => {
-                    if (screenWidth <= cutoffWidth) {
-                      setSidebarOpen(false)
-                    }
-                  }}
+                  onClick={(event) => handleNavigation(event, page.props.path)}
                 >
                   {capitalize(page.props.path.replace('/', '') || 'overview')}
                 </NavLink>
@@ -299,6 +356,21 @@ function App() {
           </Routes>
         </section>
       </main>
+      {pendingNavigation && (
+        <div className="settings-navigation-backdrop" role="presentation">
+          <div className="settings-navigation-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-navigation-title">
+            <h2 id="settings-navigation-title">Save {settingsChanges.length} unsaved {settingsChanges.length === 1 ? 'change' : 'changes'}?</h2>
+            <ul>
+              {settingsChanges.map((change) => <li key={change}>{change}</li>)}
+            </ul>
+            <div className="settings-navigation-actions">
+              <Button type="button" onClick={() => setPendingNavigation(null)}>Cancel</Button>
+              <Button type="button" onClick={() => void continueNavigation(false)}>Restore</Button>
+              <Button type="button" variant="primary" onClick={() => void continueNavigation(true)}>Save</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
