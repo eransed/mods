@@ -34,7 +34,7 @@ interface NumberFieldProps {
 
 /** Marks a field whose value differs from the stored configuration. */
 function ModifiedMark({ testId }: { testId: string }) {
-  return <span data-testid={`${testId}-modified`} style={{ color: '#ffd400' }}> *</span>
+  return <span data-testid={`${testId}-modified`} style={{ color: 'var(--accent)' }}> *</span>
 }
 
 /** Number input that displays one decimal but keeps the raw text while it is being edited. */
@@ -365,12 +365,12 @@ export function View({ port }: ViewProps) {
           flex: narrow ? '0 0 50%' : '1 1 auto',
           minWidth: 0,
           minHeight: 0,
-          background: darkMode ? '#000' : '#fff',
-          color: darkMode ? '#fff' : '#222',
+          background: darkMode ? 'var(--bg)' : 'var(--fg)',
+          color: darkMode ? 'var(--fg)' : 'var(--bg)',
           overflow: 'hidden',
         }}
       >
-        {error && <p style={{ position: 'absolute', top: 8, left: 8, color: '#e66' }}>{error}</p>}
+        {error && <p style={{ position: 'absolute', top: 8, left: 8, color: 'var(--error)' }}>{error}</p>}
 
         {!panelOpen && (
           <Button
@@ -395,10 +395,10 @@ export function View({ port }: ViewProps) {
             minWidth: 0,
             minHeight: 0,
             padding: '0.75rem',
-            background: '#111',
-            color: '#fff',
-            borderLeft: narrow ? undefined : '1px solid #ffffff22',
-            borderTop: narrow ? '1px solid #ffffff22' : undefined,
+            background: 'var(--panel-bg)',
+            color: 'var(--fg)',
+            borderLeft: narrow ? undefined : '1px solid var(--border-subtle)',
+            borderTop: narrow ? '1px solid var(--border-subtle)' : undefined,
             overflowY: 'auto',
             boxSizing: 'border-box',
           }}
@@ -410,7 +410,7 @@ export function View({ port }: ViewProps) {
               data-testid="volume-panel-close"
               aria-label="Close"
               onClick={() => { setPanelOpen(false); setSelected(null) }}
-              style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '1.1rem' }}
+              style={{ background: 'none', border: 'none', color: 'var(--fg)', cursor: 'pointer', fontSize: '1.1rem' }}
             >
               ✕
             </button>

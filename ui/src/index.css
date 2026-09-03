@@ -2,6 +2,16 @@
   --fg: #f4f6f8;
   --bg: #161a1e;
   --accent: #ebcd26;
+  --muted: color-mix(in srgb, var(--fg) 55%, var(--bg));
+  --subtle: color-mix(in srgb, var(--fg) 72%, var(--bg));
+  --control-fg: var(--fg);
+  --surface-hover: color-mix(in srgb, var(--accent) 18%, var(--bg));
+  --surface-active: color-mix(in srgb, var(--accent) 28%, var(--bg));
+  --border-subtle: color-mix(in srgb, var(--fg) 20%, var(--bg));
+  --shadow-color: color-mix(in srgb, var(--bg) 70%, transparent);
+  --overlay-color: color-mix(in srgb, var(--bg) 65%, transparent);
+  --error: color-mix(in srgb, var(--accent) 70%, var(--fg));
+  --panel-bg: color-mix(in srgb, var(--bg) 88%, var(--fg));
 
   color: var(--fg);
   background: var(--bg);
@@ -60,7 +70,7 @@ body,
   padding: 0.75rem 1rem;
   border: 1px solid;
   background: var(--bg);
-  box-shadow: 0 0.25rem 1rem rgb(0 0 0 / 35%);
+  box-shadow: 0 0.25rem 1rem var(--shadow-color);
   pointer-events: auto;
 }
 
@@ -74,23 +84,23 @@ body,
 }
 
 .notification-debug {
-  color: #aaa;
-  border-color: #888;
+  color: var(--muted);
+  border-color: var(--border-subtle);
 }
 
 .notification-info {
-  color: #6ec8ff;
-  border-color: #298dcc;
+  color: var(--subtle);
+  border-color: var(--accent);
 }
 
 .notification-warn {
-  color: #ebcd26;
-  border-color: #b49d16;
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .notification-error {
-  color: #ff7777;
-  border-color: #c33;
+  color: var(--fg);
+  border-color: var(--accent);
 }
 
 body {
@@ -130,7 +140,7 @@ select {
   border: 1px solid var(--accent);
   padding-left: 0.5rem;
   padding-right: 0.5rem;
-  color: #fff;
+  color: var(--control-fg);
   font: inherit;
   width: 7rem;
 }
@@ -156,7 +166,7 @@ label b, label i {
 }
 
 label i {
-  color: #888;
+  color: var(--muted);
   font-size: 0.8rem;
 }
 
@@ -178,7 +188,7 @@ label i {
   /* content: '\2713'; */
   content: '\2714';
   /* content: '\2715'; */
-  color: #fff;
+  color: var(--control-fg);
   position: absolute;
   top: -3px;
   left: 3px;
@@ -223,7 +233,7 @@ button:disabled {
   gap: 0.35rem;
   width: calc(100% - 2rem);
   padding: 0.6rem 0;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border-subtle);
   margin-bottom: 0.4rem;
 }
 
@@ -244,7 +254,7 @@ button:disabled {
 }
 
 .config-field-state {
-  color: #888;
+  color: var(--muted);
   font-size: 0.85em;
   font-style: italic;
   font-weight: 400;
@@ -259,7 +269,7 @@ button:disabled {
 
 .config-field-bottom {
   align-items: baseline;
-  color: #aaa;
+  color: var(--muted);
   font-size: 0.85rem;
 }
 
@@ -273,11 +283,11 @@ button:disabled {
 
 .config-field-description {
   flex: 1;
-  color: #ccc;
+  color: var(--subtle);
 }
 
 .config-field-old-value {
-  color: #e8c44a;
+  color: var(--accent);
   font-size: 0.8rem;
 }
 
@@ -309,7 +319,7 @@ button:disabled {
 }
 
 .settings-change-summary {
-  color: #aaa;
+  color: var(--muted);
   font-size: 0.7em;
   font-style: italic;
   font-weight: 400;
@@ -344,7 +354,7 @@ button:disabled {
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: rgb(0 0 0 / 65%);
+  background: var(--overlay-color);
 }
 
 .settings-navigation-dialog {
@@ -352,7 +362,7 @@ button:disabled {
   padding: 1.5rem;
   background: var(--bg);
   border: 1px solid var(--accent);
-  box-shadow: 0 0.5rem 2rem rgb(0 0 0 / 40%);
+  box-shadow: 0 0.5rem 2rem var(--shadow-color);
 }
 
 .settings-navigation-dialog h2 {
@@ -365,7 +375,7 @@ button:disabled {
   margin: 0;
   padding-left: 1.25rem;
   overflow: auto;
-  color: #ccc;
+  color: var(--subtle);
 }
 
 .settings-navigation-actions {
@@ -405,7 +415,7 @@ button:disabled {
 
 .settings-section-count {
   margin-left: 0.5rem;
-  color: #888;
+  color: var(--muted);
   font-size: 0.75em;
   font-style: italic;
   font-weight: 400;
@@ -413,7 +423,7 @@ button:disabled {
 
 .settings-section-previous-count {
   margin-left: 0.5rem;
-  color: #888;
+  color: var(--muted);
   font-size: 0.7em;
   font-style: italic;
   font-weight: 400;
@@ -443,7 +453,7 @@ button:disabled {
 }
 
 .settings-entry-address-value {
-  color: #888;
+  color: var(--muted);
   font-size: 0.7em;
   font-style: italic;
   font-weight: 400;
@@ -451,7 +461,7 @@ button:disabled {
 }
 
 .settings-entry-connection {
-  color: #888;
+  color: var(--muted);
   font-size: 0.7em;
   font-style: italic;
   font-weight: 400;
@@ -602,12 +612,12 @@ ul {
 }
 
 .nav-link:hover {
-  background: #096a35;
+  background: var(--surface-hover);
 }
 
 .nav-link-active {
-  background: #a5750e18;
-  border-color: #a5730e5a;
+  background: var(--surface-active);
+  border-color: var(--accent);
   font-weight: 600;
 }
 
@@ -728,7 +738,7 @@ h1 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #888;
+  color: var(--muted);
   font-style: italic;
   text-transform: capitalize;
 }

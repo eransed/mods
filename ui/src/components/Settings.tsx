@@ -590,7 +590,7 @@ interface ConfigFieldProps {
 function ConfigField({ label, property, oldProperty, onChange }: ConfigFieldProps) {
     const { value } = property;
     const id = useId()
-    let input = <div style={{ color: '#e00' }}><b>Unsupported config parameter type: {typeof value}</b></div>
+    let input = <div style={{ color: 'var(--error)' }}><b>Unsupported config parameter type: {typeof value}</b></div>
     if (typeof value === 'boolean') {
         input = <input
             type="checkbox"

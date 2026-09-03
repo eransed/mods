@@ -8,7 +8,7 @@ export interface VolumesProps {
 
 const cellStyle: CSSProperties = {
   padding: '0.35rem 0.6rem',
-  borderBottom: '1px solid #ffffff22',
+  borderBottom: '1px solid var(--border-subtle)',
   textAlign: 'left',
   verticalAlign: 'middle',
 }
@@ -111,7 +111,7 @@ export function Volumes({ port }: VolumesProps) {
     <div>
       <h2>Volumes{modified ? '*' : ''}</h2>
       <p>Manage sphere volumes. List view.</p>
-      {error && <p style={{ color: '#e66' }}>{error}</p>}
+      {error && <p style={{ color: 'var(--error)' }}>{error}</p>}
 
       <div style={{ display: 'flex', gap: '0.5rem', margin: '0.5rem 0' }}>
         <Button type="button" onClick={() => setVolumes((current) => [...current, newVolume(current)])}>
