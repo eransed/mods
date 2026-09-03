@@ -4,11 +4,11 @@ use std::{
   path::{Path, PathBuf},
 };
 use tokio::sync::{
-  broadcast::{Receiver, Sender},
+  broadcast::{Receiver, Sender, error::RecvError},
   mpsc::UnboundedReceiver,
   watch,
 };
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, warn};
 use types::Config;
 
 pub enum ConfigRequest {
@@ -124,7 +124,7 @@ impl ConfigModule {
           },
           result = self.receiver.recv() => match result {
               Ok(Message::Broadcast { sender, body }) => {
-                  trace!("broadcast received: {} bytes from {}", body.len(), sender);
+                let _ = (body, sender);
               }
               Ok(Message::Ping { sender }) => {
                   debug!("ping received from {}", sender);
@@ -137,10 +137,11 @@ impl ConfigModule {
               }
               Ok(Message::Discovery(event)) => {
                   debug!("discovery event received: {:?}", event);
-              }
+                }
               Ok(_) => {}
-              Err(e) => {
-                  error!("broadcast channel closed: {}", e);
+                Err(RecvError::Lagged(_count)) => {}
+                Err(RecvError::Closed) => {
+                  error!("config broadcast channel closed");
                   break;
               }
           },

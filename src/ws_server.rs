@@ -74,7 +74,7 @@ impl WsServer {
         match message {
           Message::Broadcast { sender, body } => {
             let mut clients = clients.lock().await;
-            trace!(%sender, "ws_server broadcasting internal message to {} ws clients", clients.len());
+            let _ = sender;
             clients.retain(|client| client.send(WsMessage::Text(body.clone())).is_ok());
           }
           Message::Pong { sender } => {

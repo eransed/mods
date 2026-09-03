@@ -47,8 +47,11 @@ struct Args {
   count: u8,
 }
 
-fn init_tracing_guard(config: &Config) -> WorkerGuard {
-  init_tracing(config)
+fn init_tracing_guard(
+  config: &Config,
+  sender: tokio::sync::broadcast::Sender<Message>,
+) -> WorkerGuard {
+  init_tracing(config, sender)
 }
 
 async fn run_openprotocol(
@@ -146,7 +149,7 @@ async fn main() {
 
   let (config_module, config_rx) = ConfigModule::new(broadcast_sender.clone(), config_request_rx);
   let initial_config = config_module.config().clone();
-  let _guard = init_tracing_guard(&initial_config);
+  let _guard = init_tracing_guard(&initial_config, broadcast_sender.clone());
 
   info!("Starting MODS server with configuration: {:#?}", initial_config);
 

@@ -640,6 +640,66 @@ ul {
   font-size: 1.15rem;
 }
 
+.logs-page {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  height: 100%;
+}
+
+.logs-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--accent);
+}
+
+.logs-status,
+.logs-count {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.logs-list {
+  min-height: 0;
+  overflow: auto;
+  padding-top: 0.5rem;
+}
+
+.logs-list pre {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--subtle);
+  font: 0.78rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.logs-list pre:first-child {
+  color: var(--fg);
+}
+
+.logs-empty {
+  color: var(--muted);
+  padding: 1rem 0.5rem;
+}
+
+.logs-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--accent);
+}
+
+.logs-pagination button {
+  margin: 0;
+}
+
 .header {
   display: flex;
   align-items: center;

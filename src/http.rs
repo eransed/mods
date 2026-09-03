@@ -19,7 +19,9 @@ use types::Config;
 
 use std::{
   collections::HashMap,
+  fs,
   net::SocketAddr,
+  path::Path,
   time::{Duration, Instant},
 };
 use tokio::net::TcpListener;
@@ -29,6 +31,8 @@ use tokio::sync::{
 use tracing::{debug, info};
 
 use crate::{config::ConfigRequest, message::Message, udp_discovery_server::DiscoveryCommand};
+
+const LOG_PAGE_SIZE: usize = 500;
 
 pub struct HttpModule {
   name: &'static str,
@@ -83,6 +87,7 @@ impl HttpModule {
       .route("/shutdown", get(shutdown_handler))
       .route("/config", get(config_handler))
       .route("/default_config", get(default_config_handler))
+      .route("/logs", get(logs_handler))
       .route("/peers", get(peers_handler))
       .route("/clear_peers", get(clear_peers_handler))
       .route("/send", get(send_handler))
@@ -116,6 +121,7 @@ async fn endpoints_handler(State(_state): State<HttpState>) -> impl IntoResponse
     "/shutdown",
     "/config",
     "/default_config",
+    "/logs",
     "/ping",
     "/peers",
     "/clear_peers",
@@ -223,6 +229,70 @@ async fn config_handler(State(state): State<HttpState>) -> impl IntoResponse {
 // Return the complete default configuration without reading the active state.
 async fn default_config_handler(State(_state): State<HttpState>) -> impl IntoResponse {
   (StatusCode::OK, Json(Config::default())).into_response()
+}
+
+#[derive(serde::Deserialize)]
+struct LogsQuery {
+  page: Option<usize>,
+}
+
+async fn logs_handler(
+  Query(query): Query<LogsQuery>,
+  State(_state): State<HttpState>,
+) -> impl IntoResponse {
+  let page = query.page.unwrap_or(1);
+  match read_logs_page(Path::new("logs"), page, LOG_PAGE_SIZE) {
+    Ok(response) => (StatusCode::OK, Json(response)).into_response(),
+    Err(error) => {
+      debug!(error = ?error, "failed to read log files");
+      (StatusCode::INTERNAL_SERVER_ERROR, "failed to read logs").into_response()
+    }
+  }
+}
+
+#[derive(serde::Serialize)]
+struct LogsPage {
+  logs: Vec<String>,
+  page: usize,
+  page_size: usize,
+  total_logs: usize,
+  has_previous: bool,
+  has_next: bool,
+}
+
+fn read_logs_page(
+  log_directory: &Path,
+  page: usize,
+  page_size: usize,
+) -> std::io::Result<LogsPage> {
+  let mut files = fs::read_dir(log_directory)?
+    .filter_map(Result::ok)
+    .filter_map(|entry| {
+      entry.metadata().ok().filter(|metadata| metadata.is_file()).map(|metadata| {
+        (metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH), entry.path())
+      })
+    })
+    .collect::<Vec<_>>();
+  files.sort_by(|left, right| right.0.cmp(&left.0));
+
+  let mut all_logs = Vec::new();
+  for (_, path) in files {
+    let contents = fs::read_to_string(path)?;
+    all_logs.extend(contents.lines().rev().map(str::to_string));
+  }
+
+  let page = page.max(1);
+  let page_size = page_size.clamp(1, LOG_PAGE_SIZE);
+  let start = (page - 1).saturating_mul(page_size);
+  let logs = all_logs.iter().skip(start).take(page_size).cloned().collect();
+  Ok(LogsPage {
+    logs,
+    page,
+    page_size,
+    total_logs: all_logs.len(),
+    has_previous: page > 1,
+    has_next: start.saturating_add(page_size) < all_logs.len(),
+  })
 }
 
 async fn set_config_handler(

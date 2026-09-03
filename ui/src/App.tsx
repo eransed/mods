@@ -9,6 +9,7 @@ import { View } from './components/View'
 import { Volumes } from './components/Volumes'
 import { Settings, type OpenProtocolState, type SettingsActions } from './components/Settings'
 import { About } from './components/About'
+import { Logs } from './components/Logs'
 import { Button } from './components/Button'
 import type { Config } from './types/Config'
 import {
@@ -249,6 +250,7 @@ function App() {
     <Route path="/settings" element={<Settings http_port={rootPort} webSocket={websocket} openProtocolStates={openProtocolStates} onUnsavedChangesChange={handleSettingsChanges} />} />,
     <Route path="/api" element={<Api port={rootPort} />} />,
     <Route path="/about" element={<About port={rootPort} />} />,
+    <Route path="/logs" element={<Logs port={rootPort} webSocket={websocket} />} />,
   ]
 
   function capitalize(w: string) {
