@@ -52,11 +52,18 @@ impl Frequency {
   }
 }
 
-fn create_camera(device_index: i32, device_width: f64, use_gstreamer: bool) -> Option<videoio::VideoCapture> {
+fn create_camera(
+  device_index: i32,
+  device_width: f64,
+  use_gstreamer: bool,
+) -> Option<videoio::VideoCapture> {
   if use_gstreamer {
-    let pipeline =
-      "libcamerasrc ! video/x-raw,width=1280,height=1080,format=BGR ! videoconvert ! appsink";
-    let camera = videoio::VideoCapture::from_file(pipeline, videoio::CAP_GSTREAMER).expect("Failed to create gstreamer camera");
+
+    let w = 1280;
+    let h = 1080;
+    let pipeline = format!("libcamerasrc ! video/x-raw,width={},height={} ! videoconvert ! video/x-raw,format=BGR ! appsink drop=true max-buffers=1 sync=false", w, h);
+    let camera = videoio::VideoCapture::from_file(pipeline, videoio::CAP_GSTREAMER)
+      .expect("Failed to create gstreamer camera");
     return Some(camera);
   } else {
     let mut camera = match videoio::VideoCapture::new(device_index, videoio::CAP_ANY) {
@@ -111,7 +118,10 @@ pub fn camera_start(
 
   let window_title = "mods";
 
-  info!("Trying to start camera: {} with frame width: {} using backend: {} use_gstreamer: {}", device_index, device_width, camera_config.backend.value, use_gstreamer);
+  info!(
+    "Trying to start camera: {} with frame width: {} using backend: {} use_gstreamer: {}",
+    device_index, device_width, camera_config.backend.value, use_gstreamer
+  );
 
   // Convert the configured camera index to the OpenCV integer type safely.
   let device_index = match i32::try_from(device_index) {
