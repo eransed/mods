@@ -62,9 +62,9 @@ fn create_camera(
   if use_gstreamer {
     let w = device_width;
     let h = device_height;
-    // let pipeline = "libcamerasrc ! video/x-raw,width=1280,height=1080,format=BGR ! videoconvert ! appsink";
+    // let pipe = "libcamerasrc ! video/x-raw,width=4056,height=2160,format=BGR ! videoconvert ! appsink drop=true max-buffers=1 sync=false";
     let mut pipeline = format!(
-      "libcamerasrc ! video/x-raw,width={},height={} ! queue leaky=downstream max-size-buffers=1 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=true max-buffers=1 sync=false",
+      "libcamerasrc ! video/x-raw,width={},height={},format=BGR ! videoconvert ! appsink drop=true max-buffers=1 sync=false",
       w, h
     );
 

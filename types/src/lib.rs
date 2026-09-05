@@ -306,7 +306,7 @@ impl Default for CameraConfig {
         allowed_values: None,
         input_type: None,
         added_version: "1.0.0".to_string(),
-        description: "The width of the camera device".to_string(),
+        description: "The height of the camera device".to_string(),
         hide: false,
         deprecated_version: String::new(),
       },
