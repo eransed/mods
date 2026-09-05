@@ -105,11 +105,13 @@ pub fn camera_start(
   let camera_fetch_delay_ms = camera_config.camera_fetch_delay_ms.value;
   let camera_send_image = camera_config.camera_send_image.value;
   let camera_send_image_resize_factor = camera_config.camera_send_image_resize_factor.value;
+  let use_gstreamer = camera_config.backend.value == "opencv_gstreamer".to_string();
+
   let start = std::time::Instant::now();
 
   let window_title = "mods";
 
-  info!("Trying to start camera: {} with frame width: {}", device_index, device_width);
+  info!("Trying to start camera: {} with frame width: {} using backend: {} use_gstreamer: {}", device_index, device_width, camera_config.backend.value, use_gstreamer);
 
   // Convert the configured camera index to the OpenCV integer type safely.
   let device_index = match i32::try_from(device_index) {
@@ -120,7 +122,7 @@ pub fn camera_start(
     }
   };
 
-  let mut camera = create_camera(device_index, device_width, false).unwrap();
+  let mut camera = create_camera(device_index, device_width, use_gstreamer).unwrap();
 
   if !camera.is_opened().unwrap() {
     error!("Failed to open camera");
