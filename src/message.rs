@@ -10,6 +10,8 @@ pub enum Message {
   Discovery(DiscoveryEvent),
   SystemStatus { cpu_percent: f32, ram_percent: f32, pid_mem_bytes: u64 },
   OpenProtocolState(OpenProtocolState),
+  ConfigReload,
+  ConfigSet,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

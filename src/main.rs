@@ -10,7 +10,7 @@ mod udp_discovery_server;
 mod util;
 mod ws_client;
 mod ws_server;
-// mod module;
+mod module;
 
 use crate::logging::init_tracing;
 use crate::message::Message;

@@ -9,9 +9,9 @@ use std::process::Command;
 use types::{BuildInfo, Config};
 
 macro_rules! p {
-    ($($tokens: tt)*) => {
-        println!("cargo::warning={}", format!($($tokens)*))
-    }
+  ($($tokens: tt)*) => {
+      println!("cargo::warning={}", format!($($tokens)*))
+  }
 }
 
 fn ts() -> String {
@@ -31,6 +31,10 @@ fn _cross_command(cmd: &str) -> Command {
   }
 }
 
+fn cargo_print(s: String) {
+  println!("cargo::warning={}", s);
+}
+
 #[macro_export]
 macro_rules! cross_command {
     ($cmd:expr $(, $arg:expr )* $(,)?) => {{
@@ -44,7 +48,7 @@ macro_rules! cross_command {
             args.push($arg.to_string());
         )*
 
-        let quiet = true;
+        let quiet = false;
 
         #[cfg(windows)]
         {
@@ -72,6 +76,7 @@ macro_rules! cross_command {
 }
 
 fn main() {
+  let start_time = std::time::Instant::now();
   let simple_compile = false;
 
   let ocv_ver_str;
@@ -365,4 +370,5 @@ fn main() {
   }
 
   let _ = cross_command!("echo", "Done");
+  cargo_print(format!("build.rs time: {:.1?}", start_time.elapsed()));
 }

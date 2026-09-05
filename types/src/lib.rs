@@ -2,7 +2,7 @@ use std::usize;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BuildInfo {
   pub binary_release_size_kb: u64,
   pub binary_debug_size_kb: u64,
@@ -324,9 +324,9 @@ pub struct Config {
   pub logging_config: LoggingConfig,
   pub camera_configs: Vec<CameraConfig>,
   pub open_protocol_configs: Vec<OpenProtocolClientConfig>,
-  /// Tolerate config files written before volumes existed.
   #[serde(default)]
   pub volumes: Vec<Sphere>,
+  pub writer_build_info: BuildInfo
 }
 
 impl Default for Config {
@@ -337,6 +337,7 @@ impl Default for Config {
       camera_configs: vec![CameraConfig::default()],
       open_protocol_configs: vec![OpenProtocolClientConfig::default()],
       volumes: Sphere::defaults(),
+      writer_build_info: BuildInfo::default(),
     }
   }
 }

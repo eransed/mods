@@ -10,7 +10,7 @@ use tokio::sync::{
 };
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::message::{Message, TopicMessage};
 
@@ -108,6 +108,9 @@ impl WsServer {
               let mut clients = clients.lock().await;
               clients.retain(|client| client.send(WsMessage::Text(text.clone())).is_ok());
             }
+          }
+          _ => {
+            warn!("Unhandled message: {:?}", message);
           }
         }
       }
