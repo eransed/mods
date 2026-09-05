@@ -68,7 +68,7 @@ fn create_camera(
       w, h
     );
 
-    if gstreamer_raw == String::from("") {
+    if gstreamer_raw != String::from("") {
       info!("Using raw gstreamer string");
       pipeline = gstreamer_raw;
     }
