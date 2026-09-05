@@ -11,6 +11,7 @@ export interface Config {
 export interface CameraConfig {
     name:                            StringProperty;
     enable_camera:                   BoolProperty;
+    backend:                         StringProperty;
     opencv_display:                  BoolProperty;
     angle_filter:                    NumberProperty;
     min_decision_margin:             NumberProperty;
@@ -32,22 +33,22 @@ export interface NumberProperty {
     deprecated_version: string;
 }
 
-export interface BoolProperty {
-    value:              boolean;
-    default_value:      boolean;
-    allowed_values:     null;
-    input_type:         null;
+export interface StringProperty {
+    value:              string;
+    default_value:      string;
+    allowed_values:     string[] | null;
+    input_type:         null | string;
     added_version:      string;
     description:        string;
     hide:               boolean;
     deprecated_version: string;
 }
 
-export interface StringProperty {
-    value:              string;
-    default_value:      string;
-    allowed_values:     string[] | null;
-    input_type:         null | string;
+export interface BoolProperty {
+    value:              boolean;
+    default_value:      boolean;
+    allowed_values:     null;
+    input_type:         null;
     added_version:      string;
     description:        string;
     hide:               boolean;

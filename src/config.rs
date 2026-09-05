@@ -87,7 +87,6 @@ impl ConfigModule {
 
   pub async fn run(mut self) {
     loop {
-      debug!("config run loop iter");
       tokio::select! {
           maybe_request = self.request_receiver.recv() => match maybe_request {
               Some(request) => match request {
@@ -125,7 +124,7 @@ impl ConfigModule {
           },
           result = self.receiver.recv() => match result {
               Ok(Message::Broadcast { sender, body }) => {
-                  debug!("broadcast received: {} bytes from {}", body.len(), sender);
+                  // debug!("broadcast received: {} bytes from {}", body.len(), sender);
                 let _ = (body, sender);
               }
               Ok(Message::Ping { sender }) => {
@@ -141,7 +140,7 @@ impl ConfigModule {
                   debug!("discovery event received: {:?}", event);
               }
               Ok(_) => {
-                debug!("Empty broadcast");
+                // debug!("Empty broadcast");
               }
               Err(RecvError::Lagged(_count)) => {}
               Err(RecvError::Closed) => {

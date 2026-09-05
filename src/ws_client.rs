@@ -59,9 +59,9 @@ impl WsClient {
               }
               Ok(WsMessage::Text(text)) => {
                 if text.len() > 300 {
-                  debug!("received text, {} bytes", text.len());
+                  // debug!("received text, {} bytes", text.len());
                 } else {
-                  debug!("received text, {} bytes: {}", text.len(), text);
+                  // debug!("received text, {} bytes: {}", text.len(), text);
                 }
               }
               Ok(WsMessage::Binary(data)) => {

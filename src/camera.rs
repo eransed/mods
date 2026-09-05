@@ -52,6 +52,40 @@ impl Frequency {
   }
 }
 
+fn create_camera(device_index: i32, device_width: f64, use_gstreamer: bool) -> Option<videoio::VideoCapture> {
+  if use_gstreamer {
+    let pipeline =
+      "libcamerasrc ! video/x-raw,width=1280,height=1080,format=BGR ! videoconvert ! appsink";
+    let camera = videoio::VideoCapture::from_file(pipeline, videoio::CAP_GSTREAMER).expect("Failed to create gstreamer camera");
+    return Some(camera);
+  } else {
+    let mut camera = match videoio::VideoCapture::new(device_index, videoio::CAP_ANY) {
+      Ok(c) => c,
+      Err(e) => {
+        error!("Failed to create camera: {}", e);
+        return None;
+      }
+    };
+
+    match camera.set(videoio::CAP_PROP_FRAME_WIDTH, device_width) {
+      Ok(_) => (),
+      Err(e) => {
+        error!("Failed to set CAP_PROP_FRAME_WIDTH: {}", e);
+      }
+    };
+
+    match camera.get(videoio::CAP_PROP_FRAME_WIDTH) {
+      Ok(w) => {
+        info!("Camera CAP_PROP_FRAME_WIDTH: {}", w);
+      }
+      Err(e) => {
+        error!("Failed to read camera CAP_PROP_FRAME_WIDTH: {}", e);
+      }
+    }
+    return Some(camera);
+  }
+}
+
 pub fn camera_start(
   sender: Sender<Message>,
   shutdown_rx: Receiver<bool>,
@@ -86,29 +120,7 @@ pub fn camera_start(
     }
   };
 
-  let mut camera = match videoio::VideoCapture::new(device_index, videoio::CAP_ANY) {
-    Ok(c) => c,
-    Err(e) => {
-      error!("Failed to create camera: {}", e);
-      return;
-    }
-  };
-
-  match camera.set(videoio::CAP_PROP_FRAME_WIDTH, device_width) {
-    Ok(_) => (),
-    Err(e) => {
-      error!("Failed to set CAP_PROP_FRAME_WIDTH: {}", e);
-    }
-  };
-
-  match camera.get(videoio::CAP_PROP_FRAME_WIDTH) {
-    Ok(w) => {
-      info!("Camera CAP_PROP_FRAME_WIDTH: {}", w);
-    }
-    Err(e) => {
-      error!("Failed to read camera CAP_PROP_FRAME_WIDTH: {}", e);
-    }
-  }
+  let mut camera = create_camera(device_index, device_width, false).unwrap();
 
   if !camera.is_opened().unwrap() {
     error!("Failed to open camera");
