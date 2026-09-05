@@ -1,5 +1,73 @@
 # mods
 
+## Modules
+### Core modules
+
+#### InstanceManager
+Runs separate instances of the system. An instance have its own config and can run one copy of all modules
+An instance can be active or inactive. The main UI is mainly a view on a selected instance.
+This module also provides system information such as CPU and RAM usage.
+
+#### MessageBus
+All modules can communicate through this bus. Message types are defined by the MessageAPI module
+
+Logging is also performed on this bus
+
+#### HTTP server
+Provides an HTTP endpoint based on the message/api module for the integrated UI and other external integrations
+
+#### WebSocket server
+Provides an WS endpoint based on the message/api module for the integrated UI and other external integrations.
+
+Basically a way for external systems to send and receive on the internal MessageBus
+
+#### Config
+Defines the base config of the system and is extended by types from other modules
+
+#### MessageAPI
+Types for internal and external communication. Extended by API definition from the feature modules.
+
+#### DeviceAggregator
+Mixes devices such as PositionProviders to PositionSubscribers
+
+#### LocationAggregator
+Manages and defines collections of locations. A location can be defined as a algebraical combination from multiple PositionProviders. For example a device is inside a location if any one (PP1 OR PP2) of two PositionProviders says so.
+
+#### ProcessController
+Manages and defines process. A process requires some devices and how they report an OK result. Devices can be locked when outside of a location and unlocked when inside an location. Locations can trigger a program on a device for example. Logic for conditions 
+that must be fullfilled before the instance shall proceed with the next steps. This module might be merged with the EventRouter
+
+#### EventRouter
+Customize behaviour based on events from the modules.
+
+### Feature modules - PositionProviders or Inputs
+
+PositionProviders will provide positions to any PositionSubscriber. 
+
+#### MonoTagTracker (PositionProvider)
+Single camera tag tracker module - provides position data about targets (collection of tags)
+
+The MTT can track tags from some aruco and apriltag familes.
+
+#### UWB (PositionProvider)
+
+#### MQTT (PositionProvider)
+
+#### SpiderAPI (PositionProvider)
+
+#### ModbusTCP (PositionProvider)
+
+#### TOF FingerPrinter (PositionProvider)
+
+#### GenericResultProvider
+Provides any result status that can be used in a process. Image validation, digital status signals etc.
+
+### Feature modules - PositionSubscribers or Outputs
+#### OpenProtcol
+#### GenericToolAPI
+#### ProjectorsAPI
+
+
 ## Required build dependencies
 - rust
 - git
