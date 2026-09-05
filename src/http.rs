@@ -32,7 +32,7 @@ use tracing::{debug, info};
 
 use crate::{config::ConfigRequest, message::Message, udp_discovery_server::DiscoveryCommand};
 
-const LOG_PAGE_SIZE: usize = 500;
+const MAX_LOG_PAGE_SIZE: usize = 10_000;
 
 pub struct HttpModule {
   name: &'static str,
@@ -87,7 +87,7 @@ impl HttpModule {
       .route("/shutdown", get(shutdown_handler))
       .route("/config", get(config_handler))
       .route("/default_config", get(default_config_handler))
-      .route("/logs", get(logs_handler))
+      .route("/api/logs", get(logs_handler))
       .route("/peers", get(peers_handler))
       .route("/clear_peers", get(clear_peers_handler))
       .route("/send", get(send_handler))
@@ -121,7 +121,7 @@ async fn endpoints_handler(State(_state): State<HttpState>) -> impl IntoResponse
     "/shutdown",
     "/config",
     "/default_config",
-    "/logs",
+    "/api/logs",
     "/ping",
     "/peers",
     "/clear_peers",
@@ -142,10 +142,11 @@ async fn log_request(
     && request.method() == Method::OPTIONS;
   let query = request.uri().query().unwrap_or_default().to_string();
   info!(
-      peer_addr = %peer_addr,
-      path = %request.uri().path(),
-      query = %query,
-      "req"
+    "req: peer: {}, method: {}, path: {}, query: {}",
+    peer_addr,
+    request.method(),
+    request.uri().path(),
+    query
   );
 
   let mut response =
@@ -238,10 +239,24 @@ struct LogsQuery {
 
 async fn logs_handler(
   Query(query): Query<LogsQuery>,
-  State(_state): State<HttpState>,
+  State(state): State<HttpState>,
 ) -> impl IntoResponse {
   let page = query.page.unwrap_or(1);
-  match read_logs_page(Path::new("logs"), page, LOG_PAGE_SIZE) {
+  let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+  let request = ConfigRequest::Get { requester: state.name, response: response_tx };
+
+  let config = match state.config_request.send(request) {
+    Ok(_) => match response_rx.await {
+      Ok(config) => config,
+      Err(_) => {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "config response failed").into_response();
+      }
+    },
+    Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "config request failed").into_response(),
+  };
+
+  let page_size = config.logging_config.log_page_size.value;
+  match read_logs_page(Path::new("logs"), page, page_size) {
     Ok(response) => (StatusCode::OK, Json(response)).into_response(),
     Err(error) => {
       debug!(error = ?error, "failed to read log files");
@@ -250,7 +265,7 @@ async fn logs_handler(
   }
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 struct LogsPage {
   logs: Vec<String>,
   page: usize,
@@ -282,7 +297,7 @@ fn read_logs_page(
   }
 
   let page = page.max(1);
-  let page_size = page_size.clamp(1, LOG_PAGE_SIZE);
+  let page_size = page_size.clamp(1, MAX_LOG_PAGE_SIZE);
   let start = (page - 1).saturating_mul(page_size);
   let logs = all_logs.iter().skip(start).take(page_size).cloned().collect();
   Ok(LogsPage {
@@ -514,6 +529,21 @@ mod tests {
     assert!(response.status().is_success());
     let config: Config = response.json().await.unwrap();
     assert_eq!(config, Config::default());
+
+    handle.abort();
+  }
+
+  #[tokio::test]
+  async fn logs_page_is_ui_and_api_logs_is_json() {
+    let (addr, handle) = spawn_http_module().await;
+
+    let ui_response = reqwest::get(format!("http://{addr}/logs")).await.unwrap();
+    assert!(ui_response.headers()["content-type"].to_str().unwrap().starts_with("text/html"));
+
+    let api_response = reqwest::get(format!("http://{addr}/api/logs")).await.unwrap();
+    assert!(api_response.status().is_success());
+    let page: LogsPage = api_response.json().await.unwrap();
+    assert_eq!(page.page_size, Config::default().logging_config.log_page_size.value);
 
     handle.abort();
   }

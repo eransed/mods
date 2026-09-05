@@ -66,6 +66,7 @@ export interface LoggingConfig {
     log_level:            StringProperty;
     max_lines_per_file:   NumberProperty;
     max_log_file_to_keep: NumberProperty;
+    log_page_size:        NumberProperty;
 }
 
 export interface OpenProtocolConfig {

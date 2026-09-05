@@ -651,9 +651,33 @@ ul {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--accent);
+}
+
+.logs-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.logs-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--subtle);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.logs-toggle input {
+  width: 2.25rem;
+  height: 1.2rem;
+  margin: 0;
+  accent-color: var(--accent);
 }
 
 .logs-status,
@@ -669,6 +693,8 @@ ul {
 }
 
 .logs-list pre {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
   margin: 0;
   padding: 0.35rem 0.5rem;
   border-bottom: 1px solid var(--border-subtle);
@@ -676,6 +702,13 @@ ul {
   font: 0.78rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.logs-line-number {
+  color: var(--muted);
+  text-align: right;
+  padding-right: 0.75rem;
+  user-select: none;
 }
 
 .logs-list pre:first-child {

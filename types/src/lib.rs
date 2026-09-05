@@ -50,6 +50,21 @@ pub struct LoggingConfig {
   pub log_level: ConfigProperty<String>,
   pub max_lines_per_file: ConfigProperty<usize>,
   pub max_log_file_to_keep: ConfigProperty<usize>,
+  #[serde(default = "default_log_page_size")]
+  pub log_page_size: ConfigProperty<usize>,
+}
+
+fn default_log_page_size() -> ConfigProperty<usize> {
+  ConfigProperty {
+    value: 500,
+    default_value: 500,
+    allowed_values: None,
+    input_type: None,
+    added_version: "1.0.0".to_string(),
+    description: "The number of log messages shown per page".to_string(),
+    hide: false,
+    deprecated_version: String::new(),
+  }
 }
 
 impl Default for LoggingConfig {
@@ -85,6 +100,7 @@ impl Default for LoggingConfig {
         hide: false,
         deprecated_version: String::new(),
       },
+      log_page_size: default_log_page_size(),
     }
   }
 }
