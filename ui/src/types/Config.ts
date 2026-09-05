@@ -12,6 +12,7 @@ export interface CameraConfig {
     name:                            StringProperty;
     enable_camera:                   BoolProperty;
     backend:                         StringProperty;
+    gstreamer_raw:                   StringProperty;
     opencv_display:                  BoolProperty;
     angle_filter:                    NumberProperty;
     min_decision_margin:             NumberProperty;

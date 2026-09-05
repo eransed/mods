@@ -57,15 +57,23 @@ fn create_camera(
   device_width: f64,
   device_height: f64,
   use_gstreamer: bool,
+  gstreamer_raw: String
 ) -> Option<videoio::VideoCapture> {
   if use_gstreamer {
     let w = device_width;
     let h = device_height;
     // let pipeline = "libcamerasrc ! video/x-raw,width=1280,height=1080,format=BGR ! videoconvert ! appsink";
-    let pipeline = format!(
+    let mut pipeline = format!(
       "libcamerasrc ! video/x-raw,width={},height={} ! queue leaky=downstream max-size-buffers=1 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=true max-buffers=1 sync=false",
       w, h
     );
+
+    if gstreamer_raw == String::from("") {
+      info!("Using raw gstreamer string");
+      pipeline = gstreamer_raw;
+    }
+
+    info!("gstreamer backend config:\n{}", pipeline);
 
     let camera = videoio::VideoCapture::from_file(pipeline.as_str(), videoio::CAP_GSTREAMER)
       .expect("Failed to create gstreamer camera");
@@ -138,7 +146,7 @@ pub fn camera_start(
     }
   };
 
-  let mut camera = create_camera(device_index, device_width, device_height, use_gstreamer).unwrap();
+  let mut camera = create_camera(device_index, device_width, device_height, use_gstreamer, camera_config.gstreamer_raw.value).unwrap();
 
   if !camera.is_opened().unwrap() {
     error!("Failed to open camera");
