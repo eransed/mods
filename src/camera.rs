@@ -55,17 +55,18 @@ impl Frequency {
 fn create_camera(
   device_index: i32,
   device_width: f64,
+  device_height: f64,
   use_gstreamer: bool,
 ) -> Option<videoio::VideoCapture> {
   if use_gstreamer {
-
-    let w = 1280;
-    let h = 1080;
+    let w = device_width;
+    let h = device_height;
     // let pipeline = "libcamerasrc ! video/x-raw,width=1280,height=1080,format=BGR ! videoconvert ! appsink";
-    // let pipeline = format!("libcamerasrc ! video/x-raw,width={},height={} ! videoconvert ! video/x-raw,format=BGR ! appsink drop=true max-buffers=1 sync=false", w, h);
-    // let pipeline = format!("libcamerasrc ! video/x-raw,width={},height={} ! videoconvert ! format=BGR ! appsink drop=true max-buffers=1 sync=false", w, h);
-    let pipeline = format!("libcamerasrc ! video/x-raw,width={},height={} ! queue leaky=downstream max-size-buffers=1 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=true max-buffers=1 sync=false", w, h);
-    
+    let pipeline = format!(
+      "libcamerasrc ! video/x-raw,width={},height={} ! queue leaky=downstream max-size-buffers=1 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=true max-buffers=1 sync=false",
+      w, h
+    );
+
     let camera = videoio::VideoCapture::from_file(pipeline.as_str(), videoio::CAP_GSTREAMER)
       .expect("Failed to create gstreamer camera");
     return Some(camera);
@@ -110,6 +111,7 @@ pub fn camera_start(
   };
   let device_index = camera_config.device_index.value;
   let device_width = camera_config.device_width.value;
+  let device_height = camera_config.device_height.value;
   let display = camera_config.opencv_display.value;
   let angle_filter = camera_config.angle_filter.value;
   let min_decision_margin = camera_config.min_decision_margin.value;
@@ -136,7 +138,7 @@ pub fn camera_start(
     }
   };
 
-  let mut camera = create_camera(device_index, device_width, use_gstreamer).unwrap();
+  let mut camera = create_camera(device_index, device_width, device_height, use_gstreamer).unwrap();
 
   if !camera.is_opened().unwrap() {
     error!("Failed to open camera");

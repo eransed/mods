@@ -17,6 +17,7 @@ export interface CameraConfig {
     min_decision_margin:             NumberProperty;
     device_index:                    NumberProperty;
     device_width:                    NumberProperty;
+    device_height:                   NumberProperty;
     camera_fetch_delay_ms:           NumberProperty;
     camera_send_image:               BoolProperty;
     camera_send_image_resize_factor: NumberProperty;
