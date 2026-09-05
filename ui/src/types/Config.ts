@@ -1,6 +1,7 @@
 export interface Config {
     general_config:        GeneralConfig;
     logging_config:        LoggingConfig;
+    user_interface_config: UserInterfaceConfig;
     camera_configs:        CameraConfig[];
     open_protocol_configs: OpenProtocolConfig[];
     volumes:               Volume[];
@@ -23,6 +24,8 @@ export interface CameraConfig {
 export interface NumberProperty {
     value:              number;
     default_value:      number;
+    allowed_values:     null;
+    input_type:         null;
     added_version:      string;
     description:        string;
     hide:               boolean;
@@ -32,6 +35,8 @@ export interface NumberProperty {
 export interface BoolProperty {
     value:              boolean;
     default_value:      boolean;
+    allowed_values:     null;
+    input_type:         null;
     added_version:      string;
     description:        string;
     hide:               boolean;
@@ -41,6 +46,8 @@ export interface BoolProperty {
 export interface StringProperty {
     value:              string;
     default_value:      string;
+    allowed_values:     string[] | null;
+    input_type:         null | string;
     added_version:      string;
     description:        string;
     hide:               boolean;
@@ -60,6 +67,7 @@ export interface LoggingConfig {
     log_level:            StringProperty;
     max_lines_per_file:   NumberProperty;
     max_log_file_to_keep: NumberProperty;
+    log_page_size:        NumberProperty;
 }
 
 export interface OpenProtocolConfig {
@@ -75,6 +83,13 @@ export interface OpenProtocolConfig {
 export interface Mid0001_Config {
     rev:    number;
     active: boolean;
+}
+
+export interface UserInterfaceConfig {
+    notification_position: StringProperty;
+    background_color:      StringProperty;
+    foreground_color:      StringProperty;
+    accent_color:          StringProperty;
 }
 
 export interface Volume {

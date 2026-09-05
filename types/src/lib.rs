@@ -35,6 +35,10 @@ pub struct BuildInfo {
 pub struct ConfigProperty<T> {
   pub value: T,
   pub default_value: T,
+  #[serde(default)]
+  pub allowed_values: Option<Vec<String>>,
+  #[serde(default)]
+  pub input_type: Option<String>,
   pub added_version: String,
   pub description: String,
   pub hide: bool,
@@ -46,6 +50,21 @@ pub struct LoggingConfig {
   pub log_level: ConfigProperty<String>,
   pub max_lines_per_file: ConfigProperty<usize>,
   pub max_log_file_to_keep: ConfigProperty<usize>,
+  #[serde(default = "default_log_page_size")]
+  pub log_page_size: ConfigProperty<usize>,
+}
+
+fn default_log_page_size() -> ConfigProperty<usize> {
+  ConfigProperty {
+    value: 500,
+    default_value: 500,
+    allowed_values: None,
+    input_type: None,
+    added_version: "1.0.0".to_string(),
+    description: "The number of log messages shown per page".to_string(),
+    hide: false,
+    deprecated_version: String::new(),
+  }
 }
 
 impl Default for LoggingConfig {
@@ -54,6 +73,8 @@ impl Default for LoggingConfig {
       log_level: ConfigProperty {
         value: "info".to_string(),
         default_value: "info".to_string(),
+        allowed_values: Some(vec!["trace".to_string(), "debug".to_string(), "info".to_string(), "warn".to_string(), "error".to_string()]),
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The log level".to_string(),
         hide: false,
@@ -62,6 +83,8 @@ impl Default for LoggingConfig {
       max_lines_per_file: ConfigProperty {
         value: 10_000,
         default_value: 10_000,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The maximum number of lines per log file".to_string(),
         hide: false,
@@ -70,11 +93,14 @@ impl Default for LoggingConfig {
       max_log_file_to_keep: ConfigProperty {
         value: 100,
         default_value: 100,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The maximum number of log files to keep".to_string(),
         hide: false,
         deprecated_version: String::new(),
       },
+      log_page_size: default_log_page_size(),
     }
   }
 }
@@ -102,6 +128,8 @@ impl Default for OpenProtocolClientConfig {
       activated: ConfigProperty {
         value: true,
         default_value: true,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "Whether this client connection is activated".to_string(),
         hide: false,
@@ -110,6 +138,8 @@ impl Default for OpenProtocolClientConfig {
       name: ConfigProperty {
         value: "default".to_string(),
         default_value: "default".to_string(),
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The name of this connection".to_string(),
         hide: false,
@@ -118,6 +148,8 @@ impl Default for OpenProtocolClientConfig {
       ip: ConfigProperty {
         value: "127.0.0.1".to_string(),
         default_value: "127.0.0.1".to_string(),
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The IP address of the open protocol server".to_string(),
         hide: false,
@@ -126,6 +158,8 @@ impl Default for OpenProtocolClientConfig {
       port: ConfigProperty {
         value: 4545,
         default_value: 4545,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The port of the open protocol server to connect to".to_string(),
         hide: false,
@@ -134,6 +168,8 @@ impl Default for OpenProtocolClientConfig {
       keep_alive_time_ms: ConfigProperty {
         value: 7500,
         default_value: 7500,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The keep-alive time in milliseconds".to_string(),
         hide: false,
@@ -142,6 +178,8 @@ impl Default for OpenProtocolClientConfig {
       reconnect_delay_ms: ConfigProperty {
         value: 5000,
         default_value: 5000,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The reconnect delay in milliseconds".to_string(),
         hide: false,
@@ -172,6 +210,8 @@ impl Default for CameraConfig {
       name: ConfigProperty {
         value: "default".to_string(),
         default_value: "default".to_string(),
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The name of the camera".to_string(),
         hide: false,
@@ -180,6 +220,8 @@ impl Default for CameraConfig {
       enable_camera: ConfigProperty {
         value: true,
         default_value: true,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "Whether to enable the camera".to_string(),
         hide: false,
@@ -188,6 +230,8 @@ impl Default for CameraConfig {
       opencv_display: ConfigProperty {
         value: false,
         default_value: false,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "Whether to display the OpenCV window on the host machine".to_string(),
         hide: false,
@@ -196,6 +240,8 @@ impl Default for CameraConfig {
       angle_filter: ConfigProperty {
         value: 3,
         default_value: 3,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The number of angles to filter".to_string(),
         hide: false,
@@ -204,6 +250,8 @@ impl Default for CameraConfig {
       min_decision_margin: ConfigProperty {
         value: 20.0,
         default_value: 20.0,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The minimum decision margin".to_string(),
         hide: false,
@@ -212,6 +260,8 @@ impl Default for CameraConfig {
       device_index: ConfigProperty {
         value: 0,
         default_value: 0,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The index of the camera device to use".to_string(),
         hide: false,
@@ -220,6 +270,8 @@ impl Default for CameraConfig {
       device_width: ConfigProperty {
         value: 1920 as f64,
         default_value: 1920 as f64,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The width of the camera device".to_string(),
         hide: false,
@@ -228,6 +280,8 @@ impl Default for CameraConfig {
       camera_fetch_delay_ms: ConfigProperty {
         value: 0,
         default_value: 0,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The delay for fetching camera images".to_string(),
         hide: false,
@@ -236,6 +290,8 @@ impl Default for CameraConfig {
       camera_send_image: ConfigProperty {
         value: true,
         default_value: true,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "Whether to send the camera image".to_string(),
         hide: false,
@@ -244,6 +300,8 @@ impl Default for CameraConfig {
       camera_send_image_resize_factor: ConfigProperty {
         value: 0.4,
         default_value: 0.4,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "The resize factor for the camera image".to_string(),
         hide: false,
@@ -263,12 +321,55 @@ pub struct GeneralConfig {
   pub allow_remote_connections: ConfigProperty<bool>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UserInterfaceConfig {
+  pub notification_position: ConfigProperty<String>,
+  pub background_color: ConfigProperty<String>,
+  pub foreground_color: ConfigProperty<String>,
+  pub accent_color: ConfigProperty<String>,
+}
+
+impl Default for UserInterfaceConfig {
+  fn default() -> Self {
+    Self {
+      notification_position: ConfigProperty {
+        value: "bottom_left".to_string(),
+        default_value: "bottom_left".to_string(),
+        allowed_values: Some(vec!["top_left".to_string(), "top_right".to_string(), "bottom_left".to_string(), "bottom_right".to_string()]),
+        input_type: None,
+        added_version: "1.0.0".to_string(),
+        description: "Screen corner where notifications are displayed".to_string(),
+        hide: false,
+        deprecated_version: String::new(),
+      },
+      background_color: color_property("#161a1eff", "Background color"),
+      foreground_color: color_property("#f4f6f8ff", "Foreground color"),
+      accent_color: color_property("#ebcd26ff", "Accent color"),
+    }
+  }
+}
+
+fn color_property(value: &str, description: &str) -> ConfigProperty<String> {
+  ConfigProperty {
+    value: value.to_string(),
+    default_value: value.to_string(),
+    allowed_values: None,
+    input_type: Some("color".to_string()),
+    added_version: "1.0.0".to_string(),
+    description: description.to_string(),
+    hide: false,
+    deprecated_version: String::new(),
+  }
+}
+
 impl Default for GeneralConfig {
   fn default() -> Self {
     Self {
       _bool_property: ConfigProperty {
         value: true,
         default_value: true,
+        allowed_values: None,
+        input_type: None,
         added_version: "0.0.0".to_string(),
         description: "An example boolean property".to_string(),
         hide: true,
@@ -277,6 +378,8 @@ impl Default for GeneralConfig {
       _string_property: ConfigProperty {
         value: "default".to_string(),
         default_value: "default".to_string(),
+        allowed_values: None,
+        input_type: None,
         added_version: "0.0.0".to_string(),
         description: "An example string property".to_string(),
         hide: true,
@@ -285,6 +388,8 @@ impl Default for GeneralConfig {
       _number_property: ConfigProperty {
         value: 42,
         default_value: 42,
+        allowed_values: None,
+        input_type: None,
         added_version: "0.0.0".to_string(),
         description: "An example number property".to_string(),
         hide: true,
@@ -293,6 +398,8 @@ impl Default for GeneralConfig {
       http_port: ConfigProperty {
         value: 8123,
         default_value: 8123,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "Port that the http server shall listen on".to_string(),
         hide: false,
@@ -301,6 +408,8 @@ impl Default for GeneralConfig {
       ws_port: ConfigProperty {
         value: 8124,
         default_value: 8124,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "Port that the websocket server shall listen on".to_string(),
         hide: false,
@@ -309,6 +418,8 @@ impl Default for GeneralConfig {
       allow_remote_connections: ConfigProperty {
         value: true,
         default_value: true,
+        allowed_values: None,
+        input_type: None,
         added_version: "1.0.0".to_string(),
         description: "Whether to allow remote connections".to_string(),
         hide: false,
@@ -322,6 +433,8 @@ impl Default for GeneralConfig {
 pub struct Config {
   pub general_config: GeneralConfig,
   pub logging_config: LoggingConfig,
+  #[serde(default)]
+  pub user_interface_config: UserInterfaceConfig,
   pub camera_configs: Vec<CameraConfig>,
   pub open_protocol_configs: Vec<OpenProtocolClientConfig>,
   #[serde(default)]
@@ -334,6 +447,7 @@ impl Default for Config {
     Self {
       general_config: GeneralConfig::default(),
       logging_config: LoggingConfig::default(),
+      user_interface_config: UserInterfaceConfig::default(),
       camera_configs: vec![CameraConfig::default()],
       open_protocol_configs: vec![OpenProtocolClientConfig::default()],
       volumes: Sphere::defaults(),

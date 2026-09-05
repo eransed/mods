@@ -2,6 +2,16 @@
   --fg: #f4f6f8;
   --bg: #161a1e;
   --accent: #ebcd26;
+  --muted: color-mix(in srgb, var(--fg) 55%, var(--bg));
+  --subtle: color-mix(in srgb, var(--fg) 72%, var(--bg));
+  --control-fg: var(--fg);
+  --surface-hover: color-mix(in srgb, var(--accent) 18%, var(--bg));
+  --surface-active: color-mix(in srgb, var(--accent) 28%, var(--bg));
+  --border-subtle: color-mix(in srgb, var(--fg) 20%, var(--bg));
+  --shadow-color: color-mix(in srgb, var(--bg) 70%, transparent);
+  --overlay-color: color-mix(in srgb, var(--bg) 65%, transparent);
+  --error: color-mix(in srgb, var(--accent) 70%, var(--fg));
+  --panel-bg: color-mix(in srgb, var(--bg) 88%, var(--fg));
 
   color: var(--fg);
   background: var(--bg);
@@ -20,6 +30,77 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+.notification-tray {
+  position: fixed;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(24rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.notification-top_left {
+  top: 1rem;
+  left: 1rem;
+}
+
+.notification-top_right {
+  top: 1rem;
+  right: 1rem;
+}
+
+.notification-bottom_left {
+  bottom: 1rem;
+  left: 1rem;
+}
+
+.notification-bottom_right {
+  right: 1rem;
+  bottom: 1rem;
+}
+
+.notification {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid;
+  background: var(--bg);
+  box-shadow: 0 0.25rem 1rem var(--shadow-color);
+  pointer-events: auto;
+}
+
+.notification button {
+  margin: 0;
+  padding: 0 0.25rem;
+  border: 0;
+  color: inherit;
+  background: none;
+  font-size: 1rem;
+}
+
+.notification-debug {
+  color: var(--muted);
+  border-color: var(--border-subtle);
+}
+
+.notification-info {
+  color: var(--subtle);
+  border-color: var(--accent);
+}
+
+.notification-warn {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.notification-error {
+  color: var(--fg);
+  border-color: var(--accent);
 }
 
 body {
@@ -59,9 +140,20 @@ select {
   border: 1px solid var(--accent);
   padding-left: 0.5rem;
   padding-right: 0.5rem;
-  color: #fff;
+  color: var(--control-fg);
   font: inherit;
   width: 7rem;
+}
+
+select,
+select option {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+select {
+  width: max-content;
+  max-width: 100%;
 }
 
 /* Hide the native control so the adjacent custom checkbox is visible. */
@@ -74,7 +166,7 @@ label b, label i {
 }
 
 label i {
-  color: #888;
+  color: var(--muted);
   font-size: 0.8rem;
 }
 
@@ -96,7 +188,7 @@ label i {
   /* content: '\2713'; */
   content: '\2714';
   /* content: '\2715'; */
-  color: #fff;
+  color: var(--control-fg);
   position: absolute;
   top: -3px;
   left: 3px;
@@ -141,7 +233,7 @@ button:disabled {
   gap: 0.35rem;
   width: calc(100% - 2rem);
   padding: 0.6rem 0;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border-subtle);
   margin-bottom: 0.4rem;
 }
 
@@ -162,7 +254,7 @@ button:disabled {
 }
 
 .config-field-state {
-  color: #888;
+  color: var(--muted);
   font-size: 0.85em;
   font-style: italic;
   font-weight: 400;
@@ -177,7 +269,7 @@ button:disabled {
 
 .config-field-bottom {
   align-items: baseline;
-  color: #aaa;
+  color: var(--muted);
   font-size: 0.85rem;
 }
 
@@ -191,11 +283,11 @@ button:disabled {
 
 .config-field-description {
   flex: 1;
-  color: #ccc;
+  color: var(--subtle);
 }
 
 .config-field-old-value {
-  color: #e8c44a;
+  color: var(--accent);
   font-size: 0.8rem;
 }
 
@@ -227,7 +319,7 @@ button:disabled {
 }
 
 .settings-change-summary {
-  color: #aaa;
+  color: var(--muted);
   font-size: 0.7em;
   font-style: italic;
   font-weight: 400;
@@ -253,6 +345,48 @@ button:disabled {
 
 .settings-config-file-input {
   display: none;
+}
+
+.settings-navigation-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--overlay-color);
+}
+
+.settings-navigation-dialog {
+  width: min(32rem, 100%);
+  padding: 1.5rem;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  box-shadow: 0 0.5rem 2rem var(--shadow-color);
+}
+
+.settings-navigation-dialog h2 {
+  margin: 0 0 1rem;
+  color: var(--accent);
+}
+
+.settings-navigation-dialog ul {
+  max-height: 16rem;
+  margin: 0;
+  padding-left: 1.25rem;
+  overflow: auto;
+  color: var(--subtle);
+}
+
+.settings-navigation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+
+.settings-navigation-actions button {
+  margin: 0;
 }
 
 .settings-section h2 {
@@ -281,7 +415,7 @@ button:disabled {
 
 .settings-section-count {
   margin-left: 0.5rem;
-  color: #888;
+  color: var(--muted);
   font-size: 0.75em;
   font-style: italic;
   font-weight: 400;
@@ -289,7 +423,7 @@ button:disabled {
 
 .settings-section-previous-count {
   margin-left: 0.5rem;
-  color: #888;
+  color: var(--muted);
   font-size: 0.7em;
   font-style: italic;
   font-weight: 400;
@@ -319,7 +453,7 @@ button:disabled {
 }
 
 .settings-entry-address-value {
-  color: #888;
+  color: var(--muted);
   font-size: 0.7em;
   font-style: italic;
   font-weight: 400;
@@ -327,7 +461,7 @@ button:disabled {
 }
 
 .settings-entry-connection {
-  color: #888;
+  color: var(--muted);
   font-size: 0.7em;
   font-style: italic;
   font-weight: 400;
@@ -478,12 +612,12 @@ ul {
 }
 
 .nav-link:hover {
-  background: #096a35;
+  background: var(--surface-hover);
 }
 
 .nav-link-active {
-  background: #a5750e18;
-  border-color: #a5730e5a;
+  background: var(--surface-active);
+  border-color: var(--accent);
   font-weight: 600;
 }
 
@@ -504,6 +638,99 @@ ul {
 .page-body h2 {
   margin: 0 0 0.5rem;
   font-size: 1.15rem;
+}
+
+.logs-page {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  height: 100%;
+}
+
+.logs-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--accent);
+}
+
+.logs-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.logs-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--subtle);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.logs-toggle input {
+  width: 2.25rem;
+  height: 1.2rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.logs-status,
+.logs-count {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.logs-list {
+  min-height: 0;
+  overflow: auto;
+  padding-top: 0.5rem;
+}
+
+.logs-list pre {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--subtle);
+  font: 0.78rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.logs-line-number {
+  color: var(--muted);
+  text-align: right;
+  padding-right: 0.75rem;
+  user-select: none;
+}
+
+.logs-list pre:first-child {
+  color: var(--fg);
+}
+
+.logs-empty {
+  color: var(--muted);
+  padding: 1rem 0.5rem;
+}
+
+.logs-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--accent);
+}
+
+.logs-pagination button {
+  margin: 0;
 }
 
 .header {
@@ -604,7 +831,7 @@ h1 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #888;
+  color: var(--muted);
   font-style: italic;
   text-transform: capitalize;
 }

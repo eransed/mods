@@ -91,7 +91,7 @@ export function Camera({ webSocket }: CameraProps) {
                             height: 'auto',
                         }}
                     />}
-                    <div style={{ color: '#eee' }}>
+                    <div style={{ color: 'var(--subtle)' }}>
                         <p>Tags detected: {data.tags.length}</p>
                         <p>Detection time: {(data.detection_time_us / 1000).toFixed(dec)}ms</p>
                         <p>Image size: {data.image_size[0]} x {data.image_size[1]}</p>
@@ -104,7 +104,7 @@ export function Camera({ webSocket }: CameraProps) {
                         <p>Frames received: {framesReceived}</p>
                         <p>Time elapsed: {(msSinceFirstFrame / 1000).toFixed(dec)}s</p>
                         {data.tags.map((tag) => (
-                            <div key={tag.id} style={{ marginBottom: '1rem', paddingLeft: '1rem', borderLeft: '2px solid #555', color: '#aea' }}>
+                            <div key={tag.id} style={{ marginBottom: '1rem', paddingLeft: '1rem', borderLeft: '2px solid var(--border-subtle)', color: 'var(--accent)' }}>
                                 <p>Tag ID: {tag.id}</p>
                                 <p>Center Image: ({tag.center_image[0].toFixed(dec)}, {tag.center_image[1].toFixed(dec)})</p>
                                 <p>Decision Margin: {tag.decision_margin.toFixed(dec)}</p>
@@ -116,7 +116,7 @@ export function Camera({ webSocket }: CameraProps) {
                     </div>
                 </div>
             ) : (
-                <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted)' }}>
                     Waiting for camera feed...
                 </div>
             )}

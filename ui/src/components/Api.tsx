@@ -84,7 +84,7 @@ export function Api({ port }: ApiProps) {
             <Button onClick={() => get(`${host}${endpoint[1]}`)}>
               GET
             </Button>
-            <a style={{ fontSize: '0.8rem', color: '#fff' }} href={`${protocol}://${rootUrl}:${rootPort}${endpoint[1]}`} target="_blank" rel="noopener noreferrer">
+            <a style={{ fontSize: '0.8rem', color: 'var(--control-fg)' }} href={`${protocol}://${rootUrl}:${rootPort}${endpoint[1]}`} target="_blank" rel="noopener noreferrer">
               {endpoint[1]}
             </a>
 

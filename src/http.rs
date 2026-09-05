@@ -19,7 +19,9 @@ use types::Config;
 
 use std::{
   collections::HashMap,
+  fs,
   net::SocketAddr,
+  path::Path,
   time::{Duration, Instant},
 };
 use tokio::net::TcpListener;
@@ -29,6 +31,8 @@ use tokio::sync::{
 use tracing::{debug, info};
 
 use crate::{config::ConfigRequest, message::Message, udp_discovery_server::DiscoveryCommand};
+
+const MAX_LOG_PAGE_SIZE: usize = 10_000;
 
 pub struct HttpModule {
   name: &'static str,
@@ -83,6 +87,7 @@ impl HttpModule {
       .route("/shutdown", get(shutdown_handler))
       .route("/config", get(config_handler))
       .route("/default_config", get(default_config_handler))
+      .route("/api/logs", get(logs_handler))
       .route("/peers", get(peers_handler))
       .route("/clear_peers", get(clear_peers_handler))
       .route("/send", get(send_handler))
@@ -116,6 +121,7 @@ async fn endpoints_handler(State(_state): State<HttpState>) -> impl IntoResponse
     "/shutdown",
     "/config",
     "/default_config",
+    "/api/logs",
     "/ping",
     "/peers",
     "/clear_peers",
@@ -136,10 +142,11 @@ async fn log_request(
     && request.method() == Method::OPTIONS;
   let query = request.uri().query().unwrap_or_default().to_string();
   info!(
-      peer_addr = %peer_addr,
-      path = %request.uri().path(),
-      query = %query,
-      "req"
+    "req: peer: {}, method: {}, path: {}, query: {}",
+    peer_addr,
+    request.method(),
+    request.uri().path(),
+    query
   );
 
   let mut response =
@@ -223,6 +230,84 @@ async fn config_handler(State(state): State<HttpState>) -> impl IntoResponse {
 // Return the complete default configuration without reading the active state.
 async fn default_config_handler(State(_state): State<HttpState>) -> impl IntoResponse {
   (StatusCode::OK, Json(Config::default())).into_response()
+}
+
+#[derive(serde::Deserialize)]
+struct LogsQuery {
+  page: Option<usize>,
+}
+
+async fn logs_handler(
+  Query(query): Query<LogsQuery>,
+  State(state): State<HttpState>,
+) -> impl IntoResponse {
+  let page = query.page.unwrap_or(1);
+  let (response_tx, response_rx) = tokio::sync::oneshot::channel();
+  let request = ConfigRequest::Get { requester: state.name, response: response_tx };
+
+  let config = match state.config_request.send(request) {
+    Ok(_) => match response_rx.await {
+      Ok(config) => config,
+      Err(_) => {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "config response failed").into_response();
+      }
+    },
+    Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "config request failed").into_response(),
+  };
+
+  let page_size = config.logging_config.log_page_size.value;
+  match read_logs_page(Path::new("logs"), page, page_size) {
+    Ok(response) => (StatusCode::OK, Json(response)).into_response(),
+    Err(error) => {
+      debug!(error = ?error, "failed to read log files");
+      (StatusCode::INTERNAL_SERVER_ERROR, "failed to read logs").into_response()
+    }
+  }
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct LogsPage {
+  logs: Vec<String>,
+  page: usize,
+  page_size: usize,
+  total_logs: usize,
+  has_previous: bool,
+  has_next: bool,
+}
+
+fn read_logs_page(
+  log_directory: &Path,
+  page: usize,
+  page_size: usize,
+) -> std::io::Result<LogsPage> {
+  let mut files = fs::read_dir(log_directory)?
+    .filter_map(Result::ok)
+    .filter_map(|entry| {
+      entry.metadata().ok().filter(|metadata| metadata.is_file()).map(|metadata| {
+        (metadata.modified().unwrap_or(std::time::SystemTime::UNIX_EPOCH), entry.path())
+      })
+    })
+    .collect::<Vec<_>>();
+  files.sort_by(|left, right| right.0.cmp(&left.0));
+
+  let mut all_logs = Vec::new();
+  for (_, path) in files {
+    let contents = fs::read_to_string(path)?;
+    all_logs.extend(contents.lines().rev().map(str::to_string));
+  }
+
+  let page = page.max(1);
+  let page_size = page_size.clamp(1, MAX_LOG_PAGE_SIZE);
+  let start = (page - 1).saturating_mul(page_size);
+  let logs = all_logs.iter().skip(start).take(page_size).cloned().collect();
+  Ok(LogsPage {
+    logs,
+    page,
+    page_size,
+    total_logs: all_logs.len(),
+    has_previous: page > 1,
+    has_next: start.saturating_add(page_size) < all_logs.len(),
+  })
 }
 
 async fn set_config_handler(
@@ -444,6 +529,21 @@ mod tests {
     assert!(response.status().is_success());
     let config: Config = response.json().await.unwrap();
     assert_eq!(config, Config::default());
+
+    handle.abort();
+  }
+
+  #[tokio::test]
+  async fn logs_page_is_ui_and_api_logs_is_json() {
+    let (addr, handle) = spawn_http_module().await;
+
+    let ui_response = reqwest::get(format!("http://{addr}/logs")).await.unwrap();
+    assert!(ui_response.headers()["content-type"].to_str().unwrap().starts_with("text/html"));
+
+    let api_response = reqwest::get(format!("http://{addr}/api/logs")).await.unwrap();
+    assert!(api_response.status().is_success());
+    let page: LogsPage = api_response.json().await.unwrap();
+    assert_eq!(page.page_size, Config::default().logging_config.log_page_size.value);
 
     handle.abort();
   }

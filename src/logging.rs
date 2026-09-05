@@ -1,11 +1,15 @@
+use crate::message::Message;
 use chrono::Local;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use tracing::info;
+use tokio::sync::broadcast::Sender;
+use tracing::{Event, Subscriber, info};
 use tracing_appender::{non_blocking, non_blocking::WorkerGuard};
-use tracing_subscriber::{EnvFilter, fmt, prelude::*, reload};
+use tracing_subscriber::{
+  EnvFilter, Layer, fmt, layer::Context, prelude::*, registry::LookupSpan, reload,
+};
 use types::{Config, LoggingConfig};
 
 static FILTER_HANDLE: OnceLock<reload::Handle<EnvFilter, tracing_subscriber::Registry>> =
@@ -120,7 +124,48 @@ fn build_filter(log_level: &str) -> EnvFilter {
   EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level))
 }
 
-pub fn init_tracing(config: &Config) -> WorkerGuard {
+struct LogVisitor {
+  message: String,
+}
+
+impl tracing::field::Visit for LogVisitor {
+  fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+    if field.name() == "message" {
+      self.message = format!("{value:?}");
+    }
+  }
+
+  fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+    if field.name() == "message" {
+      self.message = value.to_string();
+    }
+  }
+}
+
+struct WebsocketLogLayer {
+  sender: Sender<Message>,
+}
+
+impl<S> Layer<S> for WebsocketLogLayer
+where
+  S: Subscriber + for<'span> LookupSpan<'span>,
+{
+  fn on_event(&self, event: &Event<'_>, _context: Context<'_, S>) {
+    let mut visitor = LogVisitor { message: String::new() };
+    event.record(&mut visitor);
+    let payload = serde_json::json!({
+      "topic": "log",
+      "timestamp": Local::now().format("%Y-%m-%d %H:%M:%S%.6f").to_string(),
+      "level": event.metadata().level().to_string(),
+      "message": visitor.message,
+    });
+    if let Ok(body) = serde_json::to_string(&payload) {
+      let _ = self.sender.send(Message::Broadcast { sender: "logging", body });
+    }
+  }
+}
+
+pub fn init_tracing(config: &Config, sender: Sender<Message>) -> WorkerGuard {
   let time_fmt = String::from("%Y-%m-%d %H:%M:%S%.6f");
   // Build the logging filter from the configured log-level value.
   let (filter_layer, reload_handle) =
@@ -147,7 +192,13 @@ pub fn init_tracing(config: &Config) -> WorkerGuard {
     .with_line_number(true)
     .with_ansi(false);
 
-  tracing_subscriber::registry().with(filter_layer).with(stdout_layer).with(file_layer).init();
+  let websocket_layer = WebsocketLogLayer { sender };
+  tracing_subscriber::registry()
+    .with(filter_layer)
+    .with(stdout_layer)
+    .with(file_layer)
+    .with(websocket_layer)
+    .init();
 
   let _ = FILTER_HANDLE.set(reload_handle);
   guard

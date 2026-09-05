@@ -55,7 +55,7 @@ export function About({ port }: AboutProps) {
   }
 
   function verSpan() {
-    return (<span style={{ color: '#999' }}>
+    return (<span style={{ color: 'var(--muted)' }}>
       {version()}
     </span>)
   }

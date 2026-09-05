@@ -4,7 +4,7 @@ use std::{
   path::{Path, PathBuf},
 };
 use tokio::sync::{
-  broadcast::{Receiver, Sender},
+  broadcast::{Receiver, Sender, error::RecvError},
   mpsc::UnboundedReceiver,
   watch,
 };
@@ -126,6 +126,7 @@ impl ConfigModule {
           result = self.receiver.recv() => match result {
               Ok(Message::Broadcast { sender, body }) => {
                   debug!("broadcast received: {} bytes from {}", body.len(), sender);
+                let _ = (body, sender);
               }
               Ok(Message::Ping { sender }) => {
                   debug!("ping received from {}", sender);
@@ -142,8 +143,9 @@ impl ConfigModule {
               Ok(_) => {
                 debug!("Empty broadcast");
               }
-              Err(_) => {
-                  error!("broadcast channel closed");
+              Err(RecvError::Lagged(_count)) => {}
+              Err(RecvError::Closed) => {
+                  error!("config broadcast channel closed");
                   break;
               }
           },
