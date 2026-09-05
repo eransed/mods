@@ -146,7 +146,7 @@ pub fn camera_start(
     }
   };
 
-  let mut camera = create_camera(device_index, device_width, device_height, use_gstreamer, camera_config.gstreamer_raw.value).unwrap();
+  let mut camera = create_camera(device_index, device_width, device_height, use_gstreamer, camera_config.gstreamer_raw.value.clone()).unwrap();
 
   if !camera.is_opened().unwrap() {
     error!("Failed to open camera");
