@@ -61,8 +61,12 @@ fn create_camera(
 
     let w = 1280;
     let h = 1080;
-    let pipeline = format!("libcamerasrc ! video/x-raw,width={},height={} ! videoconvert ! video/x-raw,format=BGR ! appsink drop=true max-buffers=1 sync=false", w, h);
-    let camera = videoio::VideoCapture::from_file(pipeline, videoio::CAP_GSTREAMER)
+    // let pipeline = "libcamerasrc ! video/x-raw,width=1280,height=1080,format=BGR ! videoconvert ! appsink";
+    // let pipeline = format!("libcamerasrc ! video/x-raw,width={},height={} ! videoconvert ! video/x-raw,format=BGR ! appsink drop=true max-buffers=1 sync=false", w, h);
+    // let pipeline = format!("libcamerasrc ! video/x-raw,width={},height={} ! videoconvert ! format=BGR ! appsink drop=true max-buffers=1 sync=false", w, h);
+    let pipeline = format!("libcamerasrc ! video/x-raw,width={},height={} ! queue leaky=downstream max-size-buffers=1 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=true max-buffers=1 sync=false", w, h);
+    
+    let camera = videoio::VideoCapture::from_file(pipeline.as_str(), videoio::CAP_GSTREAMER)
       .expect("Failed to create gstreamer camera");
     return Some(camera);
   } else {
